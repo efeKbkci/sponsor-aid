@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SponsorAid.Api/SponsorAid.Api.csproj" />
+  <Project Path="SponsorAid.Application/SponsorAid.Application.csproj" />
+  <Project Path="SponsorAid.Domain/SponsorAid.Domain.csproj" />
+  <Project Path="SponsorAid.Infrastructure/SponsorAid.Infrastructure.csproj" />
+</Solution>
