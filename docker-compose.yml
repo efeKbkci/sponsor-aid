@@ -1,0 +1,67 @@
+services:
+  # 1. Veritabanı Konteyneri (Durum Yönetimi ve Kayıtlar)
+  db:
+    image: postgres:16-alpine
+    container_name: sponsoraid_db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # 2. Mesaj Kuyruğu Konteyneri (İletişim Köprüsü)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: sponsoraid_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "5672:5672"   # API ve Worker'ın haberleştiği port
+      - "15672:15672" # Tarayıcıdan izlenebilen RabbitMQ yönetim paneli
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+  # 3. ASP.NET Backend Konteyneri (Sistemin Beyni)
+  api:
+    build:
+      context: ./src
+      dockerfile: Dockerfile.dev
+    container_name: sponsoraid_api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      # Konteynerler arası iletişimde IP yerine doğrudan servis isimleri (db, rabbitmq) kullanılır:
+      - ConnectionStrings__DefaultConnection=Host=db;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};
+      - RabbitMQ__HostName=rabbitmq
+      # Hot Reload (anında kod derleme) için dosya izleyiciyi aktifleştirir:
+      - DOTNET_USE_POLLING_FILE_WATCHER=1
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./src:/app
+    depends_on:
+      - db
+      - rabbitmq
+    restart: on-failure
+
+  # 4. Mikroservis Konteyneri (Ağır İşçi)
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: sponsoraid_worker
+    environment:
+      - RabbitMQ__HostName=rabbitmq
+    depends_on:
+      - rabbitmq
+    restart: on-failure
+
+# Verilerin sunucu kapandığında kaybolmaması için kalıcı birimler
+volumes:
+  postgres_data:
+  rabbitmq_data:

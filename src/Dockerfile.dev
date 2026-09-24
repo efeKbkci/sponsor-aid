@@ -1,0 +1,11 @@
+# 1. Kodları derleyebilmek için Runtime değil, SDK imajını kullanıyoruz.
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+
+# 2. Konteyner içindeki ana çalışma dizinini belirliyoruz (Volume ile bağlanan yer).
+WORKDIR /app
+
+# 3. Kodu kopyalamıyoruz (COPY . . YOK!). Çünkü Volume mekanizması kodu canlı olarak dışarıdan içeri yansıtıyor.
+
+# 4. Konteyner ayağa kalktığında çalışacak komut.
+# "dotnet watch" aracı, değişiklikleri algıladığında uygulamayı otomatik yeniden derler.
+ENTRYPOINT ["dotnet", "watch", "run", "--project", "SponsorAid.Api/SponsorAid.Api.csproj", "--urls", "http://0.0.0.0:5000"]
