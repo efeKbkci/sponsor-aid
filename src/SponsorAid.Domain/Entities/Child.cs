@@ -11,12 +11,10 @@ public class Child
     public string Name { get; private set; }
     public IdNumber IdentityNumber { get; private set; }
     public DateTime BirthDate { get; private set; }
-    public FatherDetails FatherDetails { get; private set; }
 
     // Otomasyon tarafından doldurulacak alanlar
     public string Hobbies { get; private set; } = string.Empty;
     public string FutureDream { get; private set; } = string.Empty;
-    public Petition? Petition { get; private set; }
 
     public Child(string name, IdNumber identityNumber, DateTime birthDate, FatherDetails fatherDetails)
     {
@@ -34,14 +32,12 @@ public class Child
         Name = name;
         IdentityNumber = identityNumber;
         BirthDate = birthDate;
-        FatherDetails = fatherDetails ?? throw new ArgumentNullException(nameof(fatherDetails));
     }
 
     // Dışarıdan property set edilmesini engelliyoruz, otomasyon bu metodu çağıracak
-    public void SetAutomatedDetails(string hobbies, string futureDream, Petition petition)
+    public void SetAutomatedDetails(string hobbies, string futureDream)
     {
         Hobbies = hobbies ?? string.Empty;
         FutureDream = futureDream ?? string.Empty;
-        Petition = petition ?? throw new ArgumentNullException(nameof(petition));
     }
 }

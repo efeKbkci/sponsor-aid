@@ -12,7 +12,6 @@ public class Guardian
     public string Name { get; private set; }
     public IdNumber IdentityNumber { get; private set; }
     public DateTime BirthDate { get; private set; }
-
     public ApplicantRole Role { get; private set; }
     public Gender Gender { get; private set; }
     public MaritalStatus MaritalStatus { get; private set; }
@@ -45,10 +44,6 @@ public class Guardian
         Address address, PhoneNumber contactInfo, Iban iban)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Vasi ismi boş olamaz.");
-
-        // Vasi mantıken 18 yaşından büyük (reşit) olmalıdır
-        if (birthDate > DateTime.Now.AddYears(-18))
-            throw new ArgumentException("Vasi 18 yaşından büyük olmalıdır.");
 
         Id = Guid.NewGuid();
         Name = name;
