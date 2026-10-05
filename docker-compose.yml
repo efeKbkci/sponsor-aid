@@ -35,15 +35,25 @@ services:
     container_name: sponsoraid_api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      # Konteynerler arası iletişimde IP yerine doğrudan servis isimleri (db, rabbitmq) kullanılır:
       - ConnectionStrings__DefaultConnection=Host=db;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};
       - RabbitMQ__HostName=rabbitmq
-      # Hot Reload (anında kod derleme) için dosya izleyiciyi aktifleştirir:
       - DOTNET_USE_POLLING_FILE_WATCHER=1
     ports:
       - "5000:5000"
     volumes:
+      # Ana kod eşitlemesi
       - ./src:/app
+      # Çakışmayı önlemek için bin/obj klasörlerini izole ediyoruz
+      - /app/SponsorAid.Api/bin
+      - /app/SponsorAid.Api/obj
+      - /app/SponsorAid.Application/bin
+      - /app/SponsorAid.Application/obj
+      - /app/SponsorAid.Domain/bin
+      - /app/SponsorAid.Domain/obj
+      - /app/SponsorAid.Infrastructure/bin
+      - /app/SponsorAid.Infrastructure/obj
+      # Her ayağa kalkışta paketlerin (MediatR vs.) silinmemesi için kalıcı önbellek
+      - nuget_cache:/root/.nuget/packages
     depends_on:
       - db
       - rabbitmq
@@ -53,7 +63,7 @@ services:
   worker:
     build:
       context: ./worker
-      dockerfile: Dockerfile
+      #dockerfile: Dockerfile
     container_name: sponsoraid_worker
     environment:
       - RabbitMQ__HostName=rabbitmq
@@ -65,3 +75,4 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+  nuget_cache:

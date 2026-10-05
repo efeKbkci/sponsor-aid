@@ -4,8 +4,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0
 # 2. Konteyner içindeki ana çalışma dizinini belirliyoruz (Volume ile bağlanan yer).
 WORKDIR /app
 
-# 3. Kodu kopyalamıyoruz (COPY . . YOK!). Çünkü Volume mekanizması kodu canlı olarak dışarıdan içeri yansıtıyor.
-
-# 4. Konteyner ayağa kalktığında çalışacak komut.
-# "dotnet watch" aracı, değişiklikleri algıladığında uygulamayı otomatik yeniden derler.
-ENTRYPOINT ["dotnet", "watch", "run", "--project", "SponsorAid.Api/SponsorAid.Api.csproj", "--urls", "http://0.0.0.0:5000"]
+# 3. ENTRYPOINT GÜNCELLENDİ:
+# - Önce 'dotnet restore' ile MediatR vb. paketlerin o izole klasörlere indirilmesini garantiye alıyoruz.
+# - '--no-launch-profile' parametresi ile launchSettings.json'ı tamamen devreden çıkarıp zorla 5000 portuna kilitliyoruz.
+ENTRYPOINT ["/bin/sh", "-c", "dotnet restore SponsorAid.Api/SponsorAid.Api.csproj && dotnet watch --project SponsorAid.Api/SponsorAid.Api.csproj run --no-launch-profile --urls http://0.0.0.0:5000"]

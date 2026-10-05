@@ -482,3 +482,4 @@ $RECYCLE.BIN/
 *.swp
 /src/SponsorAid.Api/Controllers/HomeController.cs
 /src/SponsorAid.Api/wwwroot/uploads
+/repomix-output.xml
