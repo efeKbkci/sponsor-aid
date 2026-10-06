@@ -184,6 +184,8 @@ public class SystemDocumentsDraft
 {
     public string? PopulationRegistryDocumentPath { get; set; }
     public string? ResidenceDocumentPath { get; set; }
+    public string? IdentityFrontPath { get; set; }
+    public string? IdentityBackPath { get; set; }
     public string? IdentityDocumentPath { get; set; }
     public Petition? Petition { get; set; } // ValueObject
 }

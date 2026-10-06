@@ -61,7 +61,7 @@ public class WorkerResultConsumerService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Worker sonucu işlenirken hata oluştu.");
-                await _channel.BasicNackAsync(ea.DeliveryTag, false, requeue: true, cancellationToken: stoppingToken);
+                await _channel.BasicNackAsync(ea.DeliveryTag, false, requeue: false, cancellationToken: stoppingToken);
             }
         };
 
