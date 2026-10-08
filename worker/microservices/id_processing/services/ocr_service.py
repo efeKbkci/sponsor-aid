@@ -4,10 +4,8 @@ import easyocr
 import re
 
 class OcrService:
-    def __init__(self):
-        print("[*] EasyOCR Modeli RAM'e yükleniyor (Bu işlem sadece açılışta 1 kez yapılır)...")
-        # 'tr' ve 'en' dillerini destekleyen okuyucuyu başlatıyoruz. GPU=False ile standart işlemcide bile çalışır.
-        self.reader = easyocr.Reader(['tr', 'en'], gpu=False, verbose=False)
+    def __init__(self, reader: easyocr.Reader):
+        self.reader = reader
 
     def extract_tc_number(self, image_bytes: bytes, document_side: str) -> str:
         np_array = np.frombuffer(image_bytes, np.uint8)

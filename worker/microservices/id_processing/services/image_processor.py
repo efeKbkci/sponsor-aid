@@ -48,3 +48,40 @@ class ImageProcessor:
         return buffer.tobytes()
 
     # NOT: _order_points ve _four_point_transform metotlarını resmi bozduğu için tamamen sildik.
+
+if __name__ == "__main__":
+    import argparse
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(
+        description="Kimlik fotoğrafındaki kartı kırpar ve _processed ekli yeni dosyaya kaydeder."
+    )
+    parser.add_argument("image_path", type=Path, help="İşlenecek kimlik fotoğrafının yolu")
+    args = parser.parse_args()
+
+    if not args.image_path.is_file():
+        parser.error(f"Fotoğraf dosyası bulunamadı: {args.image_path}")
+
+    output_path = args.image_path.with_name(
+        f"{args.image_path.stem}_processed{args.image_path.suffix}"
+    )
+    model_path = Path(__file__).resolve().parents[1] / "models" / "id_segmenter.pt"
+
+    try:
+        image_processor = ImageProcessor(str(model_path))
+        processed_image = image_processor.extract_id_card(args.image_path.read_bytes())
+
+        if args.image_path.suffix.lower() not in (".jpg", ".jpeg"):
+            decoded_image = cv2.imdecode(
+                np.frombuffer(processed_image, np.uint8), cv2.IMREAD_COLOR
+            )
+            success, encoded_image = cv2.imencode(args.image_path.suffix, decoded_image)
+            if not success:
+                parser.error(f"Fotoğraf formatı desteklenmiyor: {args.image_path.suffix}")
+            processed_image = encoded_image.tobytes()
+
+        output_path.write_bytes(processed_image)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+
+    print(f"İşlenmiş fotoğraf kaydedildi: {output_path}")

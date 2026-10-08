@@ -2,6 +2,7 @@ import json
 import os
 import traceback
 import uuid
+import events_pb2
 from .config import SEGMENTER_MODEL_PATH, ROTATOR_MODEL_PATH
 from .services.image_processor import ImageProcessor
 from .services.image_rotator import ImageRotator
@@ -9,35 +10,23 @@ from .services.ocr_service import OcrService
 from .services.pdf_generator import PdfGenerator
 
 class IdProcessingHandler:
-    def __init__(self):
+    def __init__(self, reader):
         print("[*] [ID Service] Modeller RAM'e yükleniyor...")
         self.image_processor = ImageProcessor(model_path=SEGMENTER_MODEL_PATH)
         self.image_rotator = ImageRotator(model_path=ROTATOR_MODEL_PATH)
-        self.ocr_service = OcrService()
+        self.ocr_service = OcrService(reader)
         self.pdf_generator = PdfGenerator()
         print("[+] [ID Service] Hazır ve bekliyor!")
 
-    def handle_event(self, event: dict) -> dict:
-        """
-        Gelen olayı (event) işler ve C#'a geri gönderilecek olan
-        sonuç sözlüğünü (Result Command) geri döner.
-        """
-        command_type = event.get('CommandType')
-        reg_key = event.get('RegistrationKey')
-
-        if command_type == "ProcessImage":
-            return self._process_image(event, reg_key)
+    # Artık task nesnesini doğrudan parametre alıyor
+    def process_image(self, task) -> events_pb2.WorkerResultMessage:
+        reg_key = task.registration_key
+        file_path = task.file_path
         
-        elif command_type == "MergeToPdf":
-            return self._merge_to_pdf(event, reg_key)
+        # Protobuf Enum değerini OCR için string'e çeviriyoruz
+        side_str = "front" if task.image_side == events_pb2.ImageSide.IMAGE_SIDE_FRONT else "back"
 
-        return None
-
-    def _process_image(self, event, reg_key):
-        file_path = event.get('FilePath')
-        document_side = event.get('DocumentSide', 'Front')
-        
-        print(f"\n[ID Service] 📥 Görev: ProcessImage | Yüz: {document_side} | Anahtar: {reg_key}")
+        print(f"\n[ID Service] 📥 Görev: ProcessImage | Yüz: {side_str} | Anahtar: {reg_key}")
         
         is_success = False
         error_message = None
@@ -52,17 +41,21 @@ class IdProcessingHandler:
             rotated_bytes = self.image_rotator.rotate_id_card(cropped_bytes)
 
             print("   -> OCR ile TC No Analizi...")
-            extracted_tc = self.ocr_service.extract_tc_number(rotated_bytes, document_side)
+            extracted_tc = self.ocr_service.extract_tc_number(rotated_bytes, side_str)
             
-            if extracted_tc:
-                print(f"   [✅] TC No Bulundu: {extracted_tc}")
-            else:
-                print("   [⚠️] TC No okunamadı!")
+            if not extracted_tc:
+                if side_str == "front":
+                    raise ValueError("Kimliğin ön yüzünden TC Kimlik Numarası okunamadı. Lütfen fotoğrafın net, ışıksız ve parlamasız olduğuna emin olun.")
+                else:
+                    raise ValueError("Kimliğin arka yüzünden TC Kimlik Numarası okunamadı. Lütfen alt kısımdaki şifreli alanın (MRZ) net olduğuna emin olun.")
 
+            print(f"TC bulundu : {extracted_tc}")
+            
             with open(file_path, "wb") as f:
                 f.write(rotated_bytes)
 
             is_success = True
+
         except Exception as e:
             is_success = False
             error_message = str(e)
@@ -70,67 +63,54 @@ class IdProcessingHandler:
             traceback.print_exc()
 
         extracted_data_dict = {"IdNumber": extracted_tc} if extracted_tc else {}
+        doc_type_enum = events_pb2.DocumentType.DOCUMENT_TYPE_IDENTITY_FRONT if side_str == "front" else events_pb2.DocumentType.DOCUMENT_TYPE_IDENTITY_BACK
 
-        return {
-            "RegistrationKey": reg_key,
-            "DocumentType": "IdentityDocument", 
-            "IsSuccess": is_success,
-            "ErrorMessage": error_message,
-            "ExtractedDataJson": json.dumps(extracted_data_dict) if is_success else None, 
-            "SavedFilePath": file_path
-        }
+        return events_pb2.WorkerResultMessage(
+            registration_key=reg_key,
+            document_type=doc_type_enum,
+            is_success=is_success,
+            error_message=error_message if not is_success else None,
+            extracted_tc_number=extracted_tc if is_success and extracted_tc else None, # JSON YERİNE BURASI GELDİ
+            saved_file_path=file_path
+        )
 
-    def _merge_to_pdf(self, event, reg_key):
+    def merge_to_pdf(self, task) -> events_pb2.WorkerResultMessage:
+        reg_key = task.registration_key
         print(f"\n[ID Service] 📥 Görev: MergeToPdf | Anahtar: {reg_key}")
 
-        front_side_path = event.get("FrontFilePath")
-        back_side_path = event.get("BackFilePath")
-
         try:
-            # 1. Resimleri diskten oku
-            with open(front_side_path, "rb") as f:
+            with open(task.front_file_path, "rb") as f:
                 front_image = f.read()
-            with open(back_side_path, "rb") as b:
+            with open(task.back_file_path, "rb") as b:
                 back_image = b.read()
 
-            # 2. PDF byte'larını üret
             print("   -> PDF oluşturuluyor...")
             generated_pdf = self.pdf_generator.generate_vertical_pdf(front_image, back_image)
 
-            # 3. Kayıt yolunu belirle
-            base_dir = os.path.dirname(front_side_path)
-            
-            # YENİ: Dosya adının sonuna rastgele 8 haneli bir harf/sayı dizisi ekliyoruz
-            # Örnek Çıktı: A1B2C3_Identity_a7b8c9d0.pdf
+            base_dir = os.path.dirname(task.front_file_path)
             unique_suffix = uuid.uuid4().hex[:8]
             pdf_filename = f"{reg_key}_Identity_{unique_suffix}.pdf"
-            
             pdf_save_path = os.path.join(base_dir, pdf_filename)
 
-            # 4. PDF'i diske yaz
             with open(pdf_save_path, "wb") as pdf_file:
                 pdf_file.write(generated_pdf)
                 
             print(f"   [✅] PDF başarıyla kaydedildi: {pdf_filename}")
 
-            return {
-                "RegistrationKey": reg_key,
-                "DocumentType": "IdentityDocument",
-                "IsSuccess": True,
-                "ErrorMessage": None,
-                "ExtractedDataJson": None,
-                "SavedFilePath": pdf_save_path  # C# bu yolu alıp veritabanına kaydedecek
-            }
+            return events_pb2.WorkerResultMessage(
+                registration_key=reg_key,
+                document_type=events_pb2.DocumentType.DOCUMENT_TYPE_MERGED_IDENTITY,
+                is_success=True,
+                saved_file_path=pdf_save_path
+            )
 
         except Exception as e:
             error_msg = str(e)
             print(f"   [❌] PDF HATA: {error_msg}")
-
-            return {
-                "RegistrationKey": reg_key,
-                "DocumentType": "IdentityDocument",
-                "IsSuccess": False,
-                "ErrorMessage": error_msg,
-                "ExtractedDataJson": None,
-                "SavedFilePath": None
-            }
+            
+            return events_pb2.WorkerResultMessage(
+                registration_key=reg_key,
+                document_type=events_pb2.DocumentType.DOCUMENT_TYPE_MERGED_IDENTITY,
+                is_success=False,
+                error_message=error_msg
+            )
