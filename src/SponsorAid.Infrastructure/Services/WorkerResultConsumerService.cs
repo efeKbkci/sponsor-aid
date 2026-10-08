@@ -33,7 +33,9 @@ public class WorkerResultConsumerService : BackgroundService
         // 1. Şifreleri ve adresi .env üzerinden dinamik okuyoruz
         var user = Environment.GetEnvironmentVariable("RABBITMQ_USER") ?? "guest";
         var pass = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? "guest";
-        var host = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost";
+        var host = Environment.GetEnvironmentVariable("RABBITMQ_HOST")
+            ?? Environment.GetEnvironmentVariable("RabbitMQ__HostName")
+            ?? "localhost";
 
         var factory = new ConnectionFactory
         {

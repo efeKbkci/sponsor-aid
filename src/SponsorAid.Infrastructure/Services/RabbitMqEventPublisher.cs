@@ -19,7 +19,9 @@ public class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
         var pass = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? "guest";
 
         // 2. Kendi bilgisayarındaysan "localhost", Docker'a geçtiğinde "rabbitmq" adını alır
-        var host = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost";
+        var host = Environment.GetEnvironmentVariable("RABBITMQ_HOST")
+            ?? Environment.GetEnvironmentVariable("RabbitMQ__HostName")
+            ?? "localhost";
 
         _factory = new ConnectionFactory
         {

@@ -1,4 +1,5 @@
 import pika
+import time
 from easyocr import Reader
 import events_pb2 # Ürettiğimiz Protobuf sınıfı
 from config import RABBITMQ_HOST, RABBITMQ_PASSWORD, RABBITMQ_USER, QUEUE_RECEIVE, QUEUE_SEND
@@ -74,16 +75,24 @@ def route_event(ch, method, properties, body):
 
 def start_router():
     print(f"[*] RabbitMQ'ya bağlanılıyor ({RABBITMQ_HOST})...")
-    
-    # 🚀 YENİ: Şifreleri pika'nın anlayacağı PlainCredentials nesnesine çeviriyoruz
     credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
-    
-    # Parametrelere credentials'ı dahil ediyoruz
     parameters = pika.ConnectionParameters(host=RABBITMQ_HOST, credentials=credentials)
-    connection = pika.BlockingConnection(parameters)
-    
-    channel = connection.channel()
 
+    connection = None
+    retries = 10
+    while retries > 0:
+        try:
+            connection = pika.BlockingConnection(parameters)
+            break
+        except pika.exceptions.AMQPConnectionError:
+            retries -= 1
+            print(f"[!] RabbitMQ henüz hazır değil. 3 saniye sonra tekrar denenecek... (Kalan deneme: {retries})")
+            time.sleep(3)
+
+    if not connection:
+        raise RuntimeError("RabbitMQ servisine bağlanılamadı. Süre aşımı!")
+
+    channel = connection.channel()
     channel.queue_declare(queue=QUEUE_RECEIVE, durable=True)
     channel.queue_declare(queue=QUEUE_SEND, durable=True)
 
