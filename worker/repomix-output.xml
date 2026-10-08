@@ -1,0 +1,935 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+microservices/
+  id_processing/
+    models/
+      id_orientation_cls.pt
+      id_segmenter.pt
+    services/
+      image_processor.py
+      image_rotator.py
+      ocr_service.py
+      pdf_generator.py
+    config.py
+    handler.py
+  population_registry_parsing/
+    services/
+      extractor.py
+      sanitizer.py
+      table_isolater.py
+    config.py
+    handler.py
+  residence_parsing/
+    config.py
+    handler.py
+config.py
+Dockerfile
+events_pb2.py
+main.py
+requirements.txt
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="microservices/id_processing/services/image_processor.py">
+import cv2
+import numpy as np
+import os
+from ultralytics import YOLO
+
+class ImageProcessor:
+    def __init__(self, model_path: str):
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"HATA: YOLO modeli bulunamadı -> {model_path}")
+        
+        self.model = YOLO(model_path)
+
+    def extract_id_card(self, image_bytes: bytes) -> bytes:
+        np_array = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+        
+        if image is None:
+            raise ValueError("Görsel okunamadı veya format desteklenmiyor.")
+
+        # YOLO tahminini yap
+        results = self.model.predict(source=image, conf=0.5, save=False, verbose=False)
+        result = results[0]
+
+        # Güvenlik Kontrolü: Maske veya Bounding Box var mı?
+        if result.masks is None or len(result.masks.xy) == 0:
+            raise ValueError("Yapay zeka bu fotoğrafta bir kimlik kartı bulamadı.")
+
+        # 1. Maskenin sınırlarını (poligonu) al
+        polygon = result.masks.xy[0]
+        cnt = np.array(polygon, dtype=np.float32)
+        
+        # 2. Riskli perspektif (eğip bükme) KULLANMIYORUZ!
+        # Bunun yerine maskeyi tam kapsayan düz ve güvenli bir dikdörtgen alıyoruz
+        x, y, w, h = cv2.boundingRect(cnt)
+
+        # 3. Sınır dışına çıkma ihtimaline karşı güvenlik payı
+        h_img, w_img = image.shape[:2]
+        x = max(0, x)
+        y = max(0, y)
+        w = min(w_img - x, w)
+        h = min(h_img - y, h)
+
+        # 4. Resmi piksel kalitesini %100 koruyarak düz bir şekilde kes (Crop)
+        cropped = image[y:y+h, x:x+w]
+
+        # Sonucu byte formatına çevir ve yolla
+        _, buffer = cv2.imencode('.jpg', cropped)
+        return buffer.tobytes()
+
+    # NOT: _order_points ve _four_point_transform metotlarını resmi bozduğu için tamamen sildik.
+
+if __name__ == "__main__":
+    import argparse
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(
+        description="Kimlik fotoğrafındaki kartı kırpar ve _processed ekli yeni dosyaya kaydeder."
+    )
+    parser.add_argument("image_path", type=Path, help="İşlenecek kimlik fotoğrafının yolu")
+    args = parser.parse_args()
+
+    if not args.image_path.is_file():
+        parser.error(f"Fotoğraf dosyası bulunamadı: {args.image_path}")
+
+    output_path = args.image_path.with_name(
+        f"{args.image_path.stem}_processed{args.image_path.suffix}"
+    )
+    model_path = Path(__file__).resolve().parents[1] / "models" / "id_segmenter.pt"
+
+    try:
+        image_processor = ImageProcessor(str(model_path))
+        processed_image = image_processor.extract_id_card(args.image_path.read_bytes())
+
+        if args.image_path.suffix.lower() not in (".jpg", ".jpeg"):
+            decoded_image = cv2.imdecode(
+                np.frombuffer(processed_image, np.uint8), cv2.IMREAD_COLOR
+            )
+            success, encoded_image = cv2.imencode(args.image_path.suffix, decoded_image)
+            if not success:
+                parser.error(f"Fotoğraf formatı desteklenmiyor: {args.image_path.suffix}")
+            processed_image = encoded_image.tobytes()
+
+        output_path.write_bytes(processed_image)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+
+    print(f"İşlenmiş fotoğraf kaydedildi: {output_path}")
+</file>
+
+<file path="microservices/id_processing/services/image_rotator.py">
+import cv2
+import numpy as np
+import os
+from ultralytics import YOLO
+
+class ImageRotator:
+    # Arayüz (ABC) bağımlılığını sildik, model_path parametresini dinamik hale getirdik.
+    def __init__(self, model_path: str):
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"HATA: YOLO modeli bulunamadı -> {model_path}")
+        self.model = YOLO(model_path)
+
+    def rotate_id_card(self, image_bytes: bytes) -> bytes:
+        np_array = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+        
+        if image is None:
+            raise ValueError("Görsel okunamadı veya format desteklenmiyor.")
+        
+        # Resim dikeyse önce yatağa çevir
+        h, w = image.shape[:2]
+        if h > w:
+            image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+
+        # YOLO tahmini
+        results = self.model.predict(source=image, save=False, verbose=False)
+        result = results[0]
+
+        predicted_index = result.probs.top1
+        predicted_class = result.names[predicted_index]
+
+        # Ters ise 180 derece düzelt
+        if predicted_class.lower() == "reversed":
+            image = cv2.rotate(image, cv2.ROTATE_180)
+            print("DEBUG | Resim Ters Çevrildi")
+
+        _, buffer = cv2.imencode('.jpg', image)
+        return buffer.tobytes()
+</file>
+
+<file path="microservices/id_processing/services/ocr_service.py">
+import cv2
+import numpy as np
+import easyocr
+import re
+
+class OcrService:
+    def __init__(self):
+        print("[*] EasyOCR Modeli RAM'e yükleniyor (Bu işlem sadece açılışta 1 kez yapılır)...")
+        # 'tr' ve 'en' dillerini destekleyen okuyucuyu başlatıyoruz. GPU=False ile standart işlemcide bile çalışır.
+        self.reader = easyocr.Reader(['tr', 'en'], gpu=False, verbose=False)
+
+    def extract_tc_number(self, image_bytes: bytes, document_side: str) -> str:
+        np_array = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+
+        if image is None:
+            raise ValueError("Görsel okunamadı.")
+
+        h, w = image.shape[:2]
+        
+        # 1. ROI (İlgilenilen Bölge) KESİMİ
+        # OCR'ı tüm resimde gezdirip zaman kaybetmek yerine, sadece TC'nin olduğu bölgeleri kesiyoruz.
+        if document_side.lower() == "front":
+            # Ön Yüz: TC No en üstte yer alır. Sadece üst %35'lik yatay şeridi kesiyoruz.
+            roi = image[0:int(h * 0.35), 0:w]
+        elif document_side.lower() == "back":
+            # Arka Yüz: MRZ kodları en alttadır. Sadece alt %35'lik yatay şeridi kesiyoruz.
+            roi = image[int(h * 0.65):h, 0:w]
+        else:
+            roi = image # Yön belli değilse mecbur tamamını okuruz
+
+        # OCR başarısını artırmak için resmi gri tona çeviriyoruz
+        gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+
+        # 2. METİN OKUMA
+        # detail=0 komutu bize sadece metinleri net bir liste olarak döndürür (koordinatlarla uğraşmayız)
+        results = self.reader.readtext(gray_roi, detail=0)
+        full_text = " ".join(results)
+
+        # 3. REGEX İLE TC KİMLİK AYIKLAMA
+        # Kurallar: 11 haneli rakam olacak, 0 ile başlamayacak.
+        # \b (kelime sınırı) sayesinde "123456789012" (12 haneli) veya başka metne bitişik yazıları atlar.
+        tc_pattern = r'\b[1-9][0-9]{10}\b'
+        match = re.search(tc_pattern, full_text)
+
+        if match:
+            return match.group(0) # Bulunan 11 haneli rakamı döndür
+        return None # Bulunamazsa None dön
+
+if __name__ == "__main__":
+    import argparse
+    import mimetypes
+    import csv
+    from pathlib import Path
+
+    ocr_service = OcrService()
+    parser = argparse.ArgumentParser()
+
+    # Hem tekli kullanım hem de CSV kullanımı için parametreler
+    parser.add_argument("-p", help="İşlenecek kimlik fotoğrafının yolu")
+    parser.add_argument("-s", help="İşlenecek kimlik fotoğrafının yönü (front, back)")
+    parser.add_argument("-c", "--csv", help="Toplu işlem için CSV dosyasının yolu")
+    args = parser.parse_args()
+
+    # 1. SENARYO: CSV DOSYASI VERİLMİŞSE
+    if args.csv:
+        csv_file = Path(args.csv)
+        if not csv_file.is_file() or not csv_file.name.endswith('.csv'):
+            parser.error("Hata: Geçerli bir CSV dosyası bulunamadı!")
+            
+        print(f"\n[*] {csv_file.name} dosyasındaki kayıtlar işleniyor...\n" + "-"*40)
+        
+        with open(csv_file, mode="r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            # Eğer CSV'nin ilk satırı başlık ise (örn: path,side) alttaki satırın yorumunu kaldır:
+            # next(reader, None) 
+            
+            for satir_no, row in enumerate(reader, start=1):
+                if len(row) < 2:
+                    continue # Boş veya hatalı satırları atla
+                    
+                dosya_yolu = row[0].strip()
+                yon = row[1].strip()
+                
+                img_path = Path(dosya_yolu)
+                if not img_path.is_file():
+                    print(f"[Satır {satir_no}] HATA: Dosya bulunamadı -> {dosya_yolu}")
+                    continue
+                    
+                with open(img_path, "rb") as img_file:
+                    image_bytes = img_file.read()
+                    
+                try:
+                    result = ocr_service.extract_tc_number(image_bytes, yon)
+                    print(f"[Satır {satir_no}] Dosya: {img_path.name} | Yön: {yon} | OCR Sonucu: {result}")
+                except Exception as e:
+                    print(f"[Satır {satir_no}] HATA: {img_path.name} okunamadı. Detay: {e}")
+                    
+    # 2. SENARYO: TEK BİR DOSYA VERİLMİŞSE (-p ve -s ile)
+    elif args.p and args.s:
+        file = Path(args.p)
+
+        if not file.is_file():
+            parser.error(f"Hata: '{args.p}' bulunamadı veya geçerli bir dosya değil!")
+
+        mime_type, _ = mimetypes.guess_type(file)
+        if not mime_type or not mime_type.startswith('image/'):
+            parser.error("Hata: Lütfen geçerli bir fotoğraf seçin! (jpg, png, vs.)")
+
+        if args.s not in ("front", "back"):
+            parser.error("Hata: Lütfen geçerli bir kimlik yönü seçin! (front, back)")
+
+        with open(file, "rb") as f:
+            image_bytes = f.read()
+
+        result = ocr_service.extract_tc_number(image_bytes=image_bytes, document_side=args.s)
+        print(f"OCR Sonucu : {result}")
+        
+    # 3. SENARYO: HİÇBİR PARAMETRE GİRİLMEMİŞSE
+    else:
+        parser.error("Lütfen tekli işlem için '-p' ve '-s' veya toplu işlem için '-c' parametresini kullanın.")
+</file>
+
+<file path="microservices/id_processing/services/pdf_generator.py">
+import io
+from PIL import Image
+
+class PdfGenerator:
+    # Arayüz bağımlılığı silindi, metot ve değişkenler snake_case yapıldı.
+    def generate_vertical_pdf(self, front_image: bytes, back_image: bytes) -> bytes:
+        # 1. Byte dizilerini Pillow Image nesnelerine dönüştür
+        front_img = Image.open(io.BytesIO(front_image))
+        back_img = Image.open(io.BytesIO(back_image))
+
+        # 3. Standart Kimlik Boyutu Belirleme (Örn: 800x500 piksel)
+        target_width = 800
+        target_height = 500
+        
+        front_img_resized = front_img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+        back_img_resized = back_img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+
+        # 4. Standart A4 Oranlarına Yakın Bir Tuval (Canvas) Hazırla
+        canvas_width = 1000
+        canvas_height = 1400 
+        
+        pdf_canvas = Image.new("RGB", (canvas_width, canvas_height), color=(255, 255, 255))
+
+        # 5. Kimlikleri Tuvale Ortala ve Yapıştır
+        center_x = (canvas_width - target_width) // 2
+        
+        front_y = 150
+        pdf_canvas.paste(front_img_resized, (center_x, front_y))
+
+        back_y = front_y + target_height + 100
+        pdf_canvas.paste(back_img_resized, (center_x, back_y))
+
+        # 6. PDF Olarak Hafızaya Yaz ve Çıktı Ver
+        pdf_buffer = io.BytesIO()
+        pdf_canvas.save(pdf_buffer, format="PDF", resolution=100.0, quality=95)
+        
+        return pdf_buffer.getvalue()
+</file>
+
+<file path="microservices/id_processing/config.py">
+import os
+
+# Model Yolları (Os.path.join ile işletim sistemi bağımsız yapıyoruz)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SEGMENTER_MODEL_PATH = os.path.join(BASE_DIR,"models", "id_segmenter.pt")
+ROTATOR_MODEL_PATH = os.path.join(BASE_DIR, "models", "id_orientation_cls.pt")
+</file>
+
+<file path="microservices/id_processing/handler.py">
+import json
+import os
+import traceback
+import uuid
+import events_pb2
+from .config import SEGMENTER_MODEL_PATH, ROTATOR_MODEL_PATH
+from .services.image_processor import ImageProcessor
+from .services.image_rotator import ImageRotator
+from .services.ocr_service import OcrService
+from .services.pdf_generator import PdfGenerator
+
+class IdProcessingHandler:
+    def __init__(self):
+        print("[*] [ID Service] Modeller RAM'e yükleniyor...")
+        self.image_processor = ImageProcessor(model_path=SEGMENTER_MODEL_PATH)
+        self.image_rotator = ImageRotator(model_path=ROTATOR_MODEL_PATH)
+        self.ocr_service = OcrService()
+        self.pdf_generator = PdfGenerator()
+        print("[+] [ID Service] Hazır ve bekliyor!")
+
+    # Artık task nesnesini doğrudan parametre alıyor
+    def process_image(self, task) -> events_pb2.WorkerResultMessage:
+        reg_key = task.registration_key
+        file_path = task.file_path
+        
+        # Protobuf Enum değerini OCR için string'e çeviriyoruz
+        side_str = "front" if task.image_side == events_pb2.ImageSide.IMAGE_SIDE_FRONT else "back"
+
+        print(f"\n[ID Service] 📥 Görev: ProcessImage | Yüz: {side_str} | Anahtar: {reg_key}")
+        
+        is_success = False
+        error_message = None
+        extracted_tc = None
+
+        try:
+            with open(file_path, "rb") as f:
+                image_bytes = f.read()
+
+            print("   -> Kırpma ve Hizalama...")
+            cropped_bytes = self.image_processor.extract_id_card(image_bytes)
+            rotated_bytes = self.image_rotator.rotate_id_card(cropped_bytes)
+
+            print("   -> OCR ile TC No Analizi...")
+            extracted_tc = self.ocr_service.extract_tc_number(rotated_bytes, side_str)
+            
+            if not extracted_tc:
+                if side_str == "front":
+                    raise ValueError("Kimliğin ön yüzünden TC Kimlik Numarası okunamadı. Lütfen fotoğrafın net, ışıksız ve parlamasız olduğuna emin olun.")
+                else:
+                    raise ValueError("Kimliğin arka yüzünden TC Kimlik Numarası okunamadı. Lütfen alt kısımdaki şifreli alanın (MRZ) net olduğuna emin olun.")
+
+            print(f"TC bulundu : {extracted_tc}")
+            
+            with open(file_path, "wb") as f:
+                f.write(rotated_bytes)
+
+            is_success = True
+
+        except Exception as e:
+            is_success = False
+            error_message = str(e)
+            print(f"   [❌] HATA: {error_message}")
+            traceback.print_exc()
+
+        extracted_data_dict = {"IdNumber": extracted_tc} if extracted_tc else {}
+        doc_type_enum = events_pb2.DocumentType.DOCUMENT_TYPE_IDENTITY_FRONT if side_str == "front" else events_pb2.DocumentType.DOCUMENT_TYPE_IDENTITY_BACK
+
+        return events_pb2.WorkerResultMessage(
+            registration_key=reg_key,
+            document_type=doc_type_enum,
+            is_success=is_success,
+            error_message=error_message if not is_success else None,
+            extracted_tc_number=extracted_tc if is_success and extracted_tc else None, # JSON YERİNE BURASI GELDİ
+            saved_file_path=file_path
+        )
+
+    def merge_to_pdf(self, task) -> events_pb2.WorkerResultMessage:
+        reg_key = task.registration_key
+        print(f"\n[ID Service] 📥 Görev: MergeToPdf | Anahtar: {reg_key}")
+
+        try:
+            with open(task.front_file_path, "rb") as f:
+                front_image = f.read()
+            with open(task.back_file_path, "rb") as b:
+                back_image = b.read()
+
+            print("   -> PDF oluşturuluyor...")
+            generated_pdf = self.pdf_generator.generate_vertical_pdf(front_image, back_image)
+
+            base_dir = os.path.dirname(task.front_file_path)
+            unique_suffix = uuid.uuid4().hex[:8]
+            pdf_filename = f"{reg_key}_Identity_{unique_suffix}.pdf"
+            pdf_save_path = os.path.join(base_dir, pdf_filename)
+
+            with open(pdf_save_path, "wb") as pdf_file:
+                pdf_file.write(generated_pdf)
+                
+            print(f"   [✅] PDF başarıyla kaydedildi: {pdf_filename}")
+
+            return events_pb2.WorkerResultMessage(
+                registration_key=reg_key,
+                document_type=events_pb2.DocumentType.DOCUMENT_TYPE_MERGED_IDENTITY,
+                is_success=True,
+                saved_file_path=pdf_save_path
+            )
+
+        except Exception as e:
+            error_msg = str(e)
+            print(f"   [❌] PDF HATA: {error_msg}")
+            
+            return events_pb2.WorkerResultMessage(
+                registration_key=reg_key,
+                document_type=events_pb2.DocumentType.DOCUMENT_TYPE_MERGED_IDENTITY,
+                is_success=False,
+                error_message=error_msg
+            )
+</file>
+
+<file path="microservices/population_registry_parsing/services/extractor.py">
+# services/extractor.py
+import pdfplumber
+
+class PopulationRegistryExtractor:
+
+    def extract(self, file_path: str) -> list:
+        try:
+            with pdfplumber.open(file_path) as pdf:
+                page = pdf.pages[0]
+                
+                # 'SIRA' başlığının Y koordinatını tespit et
+                sira_y_koordinati = None
+                for word in page.extract_words():
+                    if word["text"] == "SIRA":
+                        sira_y_koordinati = word["top"]
+                        break
+                        
+                if not sira_y_koordinati:
+                    raise ValueError("Kritik Hata: Tablo başlığı (SIRA) belgede bulunamadı.")
+
+                # Sayfayı 'SIRA' metninin hemen üzerinden kırp
+                bounding_box = (0, sira_y_koordinati - 2, page.width, page.height)
+                cropped_page = page.crop(bounding_box)
+
+                # Temizlenmiş bölgeden çizgileri referans alarak tabloyu çıkar
+                clean_table = cropped_page.extract_table({
+                    "vertical_strategy": "lines",
+                    "horizontal_strategy": "lines"
+                })
+                
+                if not clean_table:
+                    raise ValueError("Kritik Hata: Kırpılmış PDF içerisinde okunabilir bir tablo bulunamadı.")
+                
+                return clean_table
+                
+        except Exception as e:
+            raise ValueError(f"Kritik Hata: PDF dosyası okunamadı. Detay: {str(e)}") from e
+</file>
+
+<file path="microservices/population_registry_parsing/services/sanitizer.py">
+import re
+from datetime import datetime
+
+class PopulationRegistrySanitizer:
+    def __init__(self, input_format: str, output_format: str):
+        self.input_format = input_format
+        self.output_format = output_format
+
+    def clean_and_format_date(self, date_str: str) -> str:
+        try:
+            parsed_date = datetime.strptime(date_str.strip(), self.input_format)
+            return parsed_date.strftime(self.output_format)
+        except ValueError as e:
+            raise ValueError(f"Kritik Hata: '{date_str}' beklenen tarih formatına uymuyor.") from e
+
+    def parse_birth_date(self, cell_text: str) -> str:
+        if not cell_text:
+            raise ValueError("Kritik Hata: Doğum tarihi hücresi boş veya okunamadı.")
+        
+        parts = cell_text.strip().split('\n')
+        date_part = parts[-1].strip()
+        return self.clean_and_format_date(date_part)
+
+    def parse_death_date(self, cell_text: str) -> str | None:
+        if not cell_text:
+             raise ValueError("Kritik Hata: Olaylar ve Tarihleri hücresi boş veya okunamadı.")
+
+        match = re.search(r"Ölüm:\s*(.+?)(?:\n|$)", cell_text)
+        if not match:
+            raise ValueError(f"Kritik Hata: İlgili hücrede 'Ölüm:' etiketi bulunamadı. Metin: {cell_text}")
+        
+        status_or_date = match.group(1).strip()
+        
+        if status_or_date.upper() == "SAĞ":
+            return None
+            
+        return self.clean_and_format_date(status_or_date)
+</file>
+
+<file path="microservices/population_registry_parsing/services/table_isolater.py">
+import pdfplumber
+
+def ana_tabloyu_izole_et(pdf_path: str):
+    with pdfplumber.open(pdf_path) as pdf:
+        page = pdf.pages[0]
+        
+        # 1. Sayfadaki kelimeleri tara ve 'SIRA' başlığının dikey (Y) koordinatını bul
+        sira_y_koordinati = None
+        for word in page.extract_words():
+            if word["text"] == "SIRA":
+                sira_y_koordinati = word["top"]
+                break
+                
+        if not sira_y_koordinati:
+            raise ValueError("Tablo başlığı (SIRA) belgede bulunamadı.")
+
+        # 2. Sayfayı 'SIRA' metninin hemen üzerinden (örneğin 2 piksel üstünden) kes
+        # Kırpma kutusu: (Sol X, Üst Y, Sağ X, Alt Y)
+        bounding_box = (0, sira_y_koordinati - 2, page.width, page.height)
+        cropped_page = page.crop(bounding_box)
+
+        # 3. Kırpılmış, tertemiz sayfadan sadece çizgileri referans alarak tabloyu çıkar
+        clean_table = cropped_page.extract_table({
+            "vertical_strategy": "lines",
+            "horizontal_strategy": "lines"
+        })
+        
+        return clean_table
+
+# Test edelim
+if __name__ == "__main__":
+    tablo = ana_tabloyu_izole_et(r"PATH")
+    
+    # Sadece ilk 2 satırı (Başlık ve ilk kişi) yazdırarak temizlendiğini görelim
+    for row in tablo:
+        print(row)
+</file>
+
+<file path="microservices/population_registry_parsing/config.py">
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class PopulationRegistryConfig:
+    COL_KINSHIP: int = 3
+    COL_ID_NUMBER: int = 4
+    COL_FIRST_NAME: int = 5
+    COL_LAST_NAME: int = 6
+    COL_BIRTH_INFO: int = 9
+    COL_EVENTS: int = 12
+    
+    INPUT_DATE_FORMAT: str = "%d.%m.%Y"
+    OUTPUT_DATE_FORMAT: str = "%Y-%m-%d"
+</file>
+
+<file path="microservices/population_registry_parsing/handler.py">
+# handler.py
+import events_pb2
+from .config import PopulationRegistryConfig
+from .services.extractor import PopulationRegistryExtractor
+from .services.sanitizer import PopulationRegistrySanitizer
+
+class PopulationRegistryHandler:
+    def __init__(self):
+        self.config = PopulationRegistryConfig()
+        self.extractor = PopulationRegistryExtractor()
+        self.sanitizer = PopulationRegistrySanitizer(self.config.INPUT_DATE_FORMAT, self.config.OUTPUT_DATE_FORMAT)
+
+    def process(self, task) -> events_pb2.WorkerResultMessage:
+        file_path = task.file_path
+        try:
+            raw_table = self.extractor.extract(file_path)
+            people = []
+
+            for row_index, row in enumerate(raw_table):
+                if not row:
+                    continue
+
+                # SIRA hücresi rakam değilse (örneğin başlık satırı ise) atla
+                sira_hucresi = str(row[0]).strip() if row[0] else ""
+                if not sira_hucresi.isdigit():
+                    continue
+
+                # Tablomuzun 13 hücreden (0'dan 12'ye) oluştuğunu garanti altına alıyoruz
+                if len(row) <= self.config.COL_EVENTS:
+                    continue
+
+                try:
+                    death_date = self.sanitizer.parse_death_date(row[self.config.COL_EVENTS])
+                    person_fields = {
+                        "kinship": row[self.config.COL_KINSHIP].strip(),
+                        "id_number": row[self.config.COL_ID_NUMBER].strip(),
+                        "first_name": row[self.config.COL_FIRST_NAME].strip(),
+                        "last_name": row[self.config.COL_LAST_NAME].strip(),
+                        "birth_date": self.sanitizer.parse_birth_date(
+                            row[self.config.COL_BIRTH_INFO]
+                        ),
+                    }
+                    if death_date is not None:
+                        person_fields["death_date"] = death_date
+
+                    person = events_pb2.Person(**person_fields)
+
+                    if not person.id_number or not person.first_name:
+                        raise ValueError("Zorunlu alanlardan biri (TC veya İsim) eksik okundu.")
+
+                    people.append(person)
+
+                except IndexError as error:
+                    raise ValueError(
+                        f"Kritik Hata: {row_index}. satırda beklenmeyen sütun eksikliği."
+                    ) from error
+                except Exception as error:
+                    raise ValueError(
+                        f"Kritik Hata: {row_index}. satır işlenirken sorun oluştu. "
+                        f"Detay: {str(error)}"
+                    ) from error
+
+            return events_pb2.WorkerResultMessage(
+                registration_key=task.registration_key,
+                document_type=task.document_type,
+                is_success=True,
+                saved_file_path=file_path,
+                population_data=events_pb2.PopulationRegistryData(people=people),
+            )
+        except Exception as error:
+            return events_pb2.WorkerResultMessage(
+                registration_key=task.registration_key,
+                document_type=task.document_type,
+                is_success=False,
+                error_message=str(error),
+                saved_file_path=file_path,
+            )
+
+# Uygulama Giriş Noktası
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Nüfus kayıt belgesini işler.")
+    parser.add_argument("file_path", help="İşlenecek belgenin yolu")
+    parser.add_argument("--registration-key", default="local-test")
+    args = parser.parse_args()
+
+    handler = PopulationRegistryHandler()
+    task = events_pb2.ProcessOfficialDocTask(
+        registration_key=args.registration_key,
+        file_path=args.file_path,
+        document_type=events_pb2.DocumentType.DOCUMENT_TYPE_POPULATION_REGISTRY,
+    )
+    print(handler.process(task))
+</file>
+
+<file path="microservices/residence_parsing/config.py">
+
+</file>
+
+<file path="microservices/residence_parsing/handler.py">
+
+</file>
+
+<file path="config.py">
+import os
+
+# RabbitMQ Ayarları
+RABBITMQ_HOST = os.environ.get('RABBITMQ_HOST', 'localhost')
+QUEUE_RECEIVE = 'document-processing-queue'  # C#'ın fotoğrafı yollayacağı kuyruk
+QUEUE_SEND = 'document-result-queue'         # İşçinin sonucu (PDF'i) yollayacağı kuyruk
+</file>
+
+<file path="Dockerfile">
+# Daha güncel ve yamalanmış bir taban imaj kullanıyoruz
+FROM python:3.12-slim-bookworm
+
+# Güvenlik için 'root' olmayan yetkisiz bir kullanıcı oluşturuyoruz
+RUN useradd -m sponsorworker
+
+# Konteyner içindeki ana çalışma dizinini belirliyoruz
+WORKDIR /app
+
+# Sistemi güncelleyip gerekli kütüphaneleri kuruyor ve önbelleği temizliyoruz
+# --no-install-recommends parametresi gereksiz paketlerin yüklenmesini (saldırı yüzeyini) engeller
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    libglib2.0-0 libsm6 libxext6 libxrender-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Tüm uygulama dosyalarının sahipliğini oluşturduğumuz yetkisiz kullanıcıya devrediyoruz
+RUN chown -R sponsorworker:sponsorworker /app
+
+# Sistem bu satırdan itibaren 'root' yetkisini bırakır ve kısıtlı kullanıcıya geçer
+USER sponsorworker
+
+# Konteyner ayağa kalktığında çalışacak ana betik
+CMD ["python", "main.py"]
+</file>
+
+<file path="events_pb2.py">
+# -*- coding: utf-8 -*-
+# Generated by the protocol buffer compiler.  DO NOT EDIT!
+# NO CHECKED-IN PROTOBUF GENCODE
+# source: events.proto
+# Protobuf Python Version: 7.35.1
+"""Generated protocol buffer code."""
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import descriptor_pool as _descriptor_pool
+from google.protobuf import runtime_version as _runtime_version
+from google.protobuf import symbol_database as _symbol_database
+from google.protobuf.internal import builder as _builder
+_runtime_version.ValidateProtobufRuntimeVersion(
+    _runtime_version.Domain.PUBLIC,
+    7,
+    35,
+    1,
+    '',
+    'events.proto'
+)
+# @@protoc_insertion_point(imports)
+
+_sym_db = _symbol_database.Default()
+
+
+
+
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0c\x65vents.proto\"\x8f\x01\n\x06Person\x12\x11\n\tid_number\x18\x01 \x01(\t\x12\x12\n\nfirst_name\x18\x02 \x01(\t\x12\x11\n\tlast_name\x18\x03 \x01(\t\x12\x12\n\nbirth_date\x18\x04 \x01(\t\x12\x17\n\ndeath_date\x18\x05 \x01(\tH\x00\x88\x01\x01\x12\x0f\n\x07kinship\x18\x06 \x01(\tB\r\n\x0b_death_date\"1\n\x16PopulationRegistryData\x12\x17\n\x06people\x18\x01 \x03(\x0b\x32\x07.Person\"[\n\rResidenceData\x12\x0c\n\x04\x63ity\x18\x01 \x01(\t\x12\x10\n\x08\x64istrict\x18\x02 \x01(\t\x12\x14\n\x0cneighborhood\x18\x03 \x01(\t\x12\x14\n\x0c\x66ull_address\x18\x04 \x01(\t\"\xd8\x02\n\x13WorkerResultMessage\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12$\n\rdocument_type\x18\x02 \x01(\x0e\x32\r.DocumentType\x12\x12\n\nis_success\x18\x03 \x01(\x08\x12\x1a\n\rerror_message\x18\x04 \x01(\tH\x01\x88\x01\x01\x12\x1c\n\x0fsaved_file_path\x18\x05 \x01(\tH\x02\x88\x01\x01\x12\x32\n\x0fpopulation_data\x18\x06 \x01(\x0b\x32\x17.PopulationRegistryDataH\x00\x12(\n\x0eresidence_data\x18\x07 \x01(\x0b\x32\x0e.ResidenceDataH\x00\x12\x1d\n\x13\x65xtracted_tc_number\x18\x08 \x01(\tH\x00\x42\x10\n\x0e\x65xtracted_dataB\x10\n\x0e_error_messageB\x12\n\x10_saved_file_path\"_\n\x10ProcessImageTask\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\x12\x1e\n\nimage_side\x18\x03 \x01(\x0e\x32\n.ImageSide\"k\n\x16ProcessOfficialDocTask\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\x12$\n\rdocument_type\x18\x03 \x01(\x0e\x32\r.DocumentType\"Y\n\x0cMergePdfTask\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12\x17\n\x0f\x66ront_file_path\x18\x02 \x01(\t\x12\x16\n\x0e\x62\x61\x63k_file_path\x18\x03 \x01(\t\"\xcc\x01\n\x12WorkerTaskEnvelope\x12\"\n\x0c\x63ommand_type\x18\x01 \x01(\x0e\x32\x0c.CommandType\x12\'\n\nimage_task\x18\x02 \x01(\x0b\x32\x11.ProcessImageTaskH\x00\x12\x34\n\x11official_doc_task\x18\x03 \x01(\x0b\x32\x17.ProcessOfficialDocTaskH\x00\x12#\n\nmerge_task\x18\x04 \x01(\x0b\x32\r.MergePdfTaskH\x00\x42\x0e\n\x0ctask_payload*\xd3\x01\n\x0c\x44ocumentType\x12\x19\n\x15\x44OCUMENT_TYPE_UNKNOWN\x10\x00\x12%\n!DOCUMENT_TYPE_POPULATION_REGISTRY\x10\x01\x12\x1b\n\x17\x44OCUMENT_TYPE_RESIDENCE\x10\x02\x12 \n\x1c\x44OCUMENT_TYPE_IDENTITY_FRONT\x10\x03\x12\x1f\n\x1b\x44OCUMENT_TYPE_IDENTITY_BACK\x10\x04\x12!\n\x1d\x44OCUMENT_TYPE_MERGED_IDENTITY\x10\x05*N\n\tImageSide\x12\x16\n\x12IMAGE_SIDE_UNKNOWN\x10\x00\x12\x14\n\x10IMAGE_SIDE_FRONT\x10\x01\x12\x13\n\x0fIMAGE_SIDE_BACK\x10\x02*\x8a\x01\n\x0b\x43ommandType\x12\x18\n\x14\x43OMMAND_TYPE_UNKNOWN\x10\x00\x12\x1e\n\x1a\x43OMMAND_TYPE_PROCESS_IMAGE\x10\x01\x12%\n!COMMAND_TYPE_PROCESS_OFFICIAL_DOC\x10\x02\x12\x1a\n\x16\x43OMMAND_TYPE_MERGE_PDF\x10\x03\x42#\xaa\x02 SponsorAid.Integration.Contractsb\x06proto3')
+
+_globals = globals()
+_builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'events_pb2', _globals)
+if not _descriptor._USE_C_DESCRIPTORS:
+  _globals['DESCRIPTOR']._loaded_options = None
+  _globals['DESCRIPTOR']._serialized_options = b'\252\002 SponsorAid.Integration.Contracts'
+  _globals['_DOCUMENTTYPE']._serialized_start=1158
+  _globals['_DOCUMENTTYPE']._serialized_end=1369
+  _globals['_IMAGESIDE']._serialized_start=1371
+  _globals['_IMAGESIDE']._serialized_end=1449
+  _globals['_COMMANDTYPE']._serialized_start=1452
+  _globals['_COMMANDTYPE']._serialized_end=1590
+  _globals['_PERSON']._serialized_start=17
+  _globals['_PERSON']._serialized_end=160
+  _globals['_POPULATIONREGISTRYDATA']._serialized_start=162
+  _globals['_POPULATIONREGISTRYDATA']._serialized_end=211
+  _globals['_RESIDENCEDATA']._serialized_start=213
+  _globals['_RESIDENCEDATA']._serialized_end=304
+  _globals['_WORKERRESULTMESSAGE']._serialized_start=307
+  _globals['_WORKERRESULTMESSAGE']._serialized_end=651
+  _globals['_PROCESSIMAGETASK']._serialized_start=653
+  _globals['_PROCESSIMAGETASK']._serialized_end=748
+  _globals['_PROCESSOFFICIALDOCTASK']._serialized_start=750
+  _globals['_PROCESSOFFICIALDOCTASK']._serialized_end=857
+  _globals['_MERGEPDFTASK']._serialized_start=859
+  _globals['_MERGEPDFTASK']._serialized_end=948
+  _globals['_WORKERTASKENVELOPE']._serialized_start=951
+  _globals['_WORKERTASKENVELOPE']._serialized_end=1155
+# @@protoc_insertion_point(module_scope)
+</file>
+
+<file path="main.py">
+import pika
+import events_pb2 # Ürettiğimiz Protobuf sınıfı
+from config import RABBITMQ_HOST, QUEUE_RECEIVE, QUEUE_SEND
+from microservices.id_processing.handler import IdProcessingHandler
+from microservices.population_registry_parsing.handler import PopulationRegistryHandler
+
+print("[*] Worker Başlatılıyor. Servisler ayağa kaldırılıyor...")
+
+# Departmanları (Servisleri) Başlat
+id_service = IdProcessingHandler()
+population_registry_service = PopulationRegistryHandler()
+
+
+def route_event(ch, method, properties, body):
+    # 1. RabbitMQ'dan gelen byte'ları Zarf'a (Envelope) çevir
+    envelope = events_pb2.WorkerTaskEnvelope()
+    try:
+        envelope.ParseFromString(body)
+    except Exception as e:
+        print(f"[❌] Protobuf okuma hatası: {e}")
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+        return
+
+    result_msg = None
+
+    # 2. Zarfın üzerindeki Etikete (Enum) bakarak içindeki görevi ilgili metoda yolla
+    if envelope.command_type == events_pb2.CommandType.COMMAND_TYPE_PROCESS_IMAGE:
+        result_msg = id_service.process_image(envelope.image_task)
+        
+    elif envelope.command_type == events_pb2.CommandType.COMMAND_TYPE_MERGE_PDF:
+        result_msg = id_service.merge_to_pdf(envelope.merge_task)
+        
+    elif envelope.command_type == events_pb2.CommandType.COMMAND_TYPE_PROCESS_OFFICIAL_DOC:
+        task = envelope.official_doc_task
+        print(f"[*] Belge Servisi Çalıştı")
+
+        if task.document_type == events_pb2.DocumentType.DOCUMENT_TYPE_POPULATION_REGISTRY:
+            result_msg = population_registry_service.process(task)
+        elif task.document_type == events_pb2.DocumentType.DOCUMENT_TYPE_RESIDENCE:
+            result_msg = events_pb2.WorkerResultMessage(
+                registration_key=task.registration_key,
+                document_type=task.document_type,
+                is_success=True,
+                saved_file_path=task.file_path,
+                residence_data=events_pb2.ResidenceData(
+                    city="İstanbul",
+                    district="Fatih",
+                    neighborhood="Balat",
+                    full_address="Balat Mah. Test Sokak. No:1",
+                ),
+            )
+        else:
+            result_msg = events_pb2.WorkerResultMessage(
+                registration_key=task.registration_key,
+                document_type=task.document_type,
+                is_success=False,
+                error_message="Desteklenmeyen resmi belge türü.",
+                saved_file_path=task.file_path,
+            )
+    else:
+        print(f"[⚠️] Bilinmeyen komut tipi!")
+
+    # 3. Sonucu Byte'a (Binary) çevirip C#'a (RabbitMQ'ya) geri fırlat
+    if result_msg:
+        ch.basic_publish(
+            exchange='',
+            routing_key=QUEUE_SEND,
+            body=result_msg.SerializeToString(), # DİKKAT: JSON dumps yerine SerializeToString kullanıyoruz!
+            properties=pika.BasicProperties(delivery_mode=2)
+        )
+
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+def start_router():
+    print(f"[*] RabbitMQ'ya bağlanılıyor ({RABBITMQ_HOST})...")
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
+    channel = connection.channel()
+
+    channel.queue_declare(queue=QUEUE_RECEIVE, durable=True)
+    channel.queue_declare(queue=QUEUE_SEND, durable=True)
+
+    channel.basic_qos(prefetch_count=1)
+    channel.basic_consume(queue=QUEUE_RECEIVE, on_message_callback=route_event)
+
+    print("[*] 🚦 Santral (Router) Hazır! Eventler bekleniyor...")
+    channel.start_consuming()
+
+if __name__ == '__main__':
+    start_router()
+</file>
+
+<file path="requirements.txt">
+pika
+Pillow
+</file>
+
+</files>
