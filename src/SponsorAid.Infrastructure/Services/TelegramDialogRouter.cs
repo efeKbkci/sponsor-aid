@@ -1,29 +1,60 @@
 ﻿using MediatR;
+using Microsoft.Extensions.Logging;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessBinaryDocument;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessIdentityImage;
+using SponsorAid.Application.Features.Registrations.Commands.ProcessQuestionnaireAnswer;
 using SponsorAid.Application.Features.Registrations.Commands.StartRegistration;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Domain.Enums;
+using SponsorAid.Domain.Exceptions;
 using System.Text.Json;
 
 namespace SponsorAid.Infrastructure.Services;
 
-public class TelegramDialogRouter(IDraftStateRepository draftRepository, IMediator mediator, IUserNotifier userNotifier) : IDialogRouter
+public class TelegramDialogRouter(
+    IDraftStateRepository draftRepository, IMediator mediator, 
+    IUserNotifier userNotifier, ILogger<TelegramDialogRouter> logger) : IDialogRouter
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
     private readonly IMediator _mediator = mediator;
     private readonly IUserNotifier _userNotifier = userNotifier;
+    private readonly ILogger<TelegramDialogRouter> _logger = logger;
 
     public async Task RouteIncomingMessageAsync(string payload, CancellationToken cancellationToken = default)
     {
         using var jsonData = JsonDocument.Parse(payload);
         var root = jsonData.RootElement;
-        if (!root.TryGetProperty("message", out var messageElement)) return;
 
-        var chatId = messageElement.GetProperty("chat").GetProperty("id").GetInt64();
-        string? text = messageElement.TryGetProperty("text", out var textElement) ? textElement.GetString() : null;
-        var (fileId, fileSize, extension) = ExtractFileMetadata(messageElement);
+        long chatId = 0;
+        string? text = null;
+        string? fileId = null;
+        long fileSize = 0;
+        string extension = string.Empty;
+        int? callbackMessageId = null; // 🚀 YENİ: Tıklanan butonun mesaj ID'si
+
+        // 1. KULLANICI BUTONA MI TIKLADI? (Callback Query)
+        if (root.TryGetProperty("callback_query", out var callbackQuery))
+        {
+            chatId = callbackQuery.GetProperty("message").GetProperty("chat").GetProperty("id").GetInt64();
+            callbackMessageId = callbackQuery.GetProperty("message").GetProperty("message_id").GetInt32(); // 🚀 Mesajı yakala
+            text = callbackQuery.GetProperty("data").GetString();
+        }
+        // 2. KULLANICI METİN/BELGE Mİ GÖNDERDİ? (Message)
+        else if (root.TryGetProperty("message", out var messageElement))
+        {
+            chatId = messageElement.GetProperty("chat").GetProperty("id").GetInt64();
+            text = messageElement.TryGetProperty("text", out var textElement) ? textElement.GetString() : null;
+
+            var extractedMetadata = ExtractFileMetadata(messageElement);
+            fileId = extractedMetadata.FileId;
+            fileSize = extractedMetadata.FileSize;
+            extension = extractedMetadata.Extension;
+        }
+        else
+        {
+            return;
+        }
 
         // KÜRESEL (GLOBAL) KOMUTLAR
         if (text == "/start")
@@ -73,11 +104,16 @@ public class TelegramDialogRouter(IDraftStateRepository draftRepository, IMediat
 
                     await _userNotifier.SendMessageAsync(chatId, registrationCreatedMsg);
                 }
-                catch (Exception ex)
+                catch (BusinessRuleException ex)
                 {
                     // Eğer uydurma bir TC veya eksik numara girildiyse (Value Object hata fırlattıysa) buraya düşer
                     await _userNotifier.SendMessageAsync(chatId, $"⚠️ Hata: {ex.Message} Lütfen geçerli bir T.C. Kimlik Numarası giriniz.");
                 }
+                catch (Exception ex)
+                {
+                    // Beklenmeyen bir hata olursa logla ve kullanıcıya genel bir mesaj ver
+                    await _userNotifier.SendMessageAsync(chatId, "⚠️ Bir hata oluştu. Lütfen tekrar deneyiniz.");
+                    _logger.LogError(ex, "TC Kimlik kaydı sırasında beklenmeyen bir hata oluştu. ChatId: {ChatId}, RegistrationKey: {RegistrationKey}", chatId, activeDraft.RegistrationKey);                }
                 break;
 
             case RegistrationStep.WaitingForPopulationRegistry:
@@ -137,42 +173,20 @@ public class TelegramDialogRouter(IDraftStateRepository draftRepository, IMediat
                 await _userNotifier.SendMessageAsync(chatId, "⚠️ Şu an sistem bir önceki belgeniz üzerinde çalışıyor. Lütfen işlemin bitmesini bekleyiniz.");
                 break;
 
-            // METİN SORULARI AŞAMASI (Checklist Mantığı Devreye Girer)
             case RegistrationStep.WaitingForQuestions:
-                if (!string.IsNullOrEmpty(fileId)) { await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen belge göndermeyin. Sadece sizden istenilen bilgiyi yazın."); return; }
-                if (string.IsNullOrEmpty(text)) { await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen metin veya sayı giriniz."); return; }
+                if (!string.IsNullOrEmpty(fileId))
+                {
+                    await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen belge göndermeyin. Sadece seçeneklere tıklayın veya metin yazın.");
+                    return;
+                }
+                if (string.IsNullOrEmpty(text))
+                {
+                    await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen bir seçim yapınız veya yazınız.");
+                    return;
+                }
 
-                try
-                {
-                    if (activeDraft.Guardian.PhoneNumber == null)
-                    {
-                        activeDraft.ApplyUpdates(new() { { "GuardianPhoneNumber", text } });
-                        await _userNotifier.SendMessageAsync(chatId, "✅ Telefon kaydedildi. Lütfen ailenizin toplam **Aylık Gelirini** sadece rakamla yazınız. (Örn: 17000)");
-                    }
-                    else if (activeDraft.FamilyFinancial.Income == null)
-                    {
-                        activeDraft.ApplyUpdates(new() { { "Income", text } });
-                        await _userNotifier.SendMessageAsync(chatId, "✅ Gelir kaydedildi. Lütfen **Aylık Giderinizi** rakamla yazınız.");
-                    }
-                    else if (activeDraft.FamilyFinancial.Expense == null)
-                    {
-                        activeDraft.ApplyUpdates(new() { { "Expense", text } });
-                        await _userNotifier.SendMessageAsync(chatId, "✅ Gider kaydedildi. Son olarak bursun yatırılacağı **IBAN numarasını** TR ile başlayarak yazınız.");
-                    }
-                    else if (activeDraft.Guardian.Iban == null)
-                    {
-                        activeDraft.ApplyUpdates(new() { { "GuardianIban", text } });
-                        activeDraft.SetStep(RegistrationStep.Completed);
-                        await _userNotifier.SendMessageAsync(chatId, "🎉 Harika! Tüm kayıt işlemleriniz başarıyla tamamlandı. Otomasyon sistemimiz dosyanızı hazırlıyor...");
-                        // TODO: İleride FinalizeRegistrationCommand fırlatılacak
-                    }
-                    await _draftRepository.SaveAsync(activeDraft, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    // Value Object hataları (Örn: Geçersiz IBAN veya Telefon)
-                    await _userNotifier.SendMessageAsync(chatId, $"⚠️ Hata: {ex.Message} Lütfen tekrar deneyiniz.");
-                }
+                // 🚀 BÜYÜK TEMİZLİK: Sadece Handler'ı çağır! 
+                await _mediator.Send(new ProcessQuestionnaireAnswerCommand(activeDraft.RegistrationKey, text, callbackMessageId), cancellationToken);
                 break;
 
             case RegistrationStep.Completed:

@@ -190,7 +190,7 @@ public class SaveProcessedDocumentCommandHandler(
             {
                 // Döngü bitti! Soru aşamasına geç.
                 draft.SetStep(RegistrationStep.WaitingForQuestions);
-                await _notifier.SendMessageAsync(draft.ChatId, "🎉 Harika! Tüm aile bireylerinin kimlik belgeleri başarıyla toplandı.\n\nSon birkaç sorum kaldı. Lütfen size ulaşabileceğimiz **Telefon Numaranızı** (Örn: 05551234567) metin olarak yazınız.");
+                await _notifier.SendMessageAsync(draft.ChatId, "🎉 Harika! Tüm aile bireylerinin kimlik belgeleri başarıyla toplandı.\n\nSon birkaç sorum kaldı. Devam etmek için bir mesaj gönderiniz.");
             }
         }
         else
