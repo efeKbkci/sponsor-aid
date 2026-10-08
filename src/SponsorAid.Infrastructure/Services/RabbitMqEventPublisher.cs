@@ -34,11 +34,27 @@ public class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
     // Bağlantıyı (Connection) asenkron olarak ilk ihtiyaç anında güvenlice açıyoruz
     private async Task<IConnection> GetConnectionAsync()
     {
-        if (_connection == null || !_connection.IsOpen)
+        if (_connection != null && _connection.IsOpen)
         {
-            _connection = await _factory.CreateConnectionAsync();
+            return _connection;
         }
-        return _connection;
+
+        int attempts = 0;
+        while (attempts < 5)
+        {
+            try
+            {
+                attempts++;
+                _connection = await _factory.CreateConnectionAsync();
+                return _connection;
+            }
+            catch when (attempts < 5)
+            {
+                await Task.Delay(2000);
+            }
+        }
+
+        return await _factory.CreateConnectionAsync();
     }
 
     public async Task PublishAsync<TEvent>(string queueName, TEvent @event) where TEvent : class
