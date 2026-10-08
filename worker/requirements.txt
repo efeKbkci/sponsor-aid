@@ -1,2 +1,10 @@
-pika
-Pillow
+easyocr==1.7.2
+numpy==2.5.3
+opencv_python==5.0.0.93
+opencv_python_headless==5.0.0.93
+pdfplumber==0.11.10
+pika==1.4.4
+Pillow==12.3.0
+protobuf==7.36.2
+ultralytics==8.4.173
+pyzbar==0.1.9
