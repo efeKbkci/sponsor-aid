@@ -14,10 +14,18 @@ public class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
 
     public RabbitMqEventPublisher()
     {
-        // v7'de DispatchConsumersAsync özelliğine gerek kalmadı, sistem varsayılan olarak asenkrondur.
+        // 1. .env dosyasından senin belirlediğin şifreleri okuyoruz (Bulamazsa "guest" kullanır)
+        var user = Environment.GetEnvironmentVariable("RABBITMQ_USER") ?? "guest";
+        var pass = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? "guest";
+
+        // 2. Kendi bilgisayarındaysan "localhost", Docker'a geçtiğinde "rabbitmq" adını alır
+        var host = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost";
+
         _factory = new ConnectionFactory
         {
-            HostName = "localhost"
+            HostName = host,
+            UserName = user, // 🚀 Eksik olan şifreler eklendi!
+            Password = pass
         };
     }
 

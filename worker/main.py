@@ -1,7 +1,7 @@
 import pika
 from easyocr import Reader
 import events_pb2 # Ürettiğimiz Protobuf sınıfı
-from config import RABBITMQ_HOST, QUEUE_RECEIVE, QUEUE_SEND
+from config import RABBITMQ_HOST, RABBITMQ_PASSWORD, RABBITMQ_USER, QUEUE_RECEIVE, QUEUE_SEND
 from microservices.id_processing.handler import IdProcessingHandler
 from microservices.population_registry_parsing.handler import PopulationRegistryHandler
 from microservices.residence_parsing.handler import ResidenceHandler
@@ -74,7 +74,14 @@ def route_event(ch, method, properties, body):
 
 def start_router():
     print(f"[*] RabbitMQ'ya bağlanılıyor ({RABBITMQ_HOST})...")
-    connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
+    
+    # 🚀 YENİ: Şifreleri pika'nın anlayacağı PlainCredentials nesnesine çeviriyoruz
+    credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
+    
+    # Parametrelere credentials'ı dahil ediyoruz
+    parameters = pika.ConnectionParameters(host=RABBITMQ_HOST, credentials=credentials)
+    connection = pika.BlockingConnection(parameters)
+    
     channel = connection.channel()
 
     channel.queue_declare(queue=QUEUE_RECEIVE, durable=True)
