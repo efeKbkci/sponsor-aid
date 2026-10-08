@@ -30,7 +30,6 @@ public class WorkerResultConsumerService : BackgroundService
     // ExecuteAsync başladığında asenkron olarak bağlantıları kuruyoruz
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // 1. Şifreleri ve adresi .env üzerinden dinamik okuyoruz
         var user = Environment.GetEnvironmentVariable("RABBITMQ_USER") ?? "guest";
         var pass = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? "guest";
         var host = Environment.GetEnvironmentVariable("RABBITMQ_HOST")
@@ -40,16 +39,41 @@ public class WorkerResultConsumerService : BackgroundService
         var factory = new ConnectionFactory
         {
             HostName = host,
-            UserName = user, // 🚀 Anahtarlar (şifreler) buraya da eklendi!
+            UserName = user,
             Password = pass
         };
 
-        _connection = await factory.CreateConnectionAsync(stoppingToken);
-        _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
+        // 🚀 KESİNTİSİZ BAĞLANTI DÖNGÜSÜ (Retry Loop)
+        const int maxRetries = 10;
+        int currentRetry = 0;
+
+        while (!stoppingToken.IsCancellationRequested && _connection == null)
+        {
+            try
+            {
+                currentRetry++;
+                _logger.LogInformation("RabbitMQ bağlantısı kuruluyor ({Host}). Deneme: {Attempt}/{Max}", host, currentRetry, maxRetries);
+                _connection = await factory.CreateConnectionAsync(stoppingToken);
+                _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
+                _logger.LogInformation("RabbitMQ bağlantısı başarıyla kuruldu.");
+            }
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+            {
+                if (currentRetry >= maxRetries)
+                {
+                    _logger.LogCritical(ex, "RabbitMQ servisine ulaşılamadı. Maksimum deneme sayısına ulaşıldı.");
+                    throw;
+                }
+
+                _logger.LogWarning("RabbitMQ henüz hazır değil ({Message}). 3 saniye sonra tekrar denenecek...", ex.Message);
+                await Task.Delay(3000, stoppingToken);
+            }
+        }
+
+        if (stoppingToken.IsCancellationRequested || _channel == null) return;
 
         await _channel.QueueDeclareAsync(queue: QueueName, durable: true, exclusive: false, autoDelete: false, arguments: null, cancellationToken: stoppingToken);
 
-        // v7'de asenkron tüketici sınıfının adı AsyncEventingBasicConsumer oldu
         var consumer = new AsyncEventingBasicConsumer(_channel);
 
         consumer.ReceivedAsync += async (sender, ea) =>

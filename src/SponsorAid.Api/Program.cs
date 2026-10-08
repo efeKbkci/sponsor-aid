@@ -99,5 +99,22 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 
+// 🚀 Docker ilk açıldığında tabloları veritabanında otomatik oluşturur
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        logger.LogInformation("Veritabanı tabloları kontrol ediliyor/güncelleniyor...");
+        dbContext.Database.Migrate();
+        logger.LogInformation("Veritabanı tabloları güncel.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Veritabanı migrasyonu sırasında bir hata oluştu.");
+    }
+}
+
 // Ve Motor Çalışır!
 app.Run();
