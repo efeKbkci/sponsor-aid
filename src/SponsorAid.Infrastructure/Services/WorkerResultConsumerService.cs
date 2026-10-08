@@ -30,7 +30,17 @@ public class WorkerResultConsumerService : BackgroundService
     // ExecuteAsync başladığında asenkron olarak bağlantıları kuruyoruz
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var factory = new ConnectionFactory { HostName = "localhost" };
+        // 1. Şifreleri ve adresi .env üzerinden dinamik okuyoruz
+        var user = Environment.GetEnvironmentVariable("RABBITMQ_USER") ?? "guest";
+        var pass = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? "guest";
+        var host = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost";
+
+        var factory = new ConnectionFactory
+        {
+            HostName = host,
+            UserName = user, // 🚀 Anahtarlar (şifreler) buraya da eklendi!
+            Password = pass
+        };
 
         _connection = await factory.CreateConnectionAsync(stoppingToken);
         _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);

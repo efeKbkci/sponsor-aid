@@ -16,18 +16,18 @@ public class RegistrationDraftState
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // --- FOLDERS (Composition) ---
-    public GuardianDraft Guardian { get; private set; } = new();
-    public List<ChildDraft> Children { get; private set; } = new();
-    public FatherDraft Father { get; private set; } = new();
-    public FamilyFinancialDraft FamilyFinancial { get; private set; } = new();
-    public DisabledMemberDraft? DisabledMember { get; private set; }
-    public SystemDocumentsDraft SystemDocuments { get; private set; } = new();
-    public AddressDraft ResidenceAddress { get; private set; } = new();
+    public GuardianDraft Guardian { get; set; } = new();
+    public List<ChildDraft> Children { get; set; } = new();
+    public FatherDraft Father { get; set; } = new();
+    public FamilyFinancialDraft FamilyFinancial { get; set; } = new();
+    public DisabledMemberDraft? DisabledMember { get; set; }
+    public SystemDocumentsDraft SystemDocuments { get; set; } = new();
+    public AddressDraft ResidenceAddress { get; set; } = new();
 
     // --- REGISTRATION STEP TRACKING ---
-    public RegistrationStep CurrentStep { get; private set; } = RegistrationStep.WaitingForGuardianId;
+    public RegistrationStep CurrentStep { get; set; } = RegistrationStep.WaitingForGuardianId;
     // Şu an kimin kimlik belgesini istiyoruz? (Varsayılan olarak Vasi'den başlıyoruz)
-    public string? CurrentDocumentTargetName { get; private set; } = "Vasi";
+    public string? CurrentDocumentTargetName { get; set; } = "Vasi";
 
     private readonly Dictionary<string, Action<string>> _updateStrategies;
 

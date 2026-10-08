@@ -1,11 +1,13 @@
 using DotNetEnv;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using SponsorAid.Application.Behaviors;
 using SponsorAid.Application.Features.Registrations.Commands.StartRegistration; // Assembly'i bulmak için örnek bir Command
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
-using SponsorAid.Infrastructure.Services.Repositories;
+using SponsorAid.Infrastructure.Persistence;
 using SponsorAid.Infrastructure.Services;
+using SponsorAid.Infrastructure.Services.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,8 +42,28 @@ builder.Services.AddMediatR(cfg =>
 // ==============================================================================
 // 4. INFRASTRUCTURE KATMANI (Bağımlılık Enjeksiyonları - DI)
 // ==============================================================================
-// In-Memory Veritabanı (Sunucu kapanana kadar verilerin yaşamasını sağlar)
-builder.Services.AddSingleton<IDraftStateRepository, InMemoryDraftStateRepository>();
+// 🚀 Veritabanı Bağlantısı (EF Core - PostgreSQL)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Eğer "dotnet run" ile çalıştırıyorsak connectionString boş gelir. 
+// Bu durumda .env dosyasındaki ortam değişkenlerini okuyarak "localhost" için bağlantı dizesini dinamik oluştururuz.
+if (string.IsNullOrEmpty(connectionString))
+{
+    var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+    var dbUser = Environment.GetEnvironmentVariable("DB_USER");
+    var dbPass = Environment.GetEnvironmentVariable("DB_PASSWORD");
+
+    connectionString = $"Host=localhost;Port=5432;Database={dbName};Username={dbUser};Password={dbPass};IncludeErrorDetail=true;";
+} 
+else
+{ // proje docker içerisinde çalışıyorsa, 
+  // connectionString zaten docker-compose.yml içindeki ortam değişkenlerinden gelmiş olur.
+}
+
+builder.Services.AddDbContext<SponsorAidDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+builder.Services.AddScoped<IDraftStateRepository, EfCoreDraftStateRepository>();
 
 // RabbitMQ Mesaj Gönderici (Tekil bağlantı performansı için Singleton)
 builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
