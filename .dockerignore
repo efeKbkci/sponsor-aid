@@ -1,0 +1,26 @@
+# Git ve IDE
+**/.git
+**/.vs
+**/.vscode
+**/*.user
+**/*.suo
+
+# Python sanal ortamları ve önbellekler
+**/venv
+**/.venv
+**/__pycache__
+**/*.pyc
+
+# API derlenirken Worker klasörüne ihtiyaç yoktur (Modelleri aktarma)
+worker/
+
+# .NET Derleme Kalıntıları
+**/bin
+**/obj
+
+# Test dosyaları ve yüklemeler
+**/wwwroot/uploads/*
+!**/wwwroot/uploads/.gitkeep
+test/
+*.xml
+*.md

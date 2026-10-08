@@ -1,5 +1,5 @@
 services:
-  # 1. Veritabanı Konteyneri (Durum Yönetimi ve Kayıtlar)
+  # 1. Veritabanı
   db:
     image: postgres:16-alpine
     container_name: sponsoraid_db
@@ -13,7 +13,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
-  # 2. Mesaj Kuyruğu Konteyneri (İletişim Köprüsü)
+  # 2. Mesaj Kuyruğu
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: sponsoraid_rabbitmq
@@ -21,58 +21,61 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     ports:
-      - "5672:5672"   # API ve Worker'ın haberleştiği port
-      - "15672:15672" # Tarayıcıdan izlenebilen RabbitMQ yönetim paneli
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
-  # 3. ASP.NET Backend Konteyneri (Sistemin Beyni)
+  # 3. ASP.NET Backend (Tamamen İzole ve Temiz)
   api:
     build:
-      context: ./src
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: src/Dockerfile
     container_name: sponsoraid_api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=db;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};
-      - RabbitMQ__HostName=rabbitmq
-      - DOTNET_USE_POLLING_FILE_WATCHER=1
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - ASPNETCORE_URLS=http://+:5000
     ports:
       - "5000:5000"
     volumes:
-      # Ana kod eşitlemesi
-      - ./src:/app
-      # Çakışmayı önlemek için bin/obj klasörlerini izole ediyoruz
-      - /app/SponsorAid.Api/bin
-      - /app/SponsorAid.Api/obj
-      - /app/SponsorAid.Application/bin
-      - /app/SponsorAid.Application/obj
-      - /app/SponsorAid.Domain/bin
-      - /app/SponsorAid.Domain/obj
-      - /app/SponsorAid.Infrastructure/bin
-      - /app/SponsorAid.Infrastructure/obj
-      # Her ayağa kalkışta paketlerin (MediatR vs.) silinmemesi için kalıcı önbellek
-      - nuget_cache:/root/.nuget/packages
+      # Sadece Worker ile paylaşılan dosya alanı
+      - uploads_data:/app/wwwroot/uploads
     depends_on:
-      - db
-      - rabbitmq
+      db:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     restart: on-failure
 
-  # 4. Mikroservis Konteyneri (Ağır İşçi)
+  # 4. Python Worker
   worker:
     build:
       context: ./worker
-      #dockerfile: Dockerfile
+      dockerfile: Dockerfile
     container_name: sponsoraid_worker
     environment:
-      - RabbitMQ__HostName=rabbitmq
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    volumes:
+      - uploads_data:/app/wwwroot/uploads
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     restart: on-failure
 
-# Verilerin sunucu kapandığında kaybolmaması için kalıcı birimler
 volumes:
   postgres_data:
   rabbitmq_data:
-  nuget_cache:
+  uploads_data:

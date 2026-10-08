@@ -1,28 +1,28 @@
-# Daha güncel ve yamalanmış bir taban imaj kullanıyoruz
 FROM python:3.12-slim-bookworm
 
-# Güvenlik için 'root' olmayan yetkisiz bir kullanıcı oluşturuyoruz
-RUN useradd -m sponsorworker
+ENV PYTHONUNBUFFERED=1
 
-# Konteyner içindeki ana çalışma dizinini belirliyoruz
+# RUN useradd -m sponsorworker
+
 WORKDIR /app
 
-# Sistemi güncelleyip gerekli kütüphaneleri kuruyor ve önbelleği temizliyoruz
-# --no-install-recommends parametresi gereksiz paketlerin yüklenmesini (saldırı yüzeyini) engeller
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    libglib2.0-0 libsm6 libxext6 libxrender-dev \
+    libglib2.0-0 libsm6 libxext6 libxrender-dev libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
+# 1. Önce sadece PyTorch ve Torchvision'ın hafif CPU sürümlerini kurun (~150-200 MB)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# 2. Ardından projenin diğer gereksinimlerini kurun
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir --force-reinstall --no-deps opencv-contrib-python-headless==4.10.0.84
 
 COPY . .
 
-# Tüm uygulama dosyalarının sahipliğini oluşturduğumuz yetkisiz kullanıcıya devrediyoruz
-RUN chown -R sponsorworker:sponsorworker /app
+RUN mkdir -p /app/wwwroot/uploads 
+    # chown -R sponsorworker:sponsorworker /app
 
-# Sistem bu satırdan itibaren 'root' yetkisini bırakır ve kısıtlı kullanıcıya geçer
-USER sponsorworker
+# USER sponsorworker -> Güvenlik açısından riskli
 
-# Konteyner ayağa kalktığında çalışacak ana betik
 CMD ["python", "main.py"]

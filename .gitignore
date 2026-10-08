@@ -489,3 +489,4 @@ $RECYCLE.BIN/
 /src/SponsorAid.Api/wwwroot/uploads
 /repomix-output.xml
 /test/mock_documents
+/test/SponsorAid.Tests
