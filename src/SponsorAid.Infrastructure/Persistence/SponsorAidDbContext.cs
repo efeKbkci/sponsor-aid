@@ -15,9 +15,10 @@ public class SponsorAidDbContext : DbContext
         modelBuilder.Entity<DraftRecord>(entity =>
         {
             entity.HasKey(e => e.RegistrationKey);
-
-            // 🚀 SİHİRLİ DOKUNUŞ: Sütunun tipini PostgreSQL'in üstün JSONB formatına ayarlıyoruz
             entity.Property(e => e.JsonData).HasColumnType("jsonb").IsRequired();
+
+            // 🚀 ChatId ve IsActive sorgularını milisaniyelere indiren indeks
+            entity.HasIndex(e => new { e.ChatId, e.IsActive });
         });
 
         base.OnModelCreating(modelBuilder);

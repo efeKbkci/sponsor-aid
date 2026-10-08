@@ -18,4 +18,7 @@ public interface IDraftStateRepository
 
     // chatId, daha sonraki sürümlerde kullanıcının kimliği ile değişecek. 
     Task<IEnumerable<RegistrationDraftState>> ListAllAsync(string chatId, CancellationToken cancellationToken = default);
+    
+    // Kullanıcının o sohbetteki tek aktif taslağını doğrudan getirir
+    Task<RegistrationDraftState?> GetActiveByChatIdAsync(long chatId, CancellationToken cancellationToken = default);
 }
