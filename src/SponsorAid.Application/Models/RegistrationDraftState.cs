@@ -14,6 +14,8 @@ public class RegistrationDraftState
     public string RegistrationKey { get; set; } = string.Empty;
     public long ChatId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;  
+    public bool IsActive { get; set; } = true; // 🚀 YENİ
 
     // --- FOLDERS (Composition) ---
     public GuardianDraft Guardian { get; set; } = new();
@@ -226,6 +228,79 @@ public class RegistrationDraftState
 
         var trCulture = new CultureInfo("tr-TR");
         return string.Compare(text1.Trim(), text2.Trim(), trCulture, CompareOptions.IgnoreCase) == 0;
+    }
+
+    // Belirtilen soru anahtarının daha önce cevaplanıp cevaplanmadığını denetler ve cevabı sıfırlar.
+    public (bool Success, string Message) ResetQuestionAnswer(string key)
+    {
+        var normalizedKey = key.Trim().ToLowerInvariant();
+
+        return normalizedKey switch
+        {
+            "applicantrole" =>
+                ResetIfAnswered(() => Guardian.ApplicantRole != null, () => Guardian.ApplicantRole = null, "Başvuran Rolü"),
+
+            "gender" =>
+                ResetIfAnswered(() => Guardian.Gender != null, () => Guardian.Gender = null, "Cinsiyet"),
+
+            "maritalstatus" =>
+                ResetIfAnswered(() => Guardian.MaritalStatus != null, () => Guardian.MaritalStatus = null, "Medeni Durum"),
+
+            "educationlevel" =>
+                ResetIfAnswered(() => Guardian.EducationLevel != null, () => Guardian.EducationLevel = null, "Eğitim Düzeyi"),
+
+            "degreeofkinship" =>
+                ResetIfAnswered(() => Guardian.DegreeOfKinship != null, () => Guardian.DegreeOfKinship = null, "Yetime Yakınlık Derecesi"),
+
+            "profession" =>
+                ResetIfAnswered(() => !string.IsNullOrEmpty(Guardian.Profession), () => Guardian.Profession = null, "Vasi Mesleği"),
+
+            "phonenumber" =>
+                ResetIfAnswered(() => Guardian.PhoneNumber != null, () => Guardian.PhoneNumber = null, "Telefon Numarası"),
+
+            "familymembercount" =>
+                ResetIfAnswered(() => FamilyFinancial.FamilyMemberCount != null, () => FamilyFinancial.FamilyMemberCount = null, "Aile Birey Sayısı"),
+
+            "fatherprofession" =>
+                ResetIfAnswered(() => Father.Profession != null, () => Father.Profession = null, "Baba Mesleği"),
+
+            "fatherdeathreason" =>
+                ResetIfAnswered(() => Father.DeathReason != null, () => Father.DeathReason = null, "Baba Ölüm Nedeni"),
+
+            "disabledname" =>
+                ResetIfAnswered(() => DisabledMember != null && DisabledMember.Name != null, () => DisabledMember = null, "Engelli / Hasta Birey Durumu"),
+
+            "housingstatus" =>
+                ResetIfAnswered(() => FamilyFinancial.HousingStatus != null, () => FamilyFinancial.HousingStatus = null, "Konut Durumu"),
+
+            "socialsecurity" =>
+                ResetIfAnswered(() => FamilyFinancial.SocialSecurity != null, () => FamilyFinancial.SocialSecurity = null, "Sosyal Güvence"),
+
+            "incomestatus" =>
+                ResetIfAnswered(() => FamilyFinancial.IncomeStatus != null, () => FamilyFinancial.IncomeStatus = null, "Gelir Tipi"),
+
+            "income" =>
+                ResetIfAnswered(() => FamilyFinancial.Income != null, () => FamilyFinancial.Income = null, "Aylık Gelir"),
+
+            "expense" =>
+                ResetIfAnswered(() => FamilyFinancial.Expense != null, () => FamilyFinancial.Expense = null, "Aylık Gider"),
+
+            "iban" =>
+                ResetIfAnswered(() => Guardian.Iban != null, () => Guardian.Iban = null, "IBAN Numarası"),
+
+            _ => (false, "Geçersiz soru anahtarı. Güncellenebilir alanlar: applicantrole, gender, maritalstatus, educationlevel, degreeofkinship, profession, phonenumber, familymembercount, fatherprofession, fatherdeathreason, disabledname, housingstatus, socialsecurity, incomestatus, income, expense, iban")
+        };
+    }
+
+    private static (bool Success, string Message) ResetIfAnswered(Func<bool> isAnswered, Action resetAction, string questionLabel)
+    {
+        if (!isAnswered())
+        {
+            return (false, $"⚠️ <b>{questionLabel}</b> sorusu henüz cevaplanmamış. Sadece daha önce cevap verdiğiniz soruları güncelleyebilirsiniz.");
+        }
+
+        resetAction();
+        return (true, $"🔄 <b>{questionLabel}</b> bilgisi sıfırlandı. Lütfen yeni cevabı giriniz:");
     }
 }
 

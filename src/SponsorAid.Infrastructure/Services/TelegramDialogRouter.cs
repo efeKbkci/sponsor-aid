@@ -5,6 +5,7 @@ using SponsorAid.Application.Features.Registrations.Commands.ProcessBinaryDocume
 using SponsorAid.Application.Features.Registrations.Commands.ProcessIdentityImage;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessQuestionnaireAnswer;
 using SponsorAid.Application.Features.Registrations.Commands.StartRegistration;
+using SponsorAid.Application.Features.Registrations.Commands.UpdateQuestionAnswer;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Domain.Constants;
@@ -92,13 +93,26 @@ public class TelegramDialogRouter(
             return;
         }
 
-
-        var drafts = await _draftRepository.ListAllAsync(chatId.ToString(), cancellationToken);
-        var activeDraft = drafts.OrderByDescending(d => d.CreatedAt).FirstOrDefault();
+        var activeDraft = await _draftRepository.GetActiveByChatIdAsync(chatId, cancellationToken);
 
         if (activeDraft == null)
         {
             await _userNotifier.SendMessageAsync(chatId, "⚠️ Önce /start komutu ile bir kayıt başlatmalısınız.");
+            return;
+        }
+
+        // 🚀 SORU GÜNCELLEME KOMUTU (/update <ANAHTAR>)
+        if (Regex.Match(text?.Trim() ?? string.Empty, @"^/update(?:\s+([a-zA-Z0-9_]+))?$", RegexOptions.IgnoreCase) is { Success: true } updateMatch)
+        {
+            string? keyPart = updateMatch.Groups[1].Success ? updateMatch.Groups[1].Value.Trim() : null;
+
+            if (string.IsNullOrEmpty(keyPart))
+            {
+                await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen güncellemek istediğiniz sorunun anahtarını belirtiniz.\nÖrnek: <code>/update meslek</code> veya <code>/update iban</code>");
+                return;
+            }
+
+            await _mediator.Send(new UpdateQuestionAnswerCommand(activeDraft.RegistrationKey, keyPart, chatId), cancellationToken);
             return;
         }
 

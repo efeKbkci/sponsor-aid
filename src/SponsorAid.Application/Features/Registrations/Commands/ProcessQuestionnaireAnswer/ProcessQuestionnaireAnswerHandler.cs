@@ -374,6 +374,14 @@ public class ProcessQuestionnaireAnswerHandler(
                 await _notifier.SendMessageAsync(draft.ChatId, "🎉 Harika! Tüm aile ve gelir bilgileriniz eksiksiz olarak alındı. Başvurunuz uzmanlarımız ve yapay zeka otomasyonumuz tarafından derleniyor. Lütfen bekleyiniz...");
             }
         }
+        // 🚀 GÜNCELLEME SONRASI KONTROLÜ:
+        // Eğer hiçbir adımda 'return' edilmediyse, tüm sorular başarıyla doludur.
+        if (draft.CurrentStep != RegistrationStep.Completed)
+        {
+            draft.SetStep(RegistrationStep.Completed);
+            await _draftRepository.SaveAsync(draft, cancellationToken);
+            await _notifier.SendMessageAsync(draft.ChatId, "🎉 Güncellemeniz başarıyla kaydedildi! Başvurunuz onay aşamasına alındı.");
+        }
     }
 
     // Yardımcı Metot: Sadece buton tıklamasıyla geldiyse mesajı günceller

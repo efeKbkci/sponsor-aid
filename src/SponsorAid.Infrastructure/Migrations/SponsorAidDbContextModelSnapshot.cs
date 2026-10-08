@@ -33,6 +33,9 @@ namespace SponsorAid.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("JsonData")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -41,6 +44,8 @@ namespace SponsorAid.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("RegistrationKey");
+
+                    b.HasIndex("ChatId", "IsActive");
 
                     b.ToTable("Drafts");
                 });

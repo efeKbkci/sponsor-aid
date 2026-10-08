@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using SponsorAid.Application.Features.Registrations.Commands.ProcessQuestionnaireAnswer;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Application.Models;
@@ -8,10 +9,12 @@ namespace SponsorAid.Application.Features.Registrations.Commands.ContinueRegistr
 
 public class ContinueRegistrationHandler(
     IDraftStateRepository draftRepository,
-    IUserNotifier notifier) : IRequestHandler<ContinueRegistrationCommand>
+    IUserNotifier notifier,
+    IMediator mediator) : IRequestHandler<ContinueRegistrationCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
     private readonly IUserNotifier _notifier = notifier;
+    private readonly IMediator _mediator = mediator;
 
     public async Task Handle(ContinueRegistrationCommand request, CancellationToken cancellationToken)
     {
@@ -41,10 +44,10 @@ public class ContinueRegistrationHandler(
         // 3. YENİ SOHBETE SAHİPLENDİRME VE KİLİT ÇÖZME
         // Kullanıcı başka sohbete geçtiği için ChatId güncellenir
         draft.ChatId = request.ChatId;
+        draft.IsActive = true; // 🚀 Bu taslağı bu sohbet için aktif oturum yap
 
         // Eğer önceki oturumda sunucuda bir işlem yarım kaldıysa güvenli adıma geri çekilir
         draft.RevertProcessingState();
-
         await _draftRepository.SaveAsync(draft, cancellationToken);
 
         // 4. KULLANICIYA KALDIĞI ADIMI HATIRLAT
@@ -80,7 +83,8 @@ public class ContinueRegistrationHandler(
                 break;
 
             case RegistrationStep.WaitingForQuestions:
-                await _notifier.SendMessageAsync(draft.ChatId, baseMessage + "Anket soruları aşamasındasınız. Kaldığınız sorudan devam etmek için lütfen herhangi bir mesaj yazıp gönderiniz.");
+                await _notifier.SendMessageAsync(draft.ChatId, baseMessage + "Anket soruları aşamasındasınız.");
+                await _mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey));
                 break;
 
             default:
