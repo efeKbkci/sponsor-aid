@@ -1,14 +1,17 @@
 ﻿using MediatR;
 using Microsoft.Extensions.Logging;
+using SponsorAid.Application.Features.Registrations.Commands.ContinueRegistration;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessBinaryDocument;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessIdentityImage;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessQuestionnaireAnswer;
 using SponsorAid.Application.Features.Registrations.Commands.StartRegistration;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
+using SponsorAid.Domain.Constants;
 using SponsorAid.Domain.Enums;
 using SponsorAid.Domain.Exceptions;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace SponsorAid.Infrastructure.Services;
 
@@ -57,16 +60,38 @@ public class TelegramDialogRouter(
         }
 
         // KÜRESEL (GLOBAL) KOMUTLAR
-        if (text == "/start")
+        if (text == Commands.StartBot)
+        {
+            string welcomeMessage = $"SponsorAid Sistemine Hoş Geldiniz!\n\n" +
+                                    $"Lütfen yapmak istediğiniz işlemi belirtiniz.";
+            await _userNotifier.SendMessageAsync(chatId, welcomeMessage);
+            return;
+        }
+        else if (text == Commands.NewRegistration)
         {
             // Sepeti (Draft) arka planda oluşturur ama Key'i henüz kullanıcıya söylemeyiz
             await _mediator.Send(new StartRegistrationCommand(chatId), cancellationToken);
 
-            string welcomeMessage = $"👋 SponsorAid Sistemine Hoş Geldiniz!\n\n" +
-                                    $"Lütfen kayıt işlemini başlatmak için öncelikle **Vasi (Başvuru Yapan) T.C. Kimlik Numarasını** 11 haneli olarak yazınız.";
-            await _userNotifier.SendMessageAsync(chatId, welcomeMessage);
+            string newRegistrationMessage = $"✅ Yeni bir kayıt başlatıldı!\n\n" +
+                                            $"Lütfen vasiye ait T.C. Kimlik numarasını metin olarak yazınız.";
+            await _userNotifier.SendMessageAsync(chatId, newRegistrationMessage);
             return;
         }
+        else if (Regex.Match(text?.Trim() ?? string.Empty, @"^/continue(?:\s+([a-zA-Z0-9]+))?$", RegexOptions.IgnoreCase) is { Success: true } match)
+        {
+            string? guidPart = match.Groups[1].Success ? match.Groups[1].Value.Trim().ToUpper() : null;
+
+            if (string.IsNullOrEmpty(guidPart))
+            {
+                await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen devam etmek istediğiniz kaydın takip kodunu giriniz.\nÖrnek: <code>/continue ABC123</code>");
+                return;
+            }
+
+            // 🚀 ChatId ile birlikte Handler'a gönder
+            await _mediator.Send(new ContinueRegistrationCommand(guidPart, chatId), cancellationToken);
+            return;
+        }
+
 
         var drafts = await _draftRepository.ListAllAsync(chatId.ToString(), cancellationToken);
         var activeDraft = drafts.OrderByDescending(d => d.CreatedAt).FirstOrDefault();
