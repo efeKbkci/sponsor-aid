@@ -6,20 +6,12 @@ using System.Text.Json;
 
 namespace SponsorAid.Infrastructure.Services;
 
-public class TelegramUserNotifier : IUserNotifier
+public class TelegramUserNotifier(HttpClient httpClient, IConfiguration configuration) : IUserNotifier
 {
-    private readonly HttpClient _httpClient;
-    private readonly string _botToken;
-
-    public TelegramUserNotifier(HttpClient httpClient, IConfiguration configuration)
-    {
-        _httpClient = httpClient;
-
-        // Tıpkı FileStorage servisindeki gibi güvenli token okuma yapımız.
-        _botToken = configuration["TELEGRAM_TOKEN"]
+    private readonly HttpClient _httpClient = httpClient;
+    private readonly string _botToken = configuration["TELEGRAM_TOKEN"]
             ?? Environment.GetEnvironmentVariable("TELEGRAM_TOKEN")
             ?? throw new ArgumentNullException("TELEGRAM_TOKEN eksik! Lütfen .env dosyasını kontrol edin.");
-    }
 
     public async Task SendMessageAsync(long chatId, string message)
     {
@@ -91,5 +83,54 @@ public class TelegramUserNotifier : IUserNotifier
         {
             Console.WriteLine($"[HATA] Telegram belgesi gönderilemedi (ChatId: {chatId}). Hata: {ex.Message}");
         }
+    }
+
+    public async Task SendQuestionWithButtonsAsync(long chatId, string question, Dictionary<string, string> options)
+    {
+        var url = $"https://api.telegram.org/bot{_botToken}/sendMessage";
+
+        // Butonları Telegram'ın beklediği Inline Keyboard JSON formatına dönüştürüyoruz
+        var inlineKeyboard = new List<List<object>>();
+        foreach (var option in options)
+        {
+            // Her seçeneği alt alta (tek sütun) bir buton olarak ekliyoruz
+            inlineKeyboard.Add(new List<object> { new { text = option.Value, callback_data = option.Key } });
+        }
+
+        var payload = new
+        {
+            chat_id = chatId,
+            text = question,
+            parse_mode = "HTML",
+            reply_markup = new { inline_keyboard = inlineKeyboard }
+        };
+
+        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        try
+        {
+            var response = await _httpClient.PostAsync(url, content);
+            response.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[HATA] Butonlu mesaj gönderilemedi: {ex.Message}");
+        }
+    }
+    public async Task UpdateMessageAsAnsweredAsync(long chatId, int messageId, string originalQuestion, string selectedOptionLabel)
+    {
+        var url = $"https://api.telegram.org/bot{_botToken}/editMessageText";
+
+        var payload = new
+        {
+            chat_id = chatId,
+            message_id = messageId,
+            parse_mode = "HTML",
+            text = $"{originalQuestion}\n\n✅ <b>Seçiminiz:</b> {selectedOptionLabel}"
+            // reply_markup parametresini bilerek göndermiyoruz, böylece butonlar tamamen siliniyor.
+        };
+
+        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        await _httpClient.PostAsync(url, content);
     }
 }
