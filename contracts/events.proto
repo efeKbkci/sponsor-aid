@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+option csharp_namespace = "SponsorAid.Integration.Contracts";
+
+// ====================================================================
+// ORTAK ENUM'LAR (Sihirli Stringleri Yok Eden Yapı)
+// ====================================================================
+enum DocumentType {
+  DOCUMENT_TYPE_UNKNOWN = 0;
+  DOCUMENT_TYPE_POPULATION_REGISTRY = 1;
+  DOCUMENT_TYPE_RESIDENCE = 2;
+  DOCUMENT_TYPE_IDENTITY_FRONT = 3;
+  DOCUMENT_TYPE_IDENTITY_BACK = 4;
+  DOCUMENT_TYPE_MERGED_IDENTITY = 5;
+}
+
+enum ImageSide {
+  IMAGE_SIDE_UNKNOWN = 0;
+  IMAGE_SIDE_FRONT = 1;
+  IMAGE_SIDE_BACK = 2;
+}
+
+enum CommandType {
+  COMMAND_TYPE_UNKNOWN = 0;
+  COMMAND_TYPE_PROCESS_IMAGE = 1;
+  COMMAND_TYPE_PROCESS_OFFICIAL_DOC = 2;
+  COMMAND_TYPE_MERGE_PDF = 3;
+  COMMAND_TYPE_EXTRACT_BARCODE = 4;
+}
+
+// ====================================================================
+// DTO (Veri Taşıma) MODELLERİMİZ
+// ====================================================================
+
+message Person {
+  string id_number = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string birth_date = 4; // Protobuf'ta tarih genelde "YYYY-MM-DD" string olarak taşınır
+  optional string death_date = 5;
+  string kinship = 6;    // Yakınlık Derecesi (Kendisi, Oğlu, Babası vs.)
+}
+
+message PopulationRegistryData {
+  // 'repeated' kelimesi Protobuf'ta List<PersonDto> anlamına gelir
+  repeated Person people = 1; 
+}
+
+message ResidenceData {
+  string id_number = 1;
+  string city = 2;
+  string district = 3;
+  string neighborhood = 4;
+  string full_address = 5;
+}
+
+// ====================================================================
+// PYTHON'DAN C#'A DÖNECEK SONUÇ SÖZLEŞMESİ 
+// ====================================================================
+message WorkerResultMessage {
+  string registration_key = 1;
+  DocumentType document_type = 2; // String yerine Enum kullandık!
+  bool is_success = 3;
+  
+  optional string error_message = 4;
+  optional string saved_file_path = 5;
+
+  oneof extracted_data {
+    PopulationRegistryData population_data = 6;
+    ResidenceData residence_data = 7;
+    string extracted_tc_number = 8; // Kimlik okumasından sadece TC döneceği için string yeterli
+    string extracted_barcode = 9; // Belgeden çıkarılan barkod 
+  }
+}
+
+// ====================================================================
+// C#'TAN PYTHON'A GİDECEK GÖREV SÖZLEŞMELERİ
+// ====================================================================
+message ProcessImageTask {
+  string registration_key = 1;
+  string file_path = 2;
+  ImageSide image_side = 3; // String yerine Enum kullandık!
+}
+
+message ProcessOfficialDocTask { // Hem PDF hem Fotoğraf tabanlı belgeler için kullanılacak
+  string registration_key = 1;
+  string file_path = 2;
+  DocumentType document_type = 3; // String yerine Enum kullandık!
+}
+
+message MergePdfTask {
+  string registration_key = 1;
+  string front_file_path = 2;
+  string back_file_path = 3;
+}
+
+// ====================================================================
+// ANA ZARF (ENVELOPE)
+// ====================================================================
+message WorkerTaskEnvelope { // Python, bir task geldiği zaman onun hangi sınıfa ait olduğunu anlamak için command_type değerine bakar.
+  CommandType command_type = 1; // String yerine Enum kullandık!
+  
+  oneof task_payload { // Envelop bir kargo gibidir. command_type kargonun etiketidir. oneof sayesinde aşağı task sınıflarından 1 tanesi taşınabilir.
+    ProcessImageTask image_task = 2;
+    ProcessOfficialDocTask official_doc_task = 3;
+    MergePdfTask merge_task = 4;
+  }
+}
