@@ -1,3 +1,4 @@
+using SponsorAid.Domain.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -12,16 +13,16 @@ public record Iban
     public Iban(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("IBAN boş olamaz.");
+            throw new BusinessRuleException("IBAN boş olamaz.");
 
         // Boşlukları temizle ve büyük harfe çevir
         var sanitizedIban = value.Replace(" ", "").ToUpperInvariant();
 
         if (!sanitizedIban.StartsWith("TR") || sanitizedIban.Length != 26)
-            throw new ArgumentException("IBAN 'TR' ile başlamalı ve tam 26 karakter uzunluğunda olmalıdır.");
+            throw new BusinessRuleException("IBAN 'TR' ile başlamalı ve tam 26 karakter uzunluğunda olmalıdır.");
 
         if (!ValidateMod97(sanitizedIban))
-            throw new ArgumentException("IBAN algoritma doğrulaması (Mod 97) başarısız.");
+            throw new BusinessRuleException("IBAN algoritma doğrulaması (Mod 97) başarısız.");
 
         Value = sanitizedIban;
     }

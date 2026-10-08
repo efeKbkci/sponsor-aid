@@ -1,4 +1,5 @@
 ﻿using SponsorAid.Domain.Enums;
+using SponsorAid.Domain.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -15,10 +16,10 @@ public record FatherDetails
     public FatherDetails(string name, DateTime deathDate, FatherProfession profession, FatherDeathReason deathReason)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Baba adı boş olamaz.");
+            throw new BusinessRuleException("Baba adı boş olamaz.");
 
         if (deathDate > DateTime.Now)
-            throw new ArgumentException("Baba ölüm tarihi gelecekte bir zaman olamaz.");
+            throw new BusinessRuleException("Baba ölüm tarihi gelecekte bir zaman olamaz.");
 
         Name = name;
         DeathDate = deathDate;

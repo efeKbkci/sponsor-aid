@@ -7,4 +7,5 @@ namespace SponsorAid.Application.Interfaces;
 public interface IUserNotifier
 {
     Task SendMessageAsync(long chatId, string message);
+    Task SendDocumentAsync(long chatId, string filePath, string? caption = null, CancellationToken cancellationToken = default);
 }

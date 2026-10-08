@@ -1,7 +1,8 @@
-﻿using System.Text;
-using System.Text.Json;
+﻿using Google.Protobuf;
 using RabbitMQ.Client;
 using SponsorAid.Application.Interfaces;
+using System.Text;
+using System.Text.Json;
 
 namespace SponsorAid.Infrastructure.Services;
 
@@ -33,34 +34,25 @@ public class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
     public async Task PublishAsync<TEvent>(string queueName, TEvent @event) where TEvent : class
     {
         var connection = await GetConnectionAsync();
-
-        // 1. v7'de CreateModel yerine CreateChannelAsync kullanılır. await using ile işi bitince kapanmasını sağlıyoruz.
         await using var channel = await connection.CreateChannelAsync();
 
-        // 2. Kuyruk tanımlama işlemi de artık asenkron (QueueDeclareAsync)
-        await channel.QueueDeclareAsync(
-            queue: queueName,
-            durable: true,
-            exclusive: false,
-            autoDelete: false,
-            arguments: null);
+        await channel.QueueDeclareAsync(queue: queueName, durable: true, exclusive: false, autoDelete: false, arguments: null);
 
-        var message = JsonSerializer.Serialize(@event);
-        var body = Encoding.UTF8.GetBytes(message);
-
-        // 3. v7'de özellikler (Properties) için metot yerine doğrudan sınıf (BasicProperties) kullanıyoruz
-        var properties = new BasicProperties
+        // 🚀 YENİ MANTIK BURADA
+        byte[] body;
+        if (@event is IMessage protoMessage) // Gelen nesne Protobuf nesnesi mi?
         {
-            Persistent = true // Kalıcılık (Elektrik kesilirse mesaj kaybolmaz)
-        };
+            body = protoMessage.ToByteArray(); // Evetse inanılmaz hızlı bir şekilde Binary'e çevir
+        }
+        else
+        {
+            var message = JsonSerializer.Serialize(@event); // Hayırsa eski usül JSON'a çevir
+            body = Encoding.UTF8.GetBytes(message);
+        }
 
-        // 4. Gönderim işlemi de artık asenkron (BasicPublishAsync)
-        await channel.BasicPublishAsync(
-            exchange: string.Empty,
-            routingKey: queueName,
-            mandatory: false,
-            basicProperties: properties,
-            body: body);
+        var properties = new BasicProperties { Persistent = true };
+
+        await channel.BasicPublishAsync(exchange: string.Empty, routingKey: queueName, mandatory: false, basicProperties: properties, body: body);
     }
 
     public async ValueTask DisposeAsync()

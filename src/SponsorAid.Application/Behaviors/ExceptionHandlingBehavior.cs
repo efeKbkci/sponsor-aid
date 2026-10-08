@@ -43,6 +43,10 @@ public class ExceptionHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<
             var draft = await _draftRepository.GetAsync(registrationCommand.RegistrationKey, cancellationToken);
             if (draft == null) throw;
 
+            // 🚀 SİHİRLİ DOKUNUŞ: EĞER BİR "PROCESSING" KİLİDİ VARSA ONU "WAITING" DURUMUNA GERİ AL VE KAYDET
+            draft.RevertProcessingState();
+            await _draftRepository.SaveAsync(draft, cancellationToken);
+
             // 3. HATAYI KİMLİKLE VE KULLANICIYA BİLDİR
             if (ex is SponsorAidException businessException)
             {

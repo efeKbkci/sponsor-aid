@@ -4,7 +4,6 @@ using SponsorAid.Application.Behaviors;
 using SponsorAid.Application.Features.Registrations.Commands.StartRegistration; // Assembly'i bulmak için örnek bir Command
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
-using SponsorAid.Infrastructure.MessageBrokers;
 using SponsorAid.Infrastructure.Services.Repositories;
 using SponsorAid.Infrastructure.Services;
 
@@ -50,6 +49,11 @@ builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
 // Telegram Servisleri (Modern, tıkanıklık yapmayan HttpClient Factory yapısı)
 builder.Services.AddHttpClient<IFileStorageService, TelegramLocalFileStorageService>();
 builder.Services.AddHttpClient<IUserNotifier, TelegramUserNotifier>();
+
+// 🚀 YÖNLENDİRİCİ (ROUTER) SERVİSİ KAYDI (BUNU EKLE)
+builder.Services.AddScoped<IDialogRouter, TelegramDialogRouter>();
+// Program.cs'deki DI (Dependency Injection) kısmına eklenecek:
+builder.Services.AddScoped<IEGovermentDocumentService, EGovermentDocumentService>();
 
 // ==============================================================================
 // 5. ARKA PLAN SERVİSLERİ (Background Workers)

@@ -7,8 +7,10 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using SponsorAid.Application.Features.Registrations.Commands.SaveProcessedDocument;
 using Microsoft.Extensions.Logging;
+using SponsorAid.Integration.Contracts; // Protobuf'ın oluşturduğu namespace
+using Google.Protobuf; // ParseFrom için gerekli
 
-namespace SponsorAid.Infrastructure.MessageBrokers;
+namespace SponsorAid.Infrastructure.Services;
 
 public class WorkerResultConsumerService : BackgroundService
 {
@@ -38,24 +40,52 @@ public class WorkerResultConsumerService : BackgroundService
         // v7'de asenkron tüketici sınıfının adı AsyncEventingBasicConsumer oldu
         var consumer = new AsyncEventingBasicConsumer(_channel);
 
-        // Received yerine ReceivedAsync oldu
         consumer.ReceivedAsync += async (sender, ea) =>
         {
-            var content = Encoding.UTF8.GetString(ea.Body.ToArray());
-
             try
             {
-                var command = JsonSerializer.Deserialize<SaveProcessedDocumentCommand>(content);
+                // 1. Python'dan gelen saf byte'ları Protobuf Sözleşmesine çevir
+                var resultMsg = WorkerResultMessage.Parser.ParseFrom(ea.Body.ToArray());
 
-                if (command != null)
+                // 2. Protobuf Enum'ını, C# komutunun beklediği String'e çevir (İleride Command'ini de Enum yapabilirsin)
+                string docTypeString = resultMsg.DocumentType switch
                 {
-                    using var scope = _serviceProvider.CreateScope();
-                    var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                    DocumentType.PopulationRegistry => "PopulationRegistry",
+                    DocumentType.Residence => "Residence",
+                    DocumentType.IdentityFront => "IdentityFront",
+                    DocumentType.IdentityBack => "IdentityBack",
+                    DocumentType.MergedIdentity => "MergedIdentity",
+                    _ => "Unknown"
+                };
 
-                    await mediator.Send(command, stoppingToken);
-                }
+                // 3. İç Dünyamızın Komutunu (Command) Yarat
+                var command = new SaveProcessedDocumentCommand(
+                    RegistrationKey: resultMsg.RegistrationKey,
+                    DocumentType: docTypeString,
+                    IsSuccess: resultMsg.IsSuccess,
+                    // Has... özellikleri Protobuf'ın 'optional' alanları için otomatik ürettiği harika kontrolcülerdir
+                    ErrorMessage: resultMsg.HasErrorMessage ? resultMsg.ErrorMessage : null,
+                    SavedFilePath: resultMsg.HasSavedFilePath ? resultMsg.SavedFilePath : null,
 
-                // BasicAckAsync oldu
+                    // Hangi veri dolu geldiyse komuta onu yerleştir (Diğerleri null kalır)
+                    PopulationData: resultMsg.ExtractedDataCase == WorkerResultMessage.ExtractedDataOneofCase.PopulationData
+                                        ? resultMsg.PopulationData : null,
+
+                    ResidenceData: resultMsg.ExtractedDataCase == WorkerResultMessage.ExtractedDataOneofCase.ResidenceData
+                                        ? resultMsg.ResidenceData : null,
+
+                    ExtractedTcNumber: resultMsg.ExtractedDataCase == WorkerResultMessage.ExtractedDataOneofCase.ExtractedTcNumber
+                                        ? resultMsg.ExtractedTcNumber : null,
+
+                    ExtractedBarcode: resultMsg.ExtractedDataCase == WorkerResultMessage.ExtractedDataOneofCase.ExtractedBarcode
+                                        ? resultMsg.ExtractedBarcode : null
+                );
+
+                // 4. MediatR'a fırlat
+                using var scope = _serviceProvider.CreateScope();
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                await mediator.Send(command, stoppingToken);
+
                 await _channel.BasicAckAsync(ea.DeliveryTag, false, cancellationToken: stoppingToken);
             }
             catch (Exception ex)

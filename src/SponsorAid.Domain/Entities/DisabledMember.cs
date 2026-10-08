@@ -1,4 +1,5 @@
 ﻿using SponsorAid.Domain.Enums;
+using SponsorAid.Domain.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -17,7 +18,7 @@ public class DisabledMember
     public DisabledMember(string name, string diagnosis, string status, TreatmentStatus treatmentStatus, string description)
     {
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(diagnosis) || string.IsNullOrWhiteSpace(status))
-            throw new ArgumentException("Hasta adı, teşhis ve durum bilgileri boş olamaz.");
+            throw new BusinessRuleException("Hasta adı, teşhis ve durum bilgileri boş olamaz.");
 
         Id = Guid.NewGuid();
         Name = name;

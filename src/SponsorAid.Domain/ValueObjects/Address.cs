@@ -1,4 +1,5 @@
 using SponsorAid.Domain.Enums;
+using SponsorAid.Domain.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -17,7 +18,7 @@ public record Address
     {
         if (string.IsNullOrWhiteSpace(country) || string.IsNullOrWhiteSpace(city) ||
             string.IsNullOrWhiteSpace(neighborhood) || string.IsNullOrWhiteSpace(district) || string.IsNullOrWhiteSpace(fullAddress))
-            throw new ArgumentException("Adres bilgileri eksik bırakılamaz.");
+            throw new BusinessRuleException("Adres bilgileri eksik bırakılamaz.");
 
         Country = country;
         City = city;

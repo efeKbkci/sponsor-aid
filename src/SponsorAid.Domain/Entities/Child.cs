@@ -1,4 +1,5 @@
-﻿using SponsorAid.Domain.ValueObjects;
+﻿using SponsorAid.Domain.Exceptions;
+using SponsorAid.Domain.ValueObjects;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -19,14 +20,14 @@ public class Child
     public Child(string name, IdNumber identityNumber, DateTime birthDate, FatherDetails fatherDetails)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Çocuk ismi boş olamaz.");
+            throw new BusinessRuleException("Çocuk ismi boş olamaz.");
 
         if (birthDate > DateTime.Now)
-            throw new ArgumentException("Doğum tarihi gelecekte olamaz.");
+            throw new BusinessRuleException("Doğum tarihi gelecekte olamaz.");
 
         // 15 yaş kuralı denetimi (Bugünün tarihinden 15 yıl öncesinden daha eski doğmuş olamaz)
         if (birthDate <= DateTime.Now.AddYears(-15))
-            throw new ArgumentException("Sistem sadece 15 yaşından küçüklere burs vermeyi vaat ediyor.");
+            throw new BusinessRuleException("Sistem sadece 15 yaşından küçüklere burs vermeyi vaat ediyor.");
 
         Id = Guid.NewGuid();
         Name = name;

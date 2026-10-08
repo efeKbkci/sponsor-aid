@@ -1,4 +1,5 @@
 ﻿using SponsorAid.Domain.Enums;
+using SponsorAid.Domain.Exceptions;
 using SponsorAid.Domain.ValueObjects;
 using System;
 using System.Collections.Generic;
@@ -43,7 +44,7 @@ public class Guardian
         SocialSecurity socialSecurity, FinancialInfo financialInfo,
         Address address, PhoneNumber contactInfo, Iban iban)
     {
-        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Vasi ismi boş olamaz.");
+        if (string.IsNullOrWhiteSpace(name)) throw new BusinessRuleException("Vasi ismi boş olamaz.");
 
         Id = Guid.NewGuid();
         Name = name;

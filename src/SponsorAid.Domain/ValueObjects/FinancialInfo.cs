@@ -1,3 +1,4 @@
+using SponsorAid.Domain.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -14,11 +15,11 @@ public record FinancialInfo
     {
         // Kişi sayısı sadece sayılardan oluşabilir[cite: 1] ve mantıken 0'dan büyük olmalıdır.
         if (householdSize <= 0)
-            throw new ArgumentException("Ailede yaşayan kişi sayısı 0 veya negatif olamaz.");
+            throw new BusinessRuleException("Ailede yaşayan kişi sayısı 0 veya negatif olamaz.");
 
         // Gelir (sayı), gider (sayı)[cite: 1] negatif olamaz.
         if (income < 0 || expense < 0)
-            throw new ArgumentException("Gelir ve gider bilgisi negatif olamaz.");
+            throw new BusinessRuleException("Gelir ve gider bilgisi negatif olamaz.");
 
         HouseholdSize = householdSize;
         Income = income;

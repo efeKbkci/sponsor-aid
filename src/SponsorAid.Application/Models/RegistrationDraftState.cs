@@ -1,9 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.Win32;
-using SponsorAid.Application.Features.Registrations.Commands.SaveProcessedDocument.Dtos;
+﻿using Microsoft.Win32;
 using SponsorAid.Domain.Enums;
+using SponsorAid.Domain.Exceptions;
 using SponsorAid.Domain.ValueObjects;
+using SponsorAid.Integration.Contracts;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
 
 namespace SponsorAid.Application.Models;
 
@@ -22,6 +24,11 @@ public class RegistrationDraftState
     public SystemDocumentsDraft SystemDocuments { get; private set; } = new();
     public AddressDraft ResidenceAddress { get; private set; } = new();
 
+    // --- REGISTRATION STEP TRACKING ---
+    public RegistrationStep CurrentStep { get; private set; } = RegistrationStep.WaitingForGuardianId;
+    // Şu an kimin kimlik belgesini istiyoruz? (Varsayılan olarak Vasi'den başlıyoruz)
+    public string? CurrentDocumentTargetName { get; private set; } = "Vasi";
+
     private readonly Dictionary<string, Action<string>> _updateStrategies;
 
     public RegistrationDraftState()
@@ -29,7 +36,7 @@ public class RegistrationDraftState
         _updateStrategies = new Dictionary<string, Action<string>>(StringComparer.OrdinalIgnoreCase)
         {
             // --- GUARDIAN UPDATES ---
-            { "GuardianName", value => Guardian.Name = value.Trim() },
+            { "GuardianIdNumber", value => Guardian.IdNumber = new IdNumber(value) }, // ValueObject otomatik doğrulayacak
             { "GuardianApplicantRole", value => Guardian.ApplicantRole = Enum.Parse<ApplicantRole>(value, true) },
             { "GuardianGender", value => Guardian.Gender = Enum.Parse<Gender>(value, true) },
             { "GuardianMaritalStatus", value => Guardian.MaritalStatus = Enum.Parse<MaritalStatus>(value, true) },
@@ -74,28 +81,78 @@ public class RegistrationDraftState
             }
         }
     }
-
-    public void ApplyPopulationRegistryResult(PopulationRegistryDto data)
+    // Nüfus belgesi verilerini işleyip, Vasi, Baba ve Çocukları eşleştirir ve draft state'i günceller.
+    public void ApplyPopulationRegistryResult(PopulationRegistryData data)
     {
-        Guardian.IdNumber = new IdNumber(data.Mother.IdNumber); // ValueObject
-        Guardian.BirthDate = data.Mother.BirthDate;
+        // 1. GUARDIAN (VASİ) TESPİTİ
+        // 🚀 ARTIK KUSURSUZ EŞLEŞTİRME: Elimizdeki kesin TC No ile tablodaki TC'yi arıyoruz
+        var guardianPerson = data.People.FirstOrDefault(p => p.IdNumber == Guardian.IdNumber?.Value);
 
-        Father.Name = data.Father.Name;
-        Father.DeathDate = data.Father.DeathDate;
-
-        foreach (var child in data.Children)
+        if (guardianPerson == null)
         {
+            throw new DocumentValidationException($"Girdiğiniz T.C. Kimlik Numarası ({Guardian.IdNumber?.Value}) ile Nüfus belgesindeki kayıtlar eşleşmiyor. Lütfen kendinize ait belgeyi yüklediğinize emin olun.");
+        }
+
+        // Kural: Nüfus belgesini Vasi KENDİSİ almış olmalıdır.
+        if (!IsTurkishMatch(guardianPerson.Kinship, "KENDİSİ"))
+        {
+            throw new DocumentValidationException("Nüfus belgesinde sizin (Vasi'nin) 'KENDİSİ' olarak görünmeniz gerekmektedir. Belgeyi e-Devlet'ten kendi hesabınızla aldığınıza emin olun.");
+        }
+
+        // 🚀 İSİM ARTIK %100 RESMİ OLARAK BELGEDEN ALINIYOR (Kullanıcının harf hatası yapma ihtimali bitti)
+        Guardian.Name = $"{guardianPerson.FirstName} {guardianPerson.LastName}";
+        Guardian.BirthDate = DateOnly.Parse(guardianPerson.BirthDate);
+
+        // --- BABA TESPİTİ ---
+        var fatherPerson = data.People.FirstOrDefault(p =>
+            IsTurkishMatch(p.Kinship, "EŞİ") ||
+            IsTurkishMatch(p.Kinship, "BABASI"));
+
+        if (fatherPerson != null)
+        {
+            Father.Name = $"{fatherPerson.FirstName} {fatherPerson.LastName}";
+            if (fatherPerson.HasDeathDate && !string.IsNullOrWhiteSpace(fatherPerson.DeathDate))
+            {
+                Father.DeathDate = DateOnly.Parse(fatherPerson.DeathDate);
+            }
+            else
+            {
+                throw new BusinessRuleException("Baba vefat tarihinin nüfus belgesinde yazdığından emin olun.");
+            }
+        }
+
+        // --- ÇOCUK TESPİTİ ---
+        var children = data.People.Where(p =>
+            IsTurkishMatch(p.Kinship, "OĞLU") ||
+            IsTurkishMatch(p.Kinship, "KIZI"));
+
+        foreach (var child in children)
+        {
+            var birthDate = DateOnly.Parse(child.BirthDate);
+            if (birthDate.Year <= DateTime.Now.Year - 15) continue;
+
             Children.Add(new ChildDraft
             {
-                Name = child.Name,
+                Name = $"{child.FirstName} {child.LastName}",
                 IdNumber = new IdNumber(child.IdNumber),
-                BirthDate = child.BirthDate,
+                BirthDate = birthDate
             });
+        }
+
+        if (Children.Count == 0)
+        {
+            throw new BusinessRuleException("Nüfus belgenizde 15 yaşından küçük yetim/ihtiyaç sahibi bir çocuk bulunamadı. Sistem sadece bu yaş sınırındaki çocukları işleme almaktadır.");
         }
     }
 
-    public void ApplyResidenceDocumentResult(ResidenceDto data)
+    public void ApplyResidenceDocumentResult(ResidenceData data)
     {
+        // 🚀 KURAL 4: İkametgahtan gelen Kimlik Numarası, Vasiye ait olmalıdır.
+        if (Guardian.IdNumber == null || data.IdNumber != Guardian.IdNumber.Value)
+        {
+            throw new DocumentValidationException($"İkametgah belgesindeki TC Kimlik Numarası ({data.IdNumber}) ile Vasi'nin TC Kimlik Numarası eşleşmiyor. Lütfen size ait olan ikametgah belgesini yükleyin.");
+        }
+
         ResidenceAddress = new AddressDraft
         {
             Country = "Türkiye",
@@ -109,6 +166,66 @@ public class RegistrationDraftState
     private void EnsureDisabledMemberExists()
     {
         DisabledMember ??= new DisabledMemberDraft();
+    }
+
+    // Durumu değiştirmek için dışarıya açık kontrollü bir metot
+    public void SetStep(RegistrationStep step)
+    {
+        CurrentStep = step;
+    }
+    public void RevertProcessingState()
+    {
+        if (CurrentStep == RegistrationStep.ProcessingPopulationRegistry)
+            CurrentStep = RegistrationStep.WaitingForPopulationRegistry;
+
+        else if (CurrentStep == RegistrationStep.ProcessingResidence)
+            CurrentStep = RegistrationStep.WaitingForResidence;
+
+        else if (CurrentStep == RegistrationStep.ProcessingIdentityFront)
+            CurrentStep = RegistrationStep.WaitingForIdentityFront;
+
+        else if (CurrentStep == RegistrationStep.ProcessingIdentityBack || CurrentStep == RegistrationStep.MergingDocuments)
+            CurrentStep = RegistrationStep.WaitingForIdentityBack;
+    }
+
+    public void SetDocumentTarget(string? targetName)
+    {
+        CurrentDocumentTargetName = targetName;
+    }
+
+    // Kimlik bilgisi istenen kişinin ismini döner.
+    public string? GetNextPersonNeedingIdentity()
+    {
+        // 1. Vasi kimliği eksikse, hedef Vasi'dir.
+        if (string.IsNullOrEmpty(Guardian.IdentityDocumentPath))
+            return "Vasi";
+
+        // 2. Çocuklardan kimliği eksik olan ilk çocuğu bul. 
+        // (Çocuklar Nüfus belgesi işlendiğinde eklendiği için bu liste dolu olacaktır)
+        var pendingChild = Children.FirstOrDefault(c => string.IsNullOrEmpty(c.IdentityDocumentPath));
+        if (pendingChild != null && pendingChild.Name != null)
+            return pendingChild.Name;
+
+        // Herkesin kimliği tamamsa null döner (Döngü biter)
+        return null;
+    }
+
+    public string? GetExpectedIdNumberForCurrentTarget()
+    {
+        if (CurrentDocumentTargetName == "Vasi")
+            return Guardian.IdNumber?.Value;
+
+        var child = Children.FirstOrDefault(c => c.Name == CurrentDocumentTargetName);
+        return child?.IdNumber?.Value;
+    }
+
+    private static bool IsTurkishMatch(string? text1, string? text2)
+    {
+        if (string.IsNullOrWhiteSpace(text1) || string.IsNullOrWhiteSpace(text2))
+            return false;
+
+        var trCulture = new CultureInfo("tr-TR");
+        return string.Compare(text1.Trim(), text2.Trim(), trCulture, CompareOptions.IgnoreCase) == 0;
     }
 }
 
@@ -186,6 +303,6 @@ public class SystemDocumentsDraft
     public string? ResidenceDocumentPath { get; set; }
     public string? IdentityFrontPath { get; set; }
     public string? IdentityBackPath { get; set; }
-    public string? IdentityDocumentPath { get; set; }
+    public string? MergedIdentityPath { get; set; }
     public Petition? Petition { get; set; } // ValueObject
 }

@@ -1,8 +1,10 @@
 ﻿using MediatR;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessBinaryDocument;
+using SponsorAid.Application.Features.Registrations.Commands.ProcessIdentityImage;
 using SponsorAid.Application.Features.Registrations.Commands.StartRegistration;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
+using SponsorAid.Domain.Enums;
 using System.Text.Json;
 
 namespace SponsorAid.Infrastructure.Services;
@@ -15,68 +17,168 @@ public class TelegramDialogRouter(IDraftStateRepository draftRepository, IMediat
 
     public async Task RouteIncomingMessageAsync(string payload, CancellationToken cancellationToken = default)
     {
-        // JSON string'i ayrıştır (using ile RAM'den anında temizlenmesini sağlıyoruz)
         using var jsonData = JsonDocument.Parse(payload);
         var root = jsonData.RootElement;
-
-        // 'message' objesini yakala
-        if (!root.TryGetProperty("message", out var messageElement))
-            return; // Message yoksa (örn: edited_message veya callback_query geldiyse) işlemi sonlandır
+        if (!root.TryGetProperty("message", out var messageElement)) return;
 
         var chatId = messageElement.GetProperty("chat").GetProperty("id").GetInt64();
+        string? text = messageElement.TryGetProperty("text", out var textElement) ? textElement.GetString() : null;
+        var (fileId, fileSize, extension) = ExtractFileMetadata(messageElement);
 
-        // Metin tabanlı mesajların işleneceği blok
-        if (messageElement.TryGetProperty("text", out var textElement))
+        // KÜRESEL (GLOBAL) KOMUTLAR
+        if (text == "/start")
         {
-            var text = textElement.GetString();
+            // Sepeti (Draft) arka planda oluşturur ama Key'i henüz kullanıcıya söylemeyiz
+            await _mediator.Send(new StartRegistrationCommand(chatId), cancellationToken);
 
-            if (text == "/start")
-            {
-                var registrationKey = await _mediator.Send(new StartRegistrationCommand(chatId));
-
-                string welcomeMessage = $"👋 SponsorAid Sistemine Hoş Geldiniz!\n\n" +
-                                        $"Kayıt süreciniz başarıyla başlatıldı. Başvuru takip kodunuz: <b>{registrationKey}</b>\n\n" +
-                                        $"Lütfen sizden istenen belgeleri (Nüfus Kayıt Örneği, İkametgah vb.) PDF veya fotoğraf olarak bu ekrandan gönderiniz.";
-
-                await _userNotifier.SendMessageAsync(chatId, welcomeMessage);
-            }
-
-            else if (text == "test")
-            {
-            }
-        }
-        // Binary (dosya veya fotoğraf) tabanlı mesajların işleneceği blok  
-        else if (ExtractFileMetadata(messageElement) is var (fileId, fileSize, extension) && !string.IsNullOrEmpty(fileId))
-        {
-            // Kullanıcı bir dosya veya fotoğraf gönderdiğinde akış buraya düşer
-            var drafts = await _draftRepository.ListAllAsync(chatId.ToString(), cancellationToken);
-            var activeDraft = drafts.OrderByDescending(d => d.CreatedAt).FirstOrDefault();
-
-            if (activeDraft == null)
-            {
-                await _userNotifier.SendMessageAsync(chatId, "⚠️ Önce /start komutu ile bir kayıt başlatmalısınız.");
-                return;
-            }
-
-            await _userNotifier.SendMessageAsync(chatId, "⏳ Belgeniz sisteme alınıyor, lütfen bekleyiniz...");
-            /*
-            // Checklist sırasına göre ilgili komutu tetikleme:
-            if (string.IsNullOrEmpty(activeDraft.PopulationRegistryPath))
-            {
-                var command = new ProcessBinaryDocumentCommand(activeDraft.RegistrationKey, fileId, fileSize, extension);
-                await _mediator.Send(command, cancellationToken);
-            }
-            else if (string.IsNullOrEmpty(activeDraft.IdentityFrontPath))
-            {
-                // Ön yüz komutu
-            }
-            else if (string.IsNullOrEmpty(activeDraft.IdentityBackPath))
-            {
-                // Arka yüz komutu
-            }
-            */
+            string welcomeMessage = $"👋 SponsorAid Sistemine Hoş Geldiniz!\n\n" +
+                                    $"Lütfen kayıt işlemini başlatmak için öncelikle **Vasi (Başvuru Yapan) T.C. Kimlik Numarasını** 11 haneli olarak yazınız.";
+            await _userNotifier.SendMessageAsync(chatId, welcomeMessage);
+            return;
         }
 
+        var drafts = await _draftRepository.ListAllAsync(chatId.ToString(), cancellationToken);
+        var activeDraft = drafts.OrderByDescending(d => d.CreatedAt).FirstOrDefault();
+
+        if (activeDraft == null)
+        {
+            await _userNotifier.SendMessageAsync(chatId, "⚠️ Önce /start komutu ile bir kayıt başlatmalısınız.");
+            return;
+        }
+
+        // KESİN VE PROFESYONEL DURUM YÖNETİMİ (EXPLICIT STATE)
+        switch (activeDraft.CurrentStep)
+        {
+            case RegistrationStep.WaitingForGuardianId:
+                if (string.IsNullOrEmpty(text))
+                {
+                    await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen T.C. Kimlik numaranızı metin olarak yazınız.");
+                    return;
+                }
+
+                try
+                {
+                    // 1. Value Object doğrulaması burada çalışacak (11 hane mi? Algoritma doğru mu? 0 ile mi başlıyor?)
+                    activeDraft.ApplyUpdates(new() { { "GuardianIdNumber", text } });
+
+                    // 2. Başarılıysa Nüfus Belgesi beklemeye al
+                    activeDraft.SetStep(RegistrationStep.WaitingForPopulationRegistry);
+                    await _draftRepository.SaveAsync(activeDraft, cancellationToken);
+
+                    // 3. Kullanıcıya bilgi ver
+                    string registrationCreatedMsg = $"✅ Kayıt başarıyla oluşturuldu!\n\n" +
+                                                    $"🆔 <b>T.C. Kimlik No:</b> {text}\n" +
+                                                    $"🔑 <b>Takip Kodunuz:</b> {activeDraft.RegistrationKey}\n\n" +
+                                                    $"Lütfen e-Devlet'ten aldığınız <b>Vukuatlı Nüfus Kayıt Örneği</b> belgenizi PDF (veya net bir ekran görüntüsü) olarak gönderiniz.";
+
+                    await _userNotifier.SendMessageAsync(chatId, registrationCreatedMsg);
+                }
+                catch (Exception ex)
+                {
+                    // Eğer uydurma bir TC veya eksik numara girildiyse (Value Object hata fırlattıysa) buraya düşer
+                    await _userNotifier.SendMessageAsync(chatId, $"⚠️ Hata: {ex.Message} Lütfen geçerli bir T.C. Kimlik Numarası giriniz.");
+                }
+                break;
+
+            case RegistrationStep.WaitingForPopulationRegistry:
+                if (string.IsNullOrEmpty(fileId)) { 
+                    await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen nüfus belgenizi PDF veya fotoğraf olarak gönderiniz."); 
+                    return; 
+                }
+                activeDraft.SetStep(RegistrationStep.ProcessingPopulationRegistry);
+                await _draftRepository.SaveAsync(activeDraft, cancellationToken);
+                await _userNotifier.SendMessageAsync(chatId, "⏳ Nüfus belgeniz okunuyor, lütfen bekleyiniz...");
+                await _mediator.Send(new ProcessOfficialDocumentCommand(activeDraft.RegistrationKey, fileId, fileSize, extension, "PopulationRegistry"), cancellationToken);
+                break;
+
+            case RegistrationStep.WaitingForResidence:
+                if (string.IsNullOrEmpty(fileId)) { 
+                    await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen ikametgah belgenizi gönderiniz."); 
+                    return; 
+                }
+                activeDraft.SetStep(RegistrationStep.ProcessingResidence);
+                await _draftRepository.SaveAsync(activeDraft, cancellationToken);
+                await _userNotifier.SendMessageAsync(chatId, "⏳ İkametgah belgeniz işleniyor, lütfen bekleyiniz...");
+                await _mediator.Send(new ProcessOfficialDocumentCommand(activeDraft.RegistrationKey, fileId, fileSize, extension, "Residence"), cancellationToken);
+                break;
+
+            case RegistrationStep.WaitingForIdentityFront:
+                if (string.IsNullOrEmpty(fileId)) { 
+                    await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen kimlik belgenizin ön yüzünü gönderiniz."); 
+                    return; 
+                }
+                activeDraft.SetStep(RegistrationStep.ProcessingIdentityFront);
+                await _draftRepository.SaveAsync(activeDraft, cancellationToken);
+                await _userNotifier.SendMessageAsync(chatId, "⏳ Kimlik ön yüzünüz yapay zeka ile işleniyor...");
+
+                // Parametre olarak "front" gönderiyoruz
+                await _mediator.Send(new ProcessIdentityImageCommand(activeDraft.RegistrationKey, fileId, fileSize, extension, "front"), cancellationToken);
+                break;
+
+            case RegistrationStep.WaitingForIdentityBack:
+                if (string.IsNullOrEmpty(fileId)) { 
+                    await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen kimlik belgenizin arka yüzünü gönderiniz."); 
+                    return; 
+                }
+                activeDraft.SetStep(RegistrationStep.ProcessingIdentityBack);
+                await _draftRepository.SaveAsync(activeDraft, cancellationToken);
+                await _userNotifier.SendMessageAsync(chatId, "⏳ Kimlik arka yüzünüz yapay zeka ile işleniyor...");
+
+                // Parametre olarak "back" gönderiyoruz
+                await _mediator.Send(new ProcessIdentityImageCommand(activeDraft.RegistrationKey, fileId, fileSize, extension, "back"), cancellationToken);
+                break;
+
+            // ASENKRON GÜVENLİK (Race Condition Koruması)
+            case RegistrationStep.ProcessingPopulationRegistry:
+            case RegistrationStep.ProcessingResidence:
+            case RegistrationStep.ProcessingIdentityFront:
+            case RegistrationStep.ProcessingIdentityBack:
+            case RegistrationStep.MergingDocuments:
+                await _userNotifier.SendMessageAsync(chatId, "⚠️ Şu an sistem bir önceki belgeniz üzerinde çalışıyor. Lütfen işlemin bitmesini bekleyiniz.");
+                break;
+
+            // METİN SORULARI AŞAMASI (Checklist Mantığı Devreye Girer)
+            case RegistrationStep.WaitingForQuestions:
+                if (!string.IsNullOrEmpty(fileId)) { await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen belge göndermeyin. Sadece sizden istenilen bilgiyi yazın."); return; }
+                if (string.IsNullOrEmpty(text)) { await _userNotifier.SendMessageAsync(chatId, "⚠️ Lütfen metin veya sayı giriniz."); return; }
+
+                try
+                {
+                    if (activeDraft.Guardian.PhoneNumber == null)
+                    {
+                        activeDraft.ApplyUpdates(new() { { "GuardianPhoneNumber", text } });
+                        await _userNotifier.SendMessageAsync(chatId, "✅ Telefon kaydedildi. Lütfen ailenizin toplam **Aylık Gelirini** sadece rakamla yazınız. (Örn: 17000)");
+                    }
+                    else if (activeDraft.FamilyFinancial.Income == null)
+                    {
+                        activeDraft.ApplyUpdates(new() { { "Income", text } });
+                        await _userNotifier.SendMessageAsync(chatId, "✅ Gelir kaydedildi. Lütfen **Aylık Giderinizi** rakamla yazınız.");
+                    }
+                    else if (activeDraft.FamilyFinancial.Expense == null)
+                    {
+                        activeDraft.ApplyUpdates(new() { { "Expense", text } });
+                        await _userNotifier.SendMessageAsync(chatId, "✅ Gider kaydedildi. Son olarak bursun yatırılacağı **IBAN numarasını** TR ile başlayarak yazınız.");
+                    }
+                    else if (activeDraft.Guardian.Iban == null)
+                    {
+                        activeDraft.ApplyUpdates(new() { { "GuardianIban", text } });
+                        activeDraft.SetStep(RegistrationStep.Completed);
+                        await _userNotifier.SendMessageAsync(chatId, "🎉 Harika! Tüm kayıt işlemleriniz başarıyla tamamlandı. Otomasyon sistemimiz dosyanızı hazırlıyor...");
+                        // TODO: İleride FinalizeRegistrationCommand fırlatılacak
+                    }
+                    await _draftRepository.SaveAsync(activeDraft, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    // Value Object hataları (Örn: Geçersiz IBAN veya Telefon)
+                    await _userNotifier.SendMessageAsync(chatId, $"⚠️ Hata: {ex.Message} Lütfen tekrar deneyiniz.");
+                }
+                break;
+
+            case RegistrationStep.Completed:
+                await _userNotifier.SendMessageAsync(chatId, "✅ Başvurunuz zaten tamamlanmıştır. Durumunuz değerlendirilmektedir.");
+                break;
+        }
     }
 
     private (string? FileId, long FileSize, string Extension) ExtractFileMetadata(JsonElement messageElement)
