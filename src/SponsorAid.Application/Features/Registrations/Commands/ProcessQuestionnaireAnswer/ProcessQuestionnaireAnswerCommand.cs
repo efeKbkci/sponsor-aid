@@ -6,6 +6,5 @@ namespace SponsorAid.Application.Features.Registrations.Commands.ProcessQuestion
 public record ProcessQuestionnaireAnswerCommand(
     string RegistrationKey,
     string? AnswerText = null, // Telegram'dan gelen anket cevabı (Buton veya Metin)
-    int? CallbackMessageId = null, // 🚀 YENİ EKLENDİ
-    Dictionary<string, string>? BulkUpdates = null // Yapay Zekadan gelecek toplu güncellemeler
+    int? CallbackMessageId = null // 🚀 YENİ EKLENDİ
 ) : IRequest, IRegistrationCommand;
