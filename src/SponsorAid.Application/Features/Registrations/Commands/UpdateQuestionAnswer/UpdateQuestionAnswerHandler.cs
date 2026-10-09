@@ -39,8 +39,15 @@ public class UpdateQuestionAnswerHandler(
             return;
         }
 
-        // 3. Eğer başvuru önceden tamamlanmışsa (Completed), soru beklemeye geri alıyoruz
+        // 3. Eğer başvuru önceden tamamlanmışsa (Completed) güncellemeye izin verilmez.
         if (draft.CurrentStep == RegistrationStep.Completed)
+        {
+            await _notifier.SendMessageAsync(request.ChatId, "⚠️ Başvuru zaten tamamlanmış. Güncellemeye izin verilmiyor.");
+            return;
+        }
+
+        // 4. Eğer başvuru onay bekliyorsa, tekrar sorulacak sorulara geçiş yap.
+        if (draft.CurrentStep == RegistrationStep.WaitingForConfirmation)
         {
             draft.SetStep(RegistrationStep.WaitingForQuestions);
         }

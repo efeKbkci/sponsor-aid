@@ -63,4 +63,22 @@ public class TelegramLocalFileStorageService : IFileStorageService
         // 4. TAM YOLU DÖN (Worker bu yolu alıp diski okuyacak)
         return fullPath;
     }
+
+    public void DeleteFile(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath)) return;
+
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Dosya silinemezse loglanabilir, ana akışı bozmamalı
+            Console.WriteLine($"[Uyarı] Dosya silinemedi: {filePath}. Hata: {ex.Message}");
+        }
+    }
 }

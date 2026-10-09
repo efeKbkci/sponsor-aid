@@ -13,12 +13,15 @@ public class SaveProcessedDocumentCommandHandler(
     IDraftStateRepository draftRepository,
     IUserNotifier notifier,
     IEventPublisher eventPublisher,
-    IEGovermentDocumentService eGovernment) : IRequestHandler<SaveProcessedDocumentCommand>
+    IEGovermentDocumentService eGovernment,
+    IRegistrationTrackingRepository trackingRepository
+    ) : IRequestHandler<SaveProcessedDocumentCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
     private readonly IUserNotifier _notifier = notifier; // Telegram/WhatsApp fark etmeksizin mesaj atan servis
     private readonly IEventPublisher _eventPublisher = eventPublisher; // Event yayıncısı
     private readonly IEGovermentDocumentService _eGoverment = eGovernment; // e-Devlet belge indirme servisi
+    private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository; // Takip tablosu servisi
 
     public async Task Handle(SaveProcessedDocumentCommand request, CancellationToken cancellationToken)
     {
@@ -86,30 +89,18 @@ public class SaveProcessedDocumentCommandHandler(
             var data = request.PopulationData!;
             draft.ApplyPopulationRegistryResult(data);
             draft.SystemDocuments.PopulationRegistryDocumentPath = request.SavedFilePath;
-
+           
+            // Vasi adı belgeden okunduğu an takip tablosunda ismi güncelliyoruz:
+            if (!string.IsNullOrEmpty(draft.Guardian.Name))
+            {
+                await _trackingRepository.UpdateGuardianNameAsync(draft.RegistrationKey, draft.Guardian.Name, cancellationToken);
+            }
             // Nüfus bitti, İkametgaha geçiyoruz
             draft.SetStep(RegistrationStep.WaitingForResidence);
 
-            // Silinecek
-            var summaryBuilder = new System.Text.StringBuilder();
-            summaryBuilder.AppendLine("✅ <b>Nüfus Kayıt Örneği Başarıyla İşlendi!</b>\n");
-            summaryBuilder.AppendLine("📋 <b>Sisteme Kaydedilen Aile Tablosu:</b>");
-            summaryBuilder.AppendLine($"👤 <b>Vasi:</b> {draft.Guardian.Name}");
+            string msg = "✅ Nüfus örneği başarıyla işlendi.\n\nŞimdi lütfen e-Devlet'ten aldığınız <b>İkametgah (Yerleşim Yeri) Belgenizi</b> PDF olarak gönderiniz.";
 
-            string fatherStatus = draft.Father.DeathDate.HasValue
-                ? $"(Vefat: {draft.Father.DeathDate.Value:dd.MM.yyyy})"
-                : "(Sağ)";
-            summaryBuilder.AppendLine($"👨 <b>Baba:</b> {draft.Father.Name} {fatherStatus}\n");
-
-            summaryBuilder.AppendLine($"👧👦 <b>Bursa Uygun Çocuklar ({draft.Children.Count} kişi):</b>");
-            foreach (var child in draft.Children)
-            {
-                summaryBuilder.AppendLine($"  • {child.Name} (Doğum: {child.BirthDate:dd.MM.yyyy})");
-            }
-
-            summaryBuilder.AppendLine("\nŞimdi lütfen e-Devlet'ten aldığınız <b>İkametgah (Yerleşim Yeri) Belgenizi</b> PDF olarak gönderiniz.");
-
-            await _notifier.SendMessageAsync(draft.ChatId, summaryBuilder.ToString());
+            await _notifier.SendMessageAsync(draft.ChatId, msg);
         }
         else if (request.DocumentType == "Residence")
         {

@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
+using SponsorAid.Application.Models;
 using SponsorAid.Domain.Enums;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.ProcessQuestionnaireAnswer;
@@ -356,25 +357,40 @@ public class ProcessQuestionnaireAnswerHandler(
             if (draft.Guardian.Iban == null)
             {
                 await _notifier.SendMessageAsync(draft.ChatId, "💳 Son olarak, burs bağlandığı takdirde yatırılacak olan kendinize ait **IBAN Numaranızı** (TR ile başlayarak) yazınız.");
-                await _draftRepository.SaveAsync(draft, cancellationToken); return;
+                await _draftRepository.SaveAsync(draft, cancellationToken);
+                return;
             }
             else
             {
-                // TÜM SORULAR BİTTİ, FİNALE GEÇ
-                draft.GenerateAutomatedDetails(); // 🚀 Dilekçe ve hobileri draft JSON'ına mühürle
-                draft.SetStep(RegistrationStep.Completed);
+                // TÜM SORULAR BİTTİ -> ÖZET VE ONAY AŞAMASINA GEÇİYORUZ
+                draft.GenerateAutomatedDetails();
+                draft.SetStep(RegistrationStep.WaitingForConfirmation);
                 await _draftRepository.SaveAsync(draft, cancellationToken);
-                await _notifier.SendMessageAsync(draft.ChatId, "🎉 Harika! Tüm aile ve gelir bilgileriniz eksiksiz olarak alındı. Başvurunuz uzmanlarımız ve yapay zeka otomasyonumuz tarafından derleniyor. Lütfen bekleyiniz...");
+
+                await SendSummaryConfirmationAsync(draft);
+                return;
             }
         }
+
         // 🚀 GÜNCELLEME SONRASI KONTROLÜ:
-        // Eğer hiçbir adımda 'return' edilmediyse, tüm sorular başarıyla doludur.
-        if (draft.CurrentStep != RegistrationStep.Completed)
+        // Eğer hiçbir adımda 'return' edilmediyse tüm sorular doludur.
+        if (draft.CurrentStep != RegistrationStep.WaitingForConfirmation && draft.CurrentStep != RegistrationStep.Completed)
         {
-            draft.SetStep(RegistrationStep.Completed);
+            draft.SetStep(RegistrationStep.WaitingForConfirmation);
             await _draftRepository.SaveAsync(draft, cancellationToken);
-            await _notifier.SendMessageAsync(draft.ChatId, "🎉 Güncellemeniz başarıyla kaydedildi! Başvurunuz onay aşamasına alındı.");
+            await SendSummaryConfirmationAsync(draft);
         }
+    }
+
+    private async Task SendSummaryConfirmationAsync(RegistrationDraftState draft)
+    {
+        string summaryText = draft.BuildSummaryHtml();
+        var buttons = new Dictionary<string, string>
+        {
+            { "confirm_registration", "✅ Bilgileri Onaylıyorum ve Kaydı Tamamla" }
+        };
+
+        await _notifier.SendQuestionWithButtonsAsync(draft.ChatId, summaryText, buttons);
     }
 
     // Yardımcı Metot: Sadece buton tıklamasıyla geldiyse mesajı günceller

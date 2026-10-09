@@ -17,5 +17,6 @@ public enum RegistrationStep
     ProcessingIdentityBack = 8,      
     MergingDocuments = 9,             // PDF birleştiriliyor
     WaitingForQuestions = 10,          // Metin soruları aşaması
-    Completed = 11
+    WaitingForConfirmation = 11, // Özet ve Onay Bekleme Aşaması
+    Completed = 12
 }

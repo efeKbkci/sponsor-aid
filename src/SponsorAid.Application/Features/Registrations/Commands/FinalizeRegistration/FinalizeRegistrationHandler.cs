@@ -7,31 +7,75 @@ using SponsorAid.Domain.ValueObjects;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.FinalizeRegistration;
 
-public class FinalizeRegistrationHandler : IRequestHandler<FinalizeRegistrationCommand>
+public class FinalizeRegistrationHandler(
+    IDraftStateRepository draftRepository,
+    IRegistrationTrackingRepository trackingRepository,
+    IFileStorageService fileStorage,
+    IUserNotifier notifier) : IRequestHandler<FinalizeRegistrationCommand>
 {
-    private readonly IDraftStateRepository _draftRepository;
-    private readonly IUserNotifier _notifier;
-
-    public FinalizeRegistrationHandler(IDraftStateRepository draftRepository, IUserNotifier notifier)
-    {
-        _draftRepository = draftRepository;
-        _notifier = notifier;
-    }
+    private readonly IDraftStateRepository _draftRepository = draftRepository;
+    private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository;
+    private readonly IFileStorageService _fileStorage = fileStorage;
+    private readonly IUserNotifier _notifier = notifier;
 
     public async Task Handle(FinalizeRegistrationCommand request, CancellationToken cancellationToken)
     {
         var draft = await _draftRepository.GetAsync(request.RegistrationKey, cancellationToken);
-
         if (draft == null)
         {
             throw new KeyNotFoundException($"'{request.RegistrationKey}' anahtarına sahip kayıt bulunamadı.");
         }
 
-        // 1. ZORUNLU ALAN KONTROLÜ
+        // 1. ZORUNLU ALAN KONTROLLERİ
         EnsureRequiredFieldsAreFilled(draft);
 
-        // 2. VALUE OBJECT (DEĞER NESNESİ) DÖNÜŞÜMLERİ
-        // Sepetteki ilkel veriler Domain katmanındaki Value Object'lere dönüştürülüyor.
+        // 2. DOMAIN KURALLARI DOĞRULAMASI (Yaş, IBAN, T.C. vb.)
+        ValidateDomainRules(draft);
+
+        // 3. TAKİP TABLOSUNDA DURUMU "Tamamlandı" OLARAK İŞARETLE
+        await _trackingRepository.MarkAsCompletedAsync(request.RegistrationKey, cancellationToken);
+
+        // 4. BELGELERİ HARD DELETE İLE DİSKTEN SİL
+        DeleteUploadedFiles(draft);
+
+        // 5. TASLAĞI (DRAFT) VERİTABANINDAN HARD DELETE İLE SİL
+        await _draftRepository.DeleteAsync(request.RegistrationKey, cancellationToken);
+
+        // 6. KULLANICIYA BAŞARI BİLDİRİMİ GÖNDER
+        await _notifier.SendMessageAsync(draft.ChatId,
+            "✅ <b>Başvurunuz Başarıyla Tamamlandı!</b>\n\n" +
+            $"Tüm aile, ikamet ve gelir bilgileriniz doğrulandı. Takip kodunuz: <code>{draft.RegistrationKey}</code>\n" +
+            "Geçici belgeleriniz ve kayıt taslağınız gizlilik gereği sunucularımızdan güvenli bir şekilde silinmiştir.");
+    }
+
+    private void DeleteUploadedFiles(RegistrationDraftState draft)
+    {
+        var filesToDelete = new HashSet<string?>();
+
+        // Resmi Belgeler
+        filesToDelete.Add(draft.SystemDocuments.PopulationRegistryDocumentPath);
+        filesToDelete.Add(draft.SystemDocuments.ResidenceDocumentPath);
+        filesToDelete.Add(draft.SystemDocuments.IdentityFrontPath);
+        filesToDelete.Add(draft.SystemDocuments.IdentityBackPath);
+        filesToDelete.Add(draft.SystemDocuments.MergedIdentityPath);
+
+        // Vasi Kimliği
+        filesToDelete.Add(draft.Guardian.IdentityDocumentPath);
+
+        // Çocukların Kimlikleri
+        foreach (var child in draft.Children)
+        {
+            filesToDelete.Add(child.IdentityDocumentPath);
+        }
+
+        foreach (var filePath in filesToDelete)
+        {
+            _fileStorage.DeleteFile(filePath);
+        }
+    }
+
+    private void ValidateDomainRules(RegistrationDraftState draft)
+    {
         var financialInfo = new FinancialInfo(
             householdSize: draft.FamilyFinancial.FamilyMemberCount!.Value,
             income: draft.FamilyFinancial.Income!.Value,
@@ -48,13 +92,11 @@ public class FinalizeRegistrationHandler : IRequestHandler<FinalizeRegistrationC
 
         var fatherDetails = new FatherDetails(
             name: draft.Father.Name!,
-            deathDate: draft.Father.DeathDate!.Value.ToDateTime(TimeOnly.MinValue), // DateOnly'den DateTime'a çevrim
+            deathDate: draft.Father.DeathDate!.Value.ToDateTime(TimeOnly.MinValue),
             profession: draft.Father.Profession!.Value,
             deathReason: draft.Father.DeathReason!.Value
         );
 
-        // 3. ANA VARLIK (GUARDIAN) YARATIMI
-        // Tüm iş kuralları (örn: 18 yaş kontrolü) burada çalışacak.
         var guardian = new Guardian(
             name: draft.Guardian.Name!,
             identityNumber: draft.Guardian.IdNumber!,
@@ -74,7 +116,6 @@ public class FinalizeRegistrationHandler : IRequestHandler<FinalizeRegistrationC
             iban: draft.Guardian.Iban!
         );
 
-        // 4. ALT VARLIKLARIN (CHILDREN) YARATIMI VE EKLENMESİ
         foreach (var childDraft in draft.Children)
         {
             var child = new Child(
@@ -84,42 +125,13 @@ public class FinalizeRegistrationHandler : IRequestHandler<FinalizeRegistrationC
                 fatherDetails: fatherDetails
             );
 
-            // Otomasyon verilerini ekle (Dilekçe, Hobiler vb.)[cite: 2]
-            child.SetAutomatedDetails(
-                hobbies: childDraft.Hobbies!,
-                futureDream: childDraft.FutureDream!
-            );
-
+            child.SetAutomatedDetails(childDraft.Hobbies!, childDraft.FutureDream!);
             guardian.AddChild(child);
         }
-
-        // 5. ENGELLİ/HASTA BİREY KONTROLÜ
-        if (draft.DisabledMember != null && !string.IsNullOrWhiteSpace(draft.DisabledMember.Name))
-        {
-            var disabledMember = new DisabledMember(
-                name: draft.DisabledMember.Name,
-                diagnosis: draft.DisabledMember.Diagnosis!,
-                status: draft.DisabledMember.DiseaseStatus!,
-                treatmentStatus: draft.DisabledMember.TreatmentStatus!.Value,
-                description: draft.DisabledMember.Description!
-            );
-
-            guardian.AddDisabledMember(disabledMember);
-        }
-
-        // 6. BAŞARI DURUMU: KAYIT MÜHÜRLENDİ
-        // Eğer buraya kadar geldiysek, sistem IHH'nın tüm Domain kurallarını başarıyla geçmiştir.
-        await _notifier.SendMessageAsync(draft.ChatId,
-            "✅ Kayıt başarıyla doğrulandı ve tamamlandı!\n" +
-            "Tüm iş kuralları (yaş sınırları, gelir durumları) kontrol edildi ve onaylandı.");
-
-        // Geçici taslağı hafızadan siliyoruz[cite: 2].
-        await _draftRepository.DeleteAsync(request.RegistrationKey, cancellationToken);
     }
 
     private void EnsureRequiredFieldsAreFilled(RegistrationDraftState draft)
     {
-        // Temel verilerin (Null) kontrolleri yapılarak, Entity oluştururken alınabilecek NullReferenceException'ların önüne geçilir.
         var missingFields = new List<string>();
 
         if (string.IsNullOrWhiteSpace(draft.Guardian.Name)) missingFields.Add("Vasi İsmi");
@@ -145,7 +157,7 @@ public class FinalizeRegistrationHandler : IRequestHandler<FinalizeRegistrationC
 
         if (missingFields.Any())
         {
-            throw new InvalidOperationException("Aşağıdaki zorunlu alanlar eksik, lütfen tamamlayın:\n- " + string.Join("\n- ", missingFields));
+            throw new InvalidOperationException("Aşağıdaki zorunlu alanlar eksik:\n- " + string.Join("\n- ", missingFields));
         }
     }
 }
