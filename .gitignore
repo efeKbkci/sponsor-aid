@@ -490,3 +490,4 @@ $RECYCLE.BIN/
 /repomix-output.xml
 /test/mock_documents
 /test/SponsorAid.Tests
+/worker/microservices/residence_parsing/repomix-output.xml

@@ -49,6 +49,29 @@ namespace SponsorAid.Infrastructure.Migrations
 
                     b.ToTable("Drafts");
                 });
+
+            modelBuilder.Entity("SponsorAid.Infrastructure.Persistence.RegistrationTrackingRecord", b =>
+                {
+                    b.Property<string>("RegistrationKey")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GuardianName")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("RegistrationKey");
+
+                    b.ToTable("RegistrationTrackings");
+                });
 #pragma warning restore 612, 618
         }
     }
