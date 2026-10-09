@@ -78,6 +78,10 @@ builder.Services.AddScoped<IDialogRouter, TelegramDialogRouter>();
 // Program.cs'deki DI (Dependency Injection) kısmına eklenecek:
 builder.Services.AddScoped<IEGovermentDocumentService, EGovermentDocumentService>();
 
+// 🚀 ŞİFRELİ ARŞİV SERVİSİ KAYDI
+builder.Services.AddScoped<ISecureArchiveService, SharpZipLibSecureArchiveService>();
+builder.Services.AddScoped<IRegistrationDispatchService, RegistrationDispatchService>();
+
 // ==============================================================================
 // 5. ARKA PLAN SERVİSLERİ (Background Workers)
 // ==============================================================================

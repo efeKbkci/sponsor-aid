@@ -12,41 +12,58 @@ public class FinalizeRegistrationHandler(
     IDraftStateRepository draftRepository,
     IRegistrationTrackingRepository trackingRepository,
     IFileStorageService fileStorage,
-    IUserNotifier notifier) : IRequestHandler<FinalizeRegistrationCommand>
+    IUserNotifier notifier,
+    ISecureArchiveService archiveService,
+    IRegistrationDispatchService dispatchService) : IRequestHandler<FinalizeRegistrationCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
     private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository;
     private readonly IFileStorageService _fileStorage = fileStorage;
     private readonly IUserNotifier _notifier = notifier;
+    private readonly ISecureArchiveService _archiveService = archiveService;
+    private readonly IRegistrationDispatchService _dispatchService = dispatchService;
 
     public async Task Handle(FinalizeRegistrationCommand request, CancellationToken cancellationToken)
     {
         var draft = await _draftRepository.GetAsync(request.RegistrationKey, cancellationToken);
         if (draft == null)
-        {
             throw new KeyNotFoundException($"'{request.RegistrationKey}' anahtarına sahip kayıt bulunamadı.");
-        }
 
-        // 1. ZORUNLU ALAN KONTROLLERİ
+        // 1. ZORUNLU ALAN KONTROLLERİ VE DOMAIN DOĞRULAMASI
         EnsureRequiredFieldsAreFilled(draft);
-
-        // 2. DOMAIN KURALLARI DOĞRULAMASI (Yaş, IBAN, T.C. vb.)
         ValidateDomainRules(draft);
 
-        // 3. TAKİP TABLOSUNDA DURUMU "Tamamlandı" OLARAK İŞARETLE
+        // 2. AES-256 ŞİFRELİ ZIP PAKETİ OLUŞTURULMASI
+        var (archiveBytes, password) = await _archiveService.CreateEncryptedPackageAsync(draft, cancellationToken);
+
+        // 3. E-POSTA İLE DOSYA GÖNDERİMİ (A KİŞİSİNE)
+        await _dispatchService.SendEncryptedPackageAsync(
+            draft.RegistrationKey,
+            draft.Guardian.Name!,
+            archiveBytes,
+            cancellationToken);
+
+        // 4. AYRIK KANAL ÜZERİNDEN ŞİFRENİN GÖNDERİLMESİ
+        await _dispatchService.SendPasswordAsync(
+            draft.RegistrationKey,
+            draft.Guardian.Name!,
+            password,
+            cancellationToken);
+
+        // 5. TAKİP TABLOSUNU "Tamamlandı" OLARAK GÜNCELLE
         await _trackingRepository.MarkAsCompletedAsync(request.RegistrationKey, cancellationToken);
 
-        // 4. BELGELERİ HARD DELETE İLE DİSKTEN SİL
+        // 6. GÜVENLİK TEMİZLİĞİ: GEÇİCİ DOSYALARI DİSKTEN KALICI OLARAK SİL (HARD DELETE)
         DeleteUploadedFiles(draft);
 
-        // 5. TASLAĞI (DRAFT) VERİTABANINDAN HARD DELETE İLE SİL
+        // 7. TASLAĞI (DRAFT) VERİTABANINDAN SİL (HARD DELETE)
         await _draftRepository.DeleteAsync(request.RegistrationKey, cancellationToken);
 
-        // 6. KULLANICIYA BAŞARI BİLDİRİMİ GÖNDER
+        // 8. KULLANICIYA BAŞARI BİLDİRİMİ
         await _notifier.SendMessageAsync(draft.ChatId,
             "✅ <b>Başvurunuz Başarıyla Tamamlandı!</b>\n\n" +
-            $"Tüm aile, ikamet ve gelir bilgileriniz doğrulandı. Takip kodunuz: <code>{draft.RegistrationKey}</code>\n" +
-            "Geçici belgeleriniz ve kayıt taslağınız gizlilik gereği sunucularımızdan güvenli bir şekilde silinmiştir.");
+            $"Tüm bilgileriniz ve belgeleriniz şifreli olarak yetkili birime aktarılmıştır.\n" +
+            $"Takip kodunuz: <code>{draft.RegistrationKey}</code>");
     }
 
     private void DeleteUploadedFiles(RegistrationDraftState draft)
