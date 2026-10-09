@@ -8,10 +8,14 @@ using System.Text;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.StartRegistration;
 
-public class StartRegistrationHandler(IDraftStateRepository draftRepository) : IRequestHandler<StartRegistrationCommand, string>
+public class StartRegistrationHandler(
+    IDraftStateRepository draftRepository, 
+    IRegistrationTrackingRepository trackingRepository
+    ) : IRequestHandler<StartRegistrationCommand, string>
 {
-    private readonly IDraftStateRepository _draftRepository = draftRepository;   
-    
+    private readonly IDraftStateRepository _draftRepository = draftRepository;
+    private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository;
+
     public async Task<string> Handle(StartRegistrationCommand request, CancellationToken cancellationToken)
     {
         // 1. Çalışanların aralarında WhatsApp'tan vs. kolayca paylaşabileceği 
@@ -30,6 +34,8 @@ public class StartRegistrationHandler(IDraftStateRepository draftRepository) : I
 
         // 3. Kaydediyoruz
         await _draftRepository.SaveAsync(newDraft, cancellationToken);
+        // 2. Takip tablosuna 'Devam Ediyor' olarak ekle
+        await _trackingRepository.CreateAsync(generatedKey, cancellationToken);
 
         // 4. Anahtarı dış dünyaya (Bot'a) döndürüyoruz
         return generatedKey;

@@ -5,7 +5,10 @@ using SponsorAid.Domain.ValueObjects;
 using SponsorAid.Integration.Contracts;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
+using System.Reflection;
+using System.Text;
 
 namespace SponsorAid.Application.Models;
 
@@ -347,6 +350,62 @@ public class RegistrationDraftState
 
         resetAction();
         return (true, $"🔄 <b>{questionLabel}</b> bilgisi sıfırlandı. Lütfen yeni cevabı giriniz:");
+    }
+
+    public string BuildSummaryHtml()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("📋 <b>BAŞVURU BİLGİLERİ ÖZETİ</b>\n");
+        sb.AppendLine($"🔑 <b>Takip Kodu:</b> <code>{RegistrationKey}</code>\n");
+
+        sb.AppendLine("👤 <b>Vasi Bilgileri:</b>");
+        sb.AppendLine($"• <b>Ad Soyad:</b> {Guardian.Name}");
+        sb.AppendLine($"• <b>T.C. Kimlik No:</b> {Guardian.IdNumber?.Value}");
+        sb.AppendLine($"• <b>Doğum Tarihi:</b> {Guardian.BirthDate:dd.MM.yyyy}");
+        sb.AppendLine($"• <b>Telefon:</b> {Guardian.PhoneNumber?.Value}");
+        sb.AppendLine($"• <b>IBAN:</b> {Guardian.Iban?.Value}\n");
+
+        sb.AppendLine("🕊️ <b>Vefat Eden Baba:</b>");
+        sb.AppendLine($"• <b>Ad Soyad:</b> {Father.Name}");
+        sb.AppendLine($"• <b>Ölüm Tarihi:</b> {Father.DeathDate?.ToString("dd.MM.yyyy")}");
+        sb.AppendLine($"• <b>Ölüm Nedeni:</b> {GetEnumDescription(Father.DeathReason)}\n");
+
+        sb.AppendLine("🏠 <b>İkametgâh:</b>");
+        sb.AppendLine($"• <b>Açık Adres:</b> {ResidenceAddress.FullAddress}");
+        sb.AppendLine($"• <b>Konut Durumu:</b> {GetEnumDescription(FamilyFinancial.HousingStatus)}\n");
+
+        sb.AppendLine("<b>Maddi Durum:</b>");
+        sb.AppendLine($"• <b>Aile Kişi Sayısı:</b> {FamilyFinancial.FamilyMemberCount}");
+        sb.AppendLine($"• <b>Sosyal Güvence:</b> {GetEnumDescription(FamilyFinancial.SocialSecurity)}");
+        sb.AppendLine($"• <b>Aylık Gelir:</b> {FamilyFinancial.Income} TL ({GetEnumDescription(FamilyFinancial.IncomeStatus)})");
+        sb.AppendLine($"• <b>Aylık Gider:</b> {FamilyFinancial.Expense} TL\n");
+
+        sb.AppendLine($"<b>Çocuklar ({Children.Count} Kişi):</b>");
+        foreach (var child in Children)
+        {
+            sb.AppendLine($"• <b>{child.Name}</b> (T.C: {child.IdNumber?.Value}, D.Tarihi: {child.BirthDate:dd.MM.yyyy})");
+        }
+
+        if (DisabledMember != null && DisabledMember.Name != "Yok" && !string.IsNullOrWhiteSpace(DisabledMember.Name))
+        {
+            sb.AppendLine("\n🏥 <b>Engelli / Hasta Birey:</b>");
+            sb.AppendLine($"• <b>Ad Soyad:</b> {DisabledMember.Name}");
+            sb.AppendLine($"• <b>Teşhis / Durum:</b> {DisabledMember.Diagnosis} ({DisabledMember.DiseaseStatus})");
+            sb.AppendLine($"• <b>Tedavi Durumu:</b> {GetEnumDescription(DisabledMember.TreatmentStatus)}");
+        }
+
+        sb.AppendLine("\n<i>Lütfen yukarıdaki bilgileri kontrol ediniz. Bilgiler doğruysa aşağıdaki butona basarak başvurunuzu tamamlayabilirsiniz. Hatalı bir bilgi varsa <code>/update &lt;alan&gt;</code> komutu ile düzeltebilirsiniz.</i>");
+
+        return sb.ToString();
+    }
+
+    private static string GetEnumDescription(Enum? value)
+    {
+        if (value == null) return "-";
+        var field = value.GetType().GetField(value.ToString());
+        if (field == null) return value.ToString();
+        var attribute = field.GetCustomAttribute<DescriptionAttribute>();
+        return attribute?.Description ?? value.ToString();
     }
 }
 

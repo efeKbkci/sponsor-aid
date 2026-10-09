@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.Extensions.Logging;
 using SponsorAid.Application.Features.Registrations.Commands.ContinueRegistration;
+using SponsorAid.Application.Features.Registrations.Commands.FinalizeRegistration;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessBinaryDocument;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessIdentityImage;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessQuestionnaireAnswer;
@@ -226,6 +227,31 @@ public class TelegramDialogRouter(
 
                 // 🚀 BÜYÜK TEMİZLİK: Sadece Handler'ı çağır! 
                 await _mediator.Send(new ProcessQuestionnaireAnswerCommand(activeDraft.RegistrationKey, text, callbackMessageId), cancellationToken);
+                break;
+
+            case RegistrationStep.WaitingForConfirmation:
+                if (text == "confirm_registration")
+                {
+                    // Buton mesajını yeşil tike çevirip butonları kaldırıyoruz
+                    if (callbackMessageId.HasValue)
+                    {
+                        await _userNotifier.UpdateMessageAsAnsweredAsync(
+                            chatId,
+                            callbackMessageId.Value,
+                            "📋 <b>Başvuru Özeti</b>",
+                            "Bilgiler onaylandı."
+                        );
+                    }
+
+                    await _userNotifier.SendMessageAsync(chatId, "⏳ Başvurunuz doğrulanıyor ve kaydediliyor, lütfen bekleyiniz...");
+
+                    // 🚀 Asıl kayıt tamamlama, temizlik ve takip tablosu güncellemesi burada tetiklenir:
+                    await _mediator.Send(new FinalizeRegistrationCommand(activeDraft.RegistrationKey), cancellationToken);
+                }
+                else
+                {
+                    await _userNotifier.SendMessageAsync(chatId, "⚠️ Başvuruyu tamamlamak için lütfen yukarıdaki <b>'Bilgileri Onaylıyorum'</b> butonuna tıklayınız veya düzeltmek istediğiniz bir alan varsa <code>/update &lt;alan&gt;</code> komutunu kullanınız.");
+                }
                 break;
 
             case RegistrationStep.Completed:

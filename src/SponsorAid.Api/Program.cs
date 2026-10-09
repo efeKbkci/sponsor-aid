@@ -64,6 +64,7 @@ builder.Services.AddDbContext<SponsorAidDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 builder.Services.AddScoped<IDraftStateRepository, EfCoreDraftStateRepository>();
+builder.Services.AddScoped<IRegistrationTrackingRepository, EfCoreRegistrationTrackingRepository>();
 
 // RabbitMQ Mesaj Gönderici (Tekil bağlantı performansı için Singleton)
 builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();

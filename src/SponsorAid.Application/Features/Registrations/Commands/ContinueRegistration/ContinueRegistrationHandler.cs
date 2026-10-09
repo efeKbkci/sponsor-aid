@@ -87,6 +87,11 @@ public class ContinueRegistrationHandler(
                 await _mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey));
                 break;
 
+            case RegistrationStep.WaitingForConfirmation:
+                await _notifier.SendMessageAsync(draft.ChatId, baseMessage + "Başvuru onay aşamasındasınız.");
+                await _mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey));
+                break;
+
             default:
                 await _notifier.SendMessageAsync(draft.ChatId, baseMessage + "Kaldığınız yerden devam etmek için lütfen bir mesaj gönderiniz.");
                 break;
