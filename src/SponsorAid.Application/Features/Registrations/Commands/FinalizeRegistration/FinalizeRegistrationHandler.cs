@@ -3,6 +3,7 @@ using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Application.Models;
 using SponsorAid.Domain.Entities;
+using SponsorAid.Domain.Enums;
 using SponsorAid.Domain.ValueObjects;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.FinalizeRegistration;
@@ -97,6 +98,10 @@ public class FinalizeRegistrationHandler(
             deathReason: draft.Father.DeathReason!.Value
         );
 
+        // 🚀 ÇÖZÜM 1: EducationStatus ankette sorulmadığı için vasiye varsayılan olarak 'Graduated' (Mezun) atanır.
+        var educationStatus = draft.Guardian.EducationStatus
+            ?? (draft.Guardian.EducationLevel == EducationLevel.Literate ? EducationStatus.NeverAttended : EducationStatus.Graduated);
+
         var guardian = new Guardian(
             name: draft.Guardian.Name!,
             identityNumber: draft.Guardian.IdNumber!,
@@ -105,7 +110,7 @@ public class FinalizeRegistrationHandler(
             gender: draft.Guardian.Gender!.Value,
             maritalStatus: draft.Guardian.MaritalStatus!.Value,
             educationLevel: draft.Guardian.EducationLevel!.Value,
-            educationStatus: draft.Guardian.EducationStatus!.Value,
+            educationStatus: educationStatus,
             kinship: draft.Guardian.DegreeOfKinship!.Value,
             profession: draft.Guardian.Profession!,
             housingStatus: draft.FamilyFinancial.HousingStatus!.Value,
@@ -127,6 +132,23 @@ public class FinalizeRegistrationHandler(
 
             child.SetAutomatedDetails(childDraft.Hobbies!, childDraft.FutureDream!);
             guardian.AddChild(child);
+        }
+
+        // 🚀 ÇÖZÜM 2: "Yok" kontrolü eklenerek sadece gerçekten hasta/engelli birey tanımlanmışsa eklenir.
+        if (draft.DisabledMember != null &&
+            !string.IsNullOrWhiteSpace(draft.DisabledMember.Name) &&
+            draft.DisabledMember.Name != "Yok" &&
+            draft.DisabledMember.TreatmentStatus.HasValue)
+        {
+            var disabledMember = new DisabledMember(
+                name: draft.DisabledMember.Name,
+                diagnosis: draft.DisabledMember.Diagnosis ?? "Belirtilmedi",
+                status: draft.DisabledMember.DiseaseStatus ?? "Belirtilmedi",
+                treatmentStatus: draft.DisabledMember.TreatmentStatus.Value,
+                description: draft.DisabledMember.Description ?? string.Empty
+            );
+
+            guardian.AddDisabledMember(disabledMember);
         }
     }
 
