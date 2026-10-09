@@ -229,6 +229,52 @@ public class RegistrationDraftState
         var trCulture = new CultureInfo("tr-TR");
         return string.Compare(text1.Trim(), text2.Trim(), trCulture, CompareOptions.IgnoreCase) == 0;
     }
+    /// <summary>
+    /// Vasi dilekçesini ve çocukların hobi/hayal bilgilerini otomatik oluşturup atar.
+    // </summary>
+    public void GenerateAutomatedDetails()
+    {
+        // 1. DİLEKÇE ŞABLONU (300+ Karakter Kuralını Karşılar)
+        string deathDateStr = Father.DeathDate?.ToString("dd.MM.yyyy") ?? "belirtilen tarihte";
+        int childCount = Children.Count;
+
+        string petitionText =
+            $"İlgili Makama,\n\n" +
+            $"Ben {Guardian.Name}, {deathDateStr} tarihinde vefat eden eşimin vefatı neticesinde yetim kalan {childCount} çocuğum ile birlikte ailemizin geçimini ve idamesini sağlamaya çalışmaktayım. " +
+            $"Hanemizin gelir düzeyinin yetersiz olması sebebiyle çocuklarımın temel gıda, barınma, sağlık ve özellikle eğitim ihtiyaçlarını karşılamakta ciddi maddi zorluklar yaşamaktayım. " +
+            $"Yetim çocuklarımızın eğitim hayatlarını aksatmadan sürdürebilmeleri ve geleceğe güvenle hazırlanabilmeleri adına vakfınızın / derneğinizin yetim burs ve aile destek programından istifade etmek istiyorum. " +
+            $"Yetim sponsorluk ve burs talebimin değerlendirilerek kabul edilmesini saygılarımla arz ederim.";
+        
+        SystemDocuments.Petition = new Petition(petitionText);
+
+        // 2. ÇOCUKLARIN HOBİ VE GELECEK HAYALLERİ LİSTESİ
+        var hobbiesPool = new[]
+        {
+            "Kitap okumak ve resim çizmek",
+            "Futbol oynamak ve bisiklete binmek",
+            "Satranç oynamak ve müzik dinlemek",
+            "Lego yapmak ve bilim belgeselleri izlemek",
+            "Yüzmek ve doğa yürüyüşü yapmak"
+        };
+
+        var dreamsPool = new[]
+        {
+            "Öğretmen olmak",
+            "Doktor olmak",
+            "Bilgisayar Mühendisi olmak",
+            "Pilot olmak",
+            "Mimar olmak",
+            "Polis olmak"
+        };
+
+        for (int i = 0; i < Children.Count; i++)
+        {
+            var child = Children[i];
+            // Eğer daha önce atanmadıysa havuzdan sırayla ata
+            child.Hobbies ??= hobbiesPool[i % hobbiesPool.Length];
+            child.FutureDream ??= dreamsPool[i % dreamsPool.Length];
+        }
+    }
 
     // Belirtilen soru anahtarının daha önce cevaplanıp cevaplanmadığını denetler ve cevabı sıfırlar.
     public (bool Success, string Message) ResetQuestionAnswer(string key)

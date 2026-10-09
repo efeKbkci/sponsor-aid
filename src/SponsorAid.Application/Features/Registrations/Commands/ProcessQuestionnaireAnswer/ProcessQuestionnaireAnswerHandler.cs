@@ -17,14 +17,6 @@ public class ProcessQuestionnaireAnswerHandler(
         var draft = await _draftRepository.GetAsync(request.RegistrationKey, cancellationToken);
         if (draft == null) throw new KeyNotFoundException($"Draft with key '{request.RegistrationKey}' not found.");
 
-        // 1. YAPAY ZEKA GÜNCELLEMESİ İSE ŞELALEYİ ATLA
-        if (request.BulkUpdates != null && request.BulkUpdates.Count > 0)
-        {
-            draft.ApplyUpdates(request.BulkUpdates);
-            await _draftRepository.SaveAsync(draft, cancellationToken);
-            return;
-        }
-
         // 2. TELEGRAM CEVABI İSE ŞELALEYİ ÇALIŞTIR
         string text = request.AnswerText?.Trim() ?? string.Empty;
 
@@ -369,6 +361,7 @@ public class ProcessQuestionnaireAnswerHandler(
             else
             {
                 // TÜM SORULAR BİTTİ, FİNALE GEÇ
+                draft.GenerateAutomatedDetails(); // 🚀 Dilekçe ve hobileri draft JSON'ına mühürle
                 draft.SetStep(RegistrationStep.Completed);
                 await _draftRepository.SaveAsync(draft, cancellationToken);
                 await _notifier.SendMessageAsync(draft.ChatId, "🎉 Harika! Tüm aile ve gelir bilgileriniz eksiksiz olarak alındı. Başvurunuz uzmanlarımız ve yapay zeka otomasyonumuz tarafından derleniyor. Lütfen bekleyiniz...");
