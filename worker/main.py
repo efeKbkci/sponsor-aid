@@ -1,26 +1,31 @@
 import pika
 import time
+import threading
+import uvicorn
+from fastapi import FastAPI
 from easyocr import Reader
-import events_pb2 # Ürettiğimiz Protobuf sınıfı
+import events_pb2
 from config import RABBITMQ_HOST, RABBITMQ_PASSWORD, RABBITMQ_USER, QUEUE_RECEIVE, QUEUE_SEND
 from microservices.id_processing.handler import IdProcessingHandler
 from microservices.population_registry_parsing.handler import PopulationRegistryHandler
 from microservices.residence_parsing.handler import ResidenceHandler
 from microservices.barcode_extraction.handler import BarcodeExtractionHandler
+from microservices.semantic_matching.handler import router as semantic_router
 
+# 1. FastAPI Uygulaması
+app = FastAPI(title="SponsorAid Worker Internal API")
+app.include_router(semantic_router)
+
+# 2. Servisleri Başlat (Mevcut mantık aynen korunur)
 print("[*] Worker Başlatılıyor. Servisler ayağa kaldırılıyor...")
-print("[*] EasyOCR Modeli RAM'e yükleniyor (Bu işlem sadece açılışta 1 kez yapılır)...")
-# 'tr' ve 'en' dillerini destekleyen okuyucuyu başlatıyoruz. GPU=False ile standart işlemcide bile çalışır.
 reader = Reader(['tr', 'en'], gpu=False, verbose=False)
 
-# Departmanları (Servisleri) Başlat
 id_service = IdProcessingHandler(reader)
 population_registry_service = PopulationRegistryHandler()
 residence_service = ResidenceHandler()
 barcode_service = BarcodeExtractionHandler()
 
 def route_event(ch, method, properties, body):
-    # 1. RabbitMQ'dan gelen byte'ları Zarf'a (Envelope) çevir
     envelope = events_pb2.WorkerTaskEnvelope()
     try:
         envelope.ParseFromString(body)
@@ -31,17 +36,12 @@ def route_event(ch, method, properties, body):
 
     result_msg = None
 
-    # 2. Zarfın üzerindeki Etikete (Enum) bakarak içindeki görevi ilgili metoda yolla
     if envelope.command_type == events_pb2.CommandType.COMMAND_TYPE_PROCESS_IMAGE:
         result_msg = id_service.process_image(envelope.image_task)
-        
     elif envelope.command_type == events_pb2.CommandType.COMMAND_TYPE_MERGE_PDF:
         result_msg = id_service.merge_to_pdf(envelope.merge_task)
-        
     elif envelope.command_type == events_pb2.CommandType.COMMAND_TYPE_PROCESS_OFFICIAL_DOC:
         task = envelope.official_doc_task
-        print(f"[*] Belge Servisi Çalıştı")
-
         if task.document_type == events_pb2.DocumentType.DOCUMENT_TYPE_POPULATION_REGISTRY:
             result_msg = population_registry_service.process(task)
         elif task.document_type == events_pb2.DocumentType.DOCUMENT_TYPE_RESIDENCE:
@@ -55,19 +55,15 @@ def route_event(ch, method, properties, body):
                 saved_file_path=task.file_path,
             )
     elif envelope.command_type == events_pb2.CommandType.COMMAND_TYPE_EXTRACT_BARCODE:
-        task = envelope.official_doc_task
-        print(f"[*] Barkod Servisi Çalıştı")
-        result_msg = barcode_service.process(task)
-
+        result_msg = barcode_service.process(envelope.official_doc_task)
     else:
         print(f"[⚠️] Bilinmeyen komut tipi!")
 
-    # 3. Sonucu Byte'a (Binary) çevirip C#'a (RabbitMQ'ya) geri fırlat
     if result_msg:
         ch.basic_publish(
             exchange='',
             routing_key=QUEUE_SEND,
-            body=result_msg.SerializeToString(), # DİKKAT: JSON dumps yerine SerializeToString kullanıyoruz!
+            body=result_msg.SerializeToString(),
             properties=pika.BasicProperties(delivery_mode=2)
         )
 
@@ -103,4 +99,10 @@ def start_router():
     channel.start_consuming()
 
 if __name__ == '__main__':
-    start_router()
+    # RabbitMQ dinleyicisini arka planda thread olarak koştur
+    mq_thread = threading.Thread(target=start_router, daemon=True)
+    mq_thread.start()
+
+    # FastAPI Uvicorn sunucusunu ana thread'de ayağa kaldır (Port: 8000)
+    print("[*] 🌐 FastAPI HTTP Servisi 8000 portunda başlatılıyor...")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

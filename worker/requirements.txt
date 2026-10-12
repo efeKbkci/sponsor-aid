@@ -7,3 +7,6 @@ Pillow==12.3.0
 protobuf==7.36.2
 python-dotenv==1.2.4
 ultralytics==8.4.173
+fastapi
+uvicorn
+sentence-transformers
