@@ -1362,4 +1362,6 @@ Ben {0}, {1} tarihinde vefat eden eşimin vefatı neticesinde yetim kalan {2} ç
   <data name="Summary_ConfirmationInstructions" xml:space="preserve">
     <value>&lt;i&gt;Lütfen yukarıdaki bilgileri kontrol ediniz. Bilgiler doğruysa aşağıdaki butona basarak başvurunuzu tamamlayabilirsiniz. Hatalı bir bilgi varsa &lt;code&gt;/update &amp;lt;alan&amp;gt;&lt;/code&gt; komutu ile düzeltebilirsiniz.&lt;/i&gt;</value>
   </data>
+	<data name="Enum_RegistrationStatus_InProgress" xml:space="preserve"><value>Devam Ediyor</value></data>
+	<data name="Enum_RegistrationStatus_Completed" xml:space="preserve"><value>Tamamlandı</value></data>
 </root>

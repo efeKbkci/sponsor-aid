@@ -12,11 +12,13 @@ namespace SponsorAid.Application.Features.Registrations.Commands.ContinueRegistr
 
 public class ContinueRegistrationHandler(
     IDraftStateRepository draftRepository,
+    IRegistrationTrackingRepository trackingRepository, // YENİ EKLENDİ
     IUserNotifier notifier,
     IMediator mediator,
     IStringLocalizer<BotMessages> localizer) : IRequestHandler<ContinueRegistrationCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
+    private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository;
     private readonly IUserNotifier _notifier = notifier;
     private readonly IMediator _mediator = mediator;
     private readonly IStringLocalizer<BotMessages> _localizer = localizer;
@@ -26,11 +28,21 @@ public class ContinueRegistrationHandler(
         // 1. Kod Gönderilmediyse (Menüden Tıklandıysa) -> Kayıtları Listele
         if (string.IsNullOrWhiteSpace(request.RegistrationKey))
         {
-            var registrations = await _draftRepository.ListAllAsync(request.ChatId.ToString(), cancellationToken);
-            var options = registrations.ToDictionary(
-                draft => ContinueRegistrationCommand.SelectionCallbackPrefix + draft.RegistrationKey,
-                draft => _localizer["Option_Registration", draft.RegistrationKey,
-                    string.IsNullOrWhiteSpace(draft.Guardian.Name) ? _localizer["Label_AnonymousGuardian"].Value : draft.Guardian.Name].Value);
+            // Veriyi Draft yerine Tracking tablosundan alıyoruz
+            var trackings = await _trackingRepository.ListByChatIdAsync(request.ChatId, cancellationToken);
+            var options = new Dictionary<string, string>();
+
+            foreach (var track in trackings)
+            {
+                var guardianName = string.IsNullOrWhiteSpace(track.GuardianName)
+                    ? _localizer["Label_AnonymousGuardian"].Value
+                    : track.GuardianName;
+
+                var statusLabel = _localizer[$"Enum_RegistrationStatus_{track.Status}"].Value;
+
+                // Buton arkasında (Callback) RegistrationKey dönecek, ama ekranda "Vasi Adı - Durum" yazacak
+                options[ContinueRegistrationCommand.SelectionCallbackPrefix + track.RegistrationKey] = $"{guardianName} - {statusLabel}";
+            }
 
             if (options.Count == 0)
             {
@@ -42,12 +54,21 @@ public class ContinueRegistrationHandler(
             return;
         }
 
-        // 2. Kod Gönderildiyse -> Doğrudan Kaydı Yükle
+        // 2. Kod Gönderildiyse (Veya Butona Tıklandıysa) -> Doğrudan Kaydı Yükle
         var registrationKey = request.RegistrationKey.Trim().ToUpperInvariant();
         var draft = await _draftRepository.GetAsync(registrationKey, cancellationToken);
 
         if (draft == null)
         {
+            // Taslak veritabanında yoksa silinmiş demektir. Takip tablosundan tamamlanıp tamamlanmadığına bakalım.
+            var trackingStatus = await _trackingRepository.GetStatusAsync(registrationKey, cancellationToken);
+            if (trackingStatus == RegistrationStatus.Completed)
+            {
+                await _notifier.SendMessageAsync(request.ChatId, _localizer["Info_RegistrationAlreadyCompleted", registrationKey].Value);
+                return;
+            }
+
+            // Takipte de yoksa hiç bulunamamıştır.
             await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_RegistrationNotFound", registrationKey].Value);
             return;
         }
@@ -65,7 +86,6 @@ public class ContinueRegistrationHandler(
 
         await SendResumePromptAsync(draft);
     }
-
     private async Task SendResumePromptAsync(RegistrationDraftState draft)
     {
         switch (draft.CurrentStep)

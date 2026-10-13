@@ -1,5 +1,4 @@
 <Solution>
-  <Project Path="../test/SponsorAid.Tests/SponsorAid.Tests.csproj" />
   <Project Path="SponsorAid.Api/SponsorAid.Api.csproj" />
   <Project Path="SponsorAid.Application/SponsorAid.Application.csproj" />
   <Project Path="SponsorAid.Domain/SponsorAid.Domain.csproj" />

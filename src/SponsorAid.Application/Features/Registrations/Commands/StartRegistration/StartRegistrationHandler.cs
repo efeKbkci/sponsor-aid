@@ -48,8 +48,8 @@ public class StartRegistrationHandler(
 
         // 3. Kaydediyoruz
         await _draftRepository.SaveAsync(newDraft, cancellationToken);
-        // 2. Takip tablosuna 'Devam Ediyor' olarak ekle
-        await _trackingRepository.CreateAsync(generatedKey, cancellationToken);
+        // 2. Takip tablosuna 'Devam Ediyor' olarak ekle (request.ChatId eklendi)
+        await _trackingRepository.CreateAsync(generatedKey, request.ChatId, cancellationToken);
 
         // 4. Anahtarı dış dünyaya (Bot'a) döndürüyoruz
         await _notifier.SendMessageAsync(request.ChatId, _localizer["Success_NewRegistrationStarted"]);
