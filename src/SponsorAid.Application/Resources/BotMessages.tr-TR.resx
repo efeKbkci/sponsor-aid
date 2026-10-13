@@ -390,11 +390,11 @@ Kaldığınız yerden devam etmek için lütfen bir mesaj gönderiniz.</value>
 
 Şimdi sıradaki kişiye geçiyoruz. Lütfen **{0}** kimlik ÖN YÜZ fotoğrafını gönderiniz.</value>
   </data>
-	<data name="Success_AllIdentityDocumentsCollected" xml:space="preserve">
-  <value>🎉 Harika! Tüm aile bireylerinin kimlik belgeleri başarıyla toplandı.
+  <data name="Success_AllIdentityDocumentsCollected" xml:space="preserve">
+    <value>🎉 Harika! Tüm aile bireylerinin kimlik belgeleri başarıyla toplandı.
 
 Son birkaç sorum kaldı, anket aşamasına geçiyoruz.</value>
-</data>
+  </data>
   <data name="Question_ApplicantRole" xml:space="preserve">
     <value>📋 Başvuruyu yapan kişi olarak yetimin nesi oluyorsunuz?</value>
   </data>
@@ -1362,37 +1362,40 @@ Ben {0}, {1} tarihinde vefat eden eşimin vefatı neticesinde yetim kalan {2} ç
   <data name="Summary_ConfirmationInstructions" xml:space="preserve">
     <value>&lt;i&gt;Lütfen yukarıdaki bilgileri kontrol ediniz. Bilgiler doğruysa aşağıdaki butona basarak başvurunuzu tamamlayabilirsiniz. Hatalı bir bilgi varsa &lt;code&gt;/update &amp;lt;alan&amp;gt;&lt;/code&gt; komutu ile düzeltebilirsiniz.&lt;/i&gt;</value>
   </data>
-	<data name="Enum_RegistrationStatus_InProgress" xml:space="preserve"><value>Devam Ediyor</value></data>
-	<data name="Enum_RegistrationStatus_Completed" xml:space="preserve"><value>Tamamlandı</value></data>
-
-	<!-- ========================================== -->
-	<!-- BELGE OKUMA ÖZETLERİ                       -->
-	<!-- ========================================== -->
-	<data name="Summary_Population_Title" xml:space="preserve">
+  <data name="Enum_RegistrationStatus_InProgress" xml:space="preserve">
+    <value>Devam Ediyor</value>
+  </data>
+  <data name="Enum_RegistrationStatus_Completed" xml:space="preserve">
+    <value>Tamamlandı</value>
+  </data>
+  <data name="Summary_Population_Title" xml:space="preserve">
     <value>👨‍👩‍👧‍👦 &lt;b&gt;Nüfus Kayıt Örneği Özeti&lt;/b&gt;</value>
   </data>
-	<data name="Summary_Population_Mother" xml:space="preserve">
+  <data name="Summary_Population_Mother" xml:space="preserve">
     <value>• &lt;b&gt;Anne Adı:&lt;/b&gt; {0}</value>
   </data>
-	<data name="Summary_Population_Father" xml:space="preserve">
+  <data name="Summary_Population_Father" xml:space="preserve">
     <value>• &lt;b&gt;Baba Adı:&lt;/b&gt; {0}</value>
   </data>
-	<data name="Summary_Population_FatherDeath" xml:space="preserve">
+  <data name="Summary_Population_FatherDeath" xml:space="preserve">
     <value>• &lt;b&gt;Baba Vefat Tarihi:&lt;/b&gt; {0}</value>
   </data>
-	<data name="Summary_Population_EligibleChildren" xml:space="preserve">
+  <data name="Summary_Population_EligibleChildren" xml:space="preserve">
     <value>• &lt;b&gt;Uygun Çocuklar (15 Yaş Altı):&lt;/b&gt; {0}</value>
   </data>
-	<data name="Summary_NotSpecified" xml:space="preserve">
+  <data name="Summary_NotSpecified" xml:space="preserve">
     <value>Belirtilmedi</value>
   </data>
-	<data name="Summary_NoEligibleChild" xml:space="preserve">
+  <data name="Summary_NoEligibleChild" xml:space="preserve">
     <value>Uygun çocuk bulunamadı</value>
   </data>
-	<data name="Summary_Residence_Title" xml:space="preserve">
+  <data name="Summary_Residence_Title" xml:space="preserve">
     <value>🏠 &lt;b&gt;İkametgâh Özeti&lt;/b&gt;</value>
   </data>
-	<data name="Summary_Residence_Address" xml:space="preserve">
+  <data name="Summary_Residence_Address" xml:space="preserve">
     <value>• &lt;b&gt;Açık Adres:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Info_SemanticMatchSaved" xml:space="preserve">
+    <value>🤖 Sistem cevabınızı &lt;b&gt;{0}&lt;/b&gt; olarak eşleştirdi ve kaydetti. (Yanlışsa menüden güncelleyebilirsiniz.)</value>
   </data>
 </root>
