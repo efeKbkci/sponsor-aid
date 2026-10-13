@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Localization;
+using SponsorAid.Application.Features.Registrations.Commands.CancelRegistration;
 using SponsorAid.Application.Features.Registrations.Commands.ContinueRegistration;
 using SponsorAid.Application.Features.Registrations.Commands.FinalizeRegistration;
 using SponsorAid.Application.Features.Registrations.Commands.GreetUser;
@@ -142,26 +143,13 @@ public class ProcessTextInputHandler(
                 break;
 
             case BotCommand.CancelRegistration:
-                if (regKey != null)
-                {
-                    await draftRepository.DeleteAsync(regKey, ct);
-                    await notifier.SendMessageAsync(chatId, _localizer["Success_RegistrationCancelled"]);
-                }
-                else
-                {
-                    throw new BusinessRuleException("Error_NoActiveRegistrationToCancel");
-                }
+                if (regKey != null) await mediator.Send(new CancelRegistrationCommand(regKey, chatId), ct);
+                else throw new BusinessRuleException("Error_NoActiveRegistrationToCancel");
                 break;
 
             case BotCommand.UpdateRegistration:
-                if (regKey != null)
-                {
-                    await mediator.Send(new UpdateQuestionAnswerCommand(regKey, null, chatId), ct);
-                }
-                else
-                {
-                    throw new BusinessRuleException("Error_ActiveRegistrationRequiredForUpdate");
-                }
+                if (regKey != null) await mediator.Send(new UpdateQuestionAnswerCommand(regKey, null, chatId), ct);
+                else throw new BusinessRuleException("Error_ActiveRegistrationRequiredForUpdate");
                 break;
         }
     }
