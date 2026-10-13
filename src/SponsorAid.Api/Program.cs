@@ -80,6 +80,29 @@ builder.Services.AddScoped<IDialogRouter, TelegramDialogRouter>();
 // Program.cs'deki DI (Dependency Injection) kısmına eklenecek:
 builder.Services.AddScoped<IEGovermentDocumentService, EGovermentDocumentService>();
 
+// Çerezleri devre dışı bıraktığımız (UseCookies = false) ve 
+// bağlantıları havuzladığımız özel e-Devlet HTTP İstemcisi
+builder.Services.AddHttpClient("EDevletClient", client =>
+{
+    client.BaseAddress = new Uri("https://www.turkiye.gov.tr/");
+    client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+    client.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
+    client.DefaultRequestHeaders.Add("Accept-Language", "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7");
+
+    // Anti-Bot atlatma başlıkları
+    client.DefaultRequestHeaders.Add("Sec-Ch-Ua", "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\"");
+    client.DefaultRequestHeaders.Add("Sec-Ch-Ua-Mobile", "?0");
+    client.DefaultRequestHeaders.Add("Sec-Ch-Ua-Platform", "\"Windows\"");
+    client.DefaultRequestHeaders.Add("Sec-Fetch-Dest", "document");
+    client.DefaultRequestHeaders.Add("Sec-Fetch-Mode", "navigate");
+    client.DefaultRequestHeaders.Add("Sec-Fetch-Site", "same-origin");
+})
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    UseCookies = false, // 🚀 ÇOK KRİTİK: Bağlantılar havuzlanırken çerezler birbirine KARIŞMASIN!
+    PooledConnectionLifetime = TimeSpan.FromMinutes(5) // Socket Exhaustion'ı engelleyen havuzlama
+});
+
 // 🚀 ŞİFRELİ ARŞİV SERVİSİ KAYDI
 builder.Services.AddScoped<ISecureArchiveService, SharpZipLibSecureArchiveService>();
 builder.Services.AddScoped<IRegistrationDispatchService, RegistrationDispatchService>();
