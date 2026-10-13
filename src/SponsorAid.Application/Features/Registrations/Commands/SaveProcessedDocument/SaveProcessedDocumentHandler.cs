@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Localization;
+using SponsorAid.Application.Features.Registrations.Commands.ProcessQuestionnaireAnswer;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Application.Resources;
@@ -16,7 +17,8 @@ public class SaveProcessedDocumentCommandHandler(
     IEventPublisher eventPublisher,
     IEGovermentDocumentService eGovernment,
     IRegistrationTrackingRepository trackingRepository,
-    IStringLocalizer<BotMessages> localizer
+    IStringLocalizer<BotMessages> localizer,
+    IMediator mediator
     ) : IRequestHandler<SaveProcessedDocumentCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
@@ -25,6 +27,7 @@ public class SaveProcessedDocumentCommandHandler(
     private readonly IEGovermentDocumentService _eGoverment = eGovernment; // e-Devlet belge indirme servisi
     private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository; // Takip tablosu servisi
     private readonly IStringLocalizer<BotMessages> _localizer = localizer;
+    private readonly IMediator _mediator = mediator;
 
     public async Task Handle(SaveProcessedDocumentCommand request, CancellationToken cancellationToken)
     {
@@ -209,6 +212,8 @@ public class SaveProcessedDocumentCommandHandler(
                 // Döngü bitti! Soru aşamasına geç.
                 draft.SetStep(RegistrationStep.WaitingForQuestions);
                 await _notifier.SendMessageAsync(draft.ChatId, _localizer["Success_AllIdentityDocumentsCollected"]);
+                // Kullanıcıdan metin gelmesini beklemeden anket döngüsünü doğrudan tetikliyoruz
+                await _mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey), cancellationToken);
             }
         }
         else

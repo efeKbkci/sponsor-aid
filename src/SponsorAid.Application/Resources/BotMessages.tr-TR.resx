@@ -390,11 +390,11 @@ Kaldığınız yerden devam etmek için lütfen bir mesaj gönderiniz.</value>
 
 Şimdi sıradaki kişiye geçiyoruz. Lütfen **{0}** kimlik ÖN YÜZ fotoğrafını gönderiniz.</value>
   </data>
-  <data name="Success_AllIdentityDocumentsCollected" xml:space="preserve">
-    <value>🎉 Harika! Tüm aile bireylerinin kimlik belgeleri başarıyla toplandı.
+	<data name="Success_AllIdentityDocumentsCollected" xml:space="preserve">
+  <value>🎉 Harika! Tüm aile bireylerinin kimlik belgeleri başarıyla toplandı.
 
-Son birkaç sorum kaldı. Devam etmek için bir mesaj gönderiniz.</value>
-  </data>
+Son birkaç sorum kaldı, anket aşamasına geçiyoruz.</value>
+</data>
   <data name="Question_ApplicantRole" xml:space="preserve">
     <value>📋 Başvuruyu yapan kişi olarak yetimin nesi oluyorsunuz?</value>
   </data>
