@@ -12,10 +12,10 @@ public record IdNumber
     public IdNumber(string value)
     {
         if (string.IsNullOrWhiteSpace(value) || value.Length != 11 || !value.All(char.IsDigit))
-            throw new BusinessRuleException("TC Kimlik Numarası 11 haneli olmalı ve sadece rakamlardan oluşmalıdır.");
+            throw new BusinessRuleException("Error_TcNumberMustBe11Digits");
 
         if (value[0] == '0')
-            throw new BusinessRuleException("TC Kimlik Numarası 0 ile başlayamaz.");
+            throw new BusinessRuleException("Error_TcNumberCannotStartWithZero");
 
         var digits = value.Select(c => c - '0').ToArray();
 
@@ -29,7 +29,7 @@ public record IdNumber
         int digit11 = sumFirst10 % 10;
 
         if (digits[9] != digit10 || digits[10] != digit11)
-            throw new BusinessRuleException("Geçersiz TC Kimlik Numarası (Algoritma doğrulaması başarısız).");
+            throw new BusinessRuleException("Error_InvalidTcNumber");
 
         Value = value;
     }

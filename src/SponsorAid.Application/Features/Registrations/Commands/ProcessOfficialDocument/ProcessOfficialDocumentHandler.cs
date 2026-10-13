@@ -24,14 +24,14 @@ public class ProcessBinaryDocumentCommandHandler : IRequestHandler<ProcessOffici
     {
         if (request.FileSize > MaxFileSizeInBytes)
         {
-            throw new BusinessRuleException("Dosya boyutu çok büyük! Lütfen en fazla 5 MB boyutunda bir belge yükleyin.");
+            throw new BusinessRuleException("Error_DocumentFileTooLarge");
         }
 
         var extension = request.Extension.ToLower();
 
         if (extension is not ("pdf" or "jpg" or "png" or "jpeg"))
         {
-            throw new BusinessRuleException("Desteklenmeyen dosya türü! Lütfen sadece PDF veya fotoğraf dosyalarınızı yükleyin.");
+            throw new BusinessRuleException("Error_UnsupportedDocumentFileType");
         }
 
         string savedFilePath = await _fileStorage.DownloadAndSaveAsync(request.FileId, request.Extension);

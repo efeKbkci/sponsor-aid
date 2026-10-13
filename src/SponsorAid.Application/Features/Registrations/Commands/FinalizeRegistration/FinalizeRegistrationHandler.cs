@@ -1,7 +1,9 @@
 using MediatR;
+using Microsoft.Extensions.Localization;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Application.Models;
+using SponsorAid.Application.Resources;
 using SponsorAid.Domain.Entities;
 using SponsorAid.Domain.Enums;
 using SponsorAid.Domain.ValueObjects;
@@ -14,7 +16,8 @@ public class FinalizeRegistrationHandler(
     IFileStorageService fileStorage,
     IUserNotifier notifier,
     ISecureArchiveService archiveService,
-    IRegistrationDispatchService dispatchService) : IRequestHandler<FinalizeRegistrationCommand>
+    IRegistrationDispatchService dispatchService,
+    IStringLocalizer<BotMessages> localizer) : IRequestHandler<FinalizeRegistrationCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
     private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository;
@@ -22,12 +25,13 @@ public class FinalizeRegistrationHandler(
     private readonly IUserNotifier _notifier = notifier;
     private readonly ISecureArchiveService _archiveService = archiveService;
     private readonly IRegistrationDispatchService _dispatchService = dispatchService;
+    private readonly IStringLocalizer<BotMessages> _localizer = localizer;
 
     public async Task Handle(FinalizeRegistrationCommand request, CancellationToken cancellationToken)
     {
         var draft = await _draftRepository.GetAsync(request.RegistrationKey, cancellationToken);
         if (draft == null)
-            throw new KeyNotFoundException($"'{request.RegistrationKey}' anahtarına sahip kayıt bulunamadı.");
+            throw new SponsorAid.Domain.Exceptions.BusinessRuleException("Error_RegistrationNotFound", request.RegistrationKey);
 
         // 1. ZORUNLU ALAN KONTROLLERİ VE DOMAIN DOĞRULAMASI
         EnsureRequiredFieldsAreFilled(draft);
@@ -61,9 +65,7 @@ public class FinalizeRegistrationHandler(
 
         // 8. KULLANICIYA BAŞARI BİLDİRİMİ
         await _notifier.SendMessageAsync(draft.ChatId,
-            "✅ <b>Başvurunuz Başarıyla Tamamlandı!</b>\n\n" +
-            $"Tüm bilgileriniz ve belgeleriniz şifreli olarak yetkili birime aktarılmıştır.\n" +
-            $"Takip kodunuz: <code>{draft.RegistrationKey}</code>");
+            _localizer["Success_RegistrationFinalized", draft.RegistrationKey].Value);
     }
 
     private void DeleteUploadedFiles(RegistrationDraftState draft)
@@ -173,30 +175,30 @@ public class FinalizeRegistrationHandler(
     {
         var missingFields = new List<string>();
 
-        if (string.IsNullOrWhiteSpace(draft.Guardian.Name)) missingFields.Add("Vasi İsmi");
-        if (draft.Guardian.IdNumber == null) missingFields.Add("Vasi TC Kimlik No");
-        if (draft.Guardian.ApplicantRole == null) missingFields.Add("Başvuru Yapan Kişi (Rol)");
-        if (draft.Guardian.Gender == null) missingFields.Add("Vasi Cinsiyeti");
-        if (draft.Guardian.PhoneNumber == null) missingFields.Add("Vasi İletişim Numarası");
-        if (draft.Guardian.Iban == null) missingFields.Add("IBAN");
+        if (string.IsNullOrWhiteSpace(draft.Guardian.Name)) missingFields.Add(_localizer["Label_Required_GuardianName"].Value);
+        if (draft.Guardian.IdNumber == null) missingFields.Add(_localizer["Label_Required_GuardianId"].Value);
+        if (draft.Guardian.ApplicantRole == null) missingFields.Add(_localizer["Label_Required_ApplicantRole"].Value);
+        if (draft.Guardian.Gender == null) missingFields.Add(_localizer["Label_Required_Gender"].Value);
+        if (draft.Guardian.PhoneNumber == null) missingFields.Add(_localizer["Label_Required_PhoneNumber"].Value);
+        if (draft.Guardian.Iban == null) missingFields.Add(_localizer["Label_Required_Iban"].Value);
 
-        if (draft.FamilyFinancial.Income == null || draft.FamilyFinancial.Expense == null) missingFields.Add("Gelir/Gider Bilgisi");
-        if (draft.FamilyFinancial.FamilyMemberCount == null) missingFields.Add("Aile Kişi Sayısı");
+        if (draft.FamilyFinancial.Income == null || draft.FamilyFinancial.Expense == null) missingFields.Add(_localizer["Label_Required_IncomeExpense"].Value);
+        if (draft.FamilyFinancial.FamilyMemberCount == null) missingFields.Add(_localizer["Label_Required_FamilyMemberCount"].Value);
 
-        if (string.IsNullOrWhiteSpace(draft.Father.Name)) missingFields.Add("Baba Adı");
-        if (draft.Father.DeathDate == null) missingFields.Add("Baba Ölüm Tarihi");
-        if (draft.Father.Profession == null) missingFields.Add("Baba Mesleği");
-        if (draft.Father.DeathReason == null) missingFields.Add("Baba Ölüm Nedeni");
+        if (string.IsNullOrWhiteSpace(draft.Father.Name)) missingFields.Add(_localizer["Label_Required_FatherName"].Value);
+        if (draft.Father.DeathDate == null) missingFields.Add(_localizer["Label_Required_FatherDeathDate"].Value);
+        if (draft.Father.Profession == null) missingFields.Add(_localizer["Label_Required_FatherProfession"].Value);
+        if (draft.Father.DeathReason == null) missingFields.Add(_localizer["Label_Required_FatherDeathReason"].Value);
 
-        if (string.IsNullOrWhiteSpace(draft.ResidenceAddress.City) || string.IsNullOrWhiteSpace(draft.ResidenceAddress.FullAddress)) missingFields.Add("İkametgah Adresi");
+        if (string.IsNullOrWhiteSpace(draft.ResidenceAddress.City) || string.IsNullOrWhiteSpace(draft.ResidenceAddress.FullAddress)) missingFields.Add(_localizer["Label_Required_ResidenceAddress"].Value);
 
-        if (draft.SystemDocuments.Petition == null) missingFields.Add("Sistem Dilekçesi");
+        if (draft.SystemDocuments.Petition == null) missingFields.Add(_localizer["Label_Required_Petition"].Value);
 
-        if (!draft.Children.Any()) missingFields.Add("Çocuk Bilgisi (En az 1 çocuk gereklidir)");
+        if (!draft.Children.Any()) missingFields.Add(_localizer["Label_Required_Child"].Value);
 
         if (missingFields.Any())
         {
-            throw new InvalidOperationException("Aşağıdaki zorunlu alanlar eksik:\n- " + string.Join("\n- ", missingFields));
+            throw new SponsorAid.Domain.Exceptions.BusinessRuleException("Error_RequiredFieldsMissing", string.Join("\n- ", missingFields));
         }
     }
 }

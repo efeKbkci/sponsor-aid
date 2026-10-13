@@ -1,7 +1,9 @@
 ﻿using MediatR;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
+using SponsorAid.Application.Resources;
 using SponsorAid.Domain.Exceptions;
 
 namespace SponsorAid.Application.Behaviors;
@@ -12,15 +14,18 @@ public class ExceptionHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<
     private readonly IDraftStateRepository _draftRepository;
     private readonly IUserNotifier _notifier;
     private readonly ILogger<ExceptionHandlingBehavior<TRequest, TResponse>> _logger;
+    private readonly IStringLocalizer<BotMessages> _localizer;
 
     public ExceptionHandlingBehavior(
         IDraftStateRepository draftRepository,
         IUserNotifier notifier,
-        ILogger<ExceptionHandlingBehavior<TRequest, TResponse>> logger)
+        ILogger<ExceptionHandlingBehavior<TRequest, TResponse>> logger,
+        IStringLocalizer<BotMessages> localizer)
     {
         _draftRepository = draftRepository;
         _notifier = notifier;
         _logger = logger;
+        _localizer = localizer;
     }
 
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
@@ -64,7 +69,10 @@ public class ExceptionHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<
             if (ex is SponsorAidException businessException)
             {
                 // BİZİM FIRLATTIĞIMIZ İŞ KURALI HATALARI: Kullanıcıya kibarca ilet.
-                await _notifier.SendMessageAsync(chatId, $"⚠️ İşlem Başarısız:\n{businessException.Message}");
+                var localizedMessage = businessException.Arguments.Count == 0
+                    ? _localizer[businessException.Message]
+                    : _localizer[businessException.Message, businessException.Arguments.ToArray()];
+                await _notifier.SendMessageAsync(chatId, _localizer["Error_OperationFailed", localizedMessage.Value].Value);
             }
             else
             {
@@ -72,7 +80,7 @@ public class ExceptionHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<
                 // Hatayı kullanıcıya GÖSTERME. Sadece logla ve genel bir mesaj at.
                 _logger.LogError(ex, "Sistem hatası oluştu. ChatId: {ChatId}", chatId);
 
-                await _notifier.SendMessageAsync(chatId, "❌ Sunucu kaynaklı teknik bir sorun oluştu. Lütfen işlemi daha sonra tekrar deneyiniz.");
+                await _notifier.SendMessageAsync(chatId, _localizer["Error_UnexpectedSystemError"].Value);
             }
 
             // 4. İŞLEMİ SESSİZCE BİTİR 

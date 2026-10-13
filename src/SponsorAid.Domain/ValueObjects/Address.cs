@@ -18,7 +18,7 @@ public record Address
     {
         if (string.IsNullOrWhiteSpace(country) || string.IsNullOrWhiteSpace(city) ||
             string.IsNullOrWhiteSpace(neighborhood) || string.IsNullOrWhiteSpace(district) || string.IsNullOrWhiteSpace(fullAddress))
-            throw new BusinessRuleException("Adres bilgileri eksik bırakılamaz.");
+            throw new BusinessRuleException("Error_AddressFieldsRequired");
 
         Country = country;
         City = city;

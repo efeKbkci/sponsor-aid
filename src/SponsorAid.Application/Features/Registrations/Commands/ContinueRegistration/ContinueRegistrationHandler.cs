@@ -1,8 +1,10 @@
 ﻿using MediatR;
+using Microsoft.Extensions.Localization;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessQuestionnaireAnswer;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Application.Models;
+using SponsorAid.Application.Resources;
 using SponsorAid.Domain.Enums;
 using System.Text.RegularExpressions;
 
@@ -11,11 +13,13 @@ namespace SponsorAid.Application.Features.Registrations.Commands.ContinueRegistr
 public class ContinueRegistrationHandler(
     IDraftStateRepository draftRepository,
     IUserNotifier notifier,
-    IMediator mediator) : IRequestHandler<ContinueRegistrationCommand>
+    IMediator mediator,
+    IStringLocalizer<BotMessages> localizer) : IRequestHandler<ContinueRegistrationCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
     private readonly IUserNotifier _notifier = notifier;
     private readonly IMediator _mediator = mediator;
+    private readonly IStringLocalizer<BotMessages> _localizer = localizer;
 
     public async Task Handle(ContinueRegistrationCommand request, CancellationToken cancellationToken)
     {
@@ -25,15 +29,16 @@ public class ContinueRegistrationHandler(
             var registrations = await _draftRepository.ListAllAsync(request.ChatId.ToString(), cancellationToken);
             var options = registrations.ToDictionary(
                 draft => ContinueRegistrationCommand.SelectionCallbackPrefix + draft.RegistrationKey,
-                draft => $"{draft.RegistrationKey} - {(string.IsNullOrWhiteSpace(draft.Guardian.Name) ? "İsimsiz Vasi" : draft.Guardian.Name)}");
+                draft => _localizer["Option_Registration", draft.RegistrationKey,
+                    string.IsNullOrWhiteSpace(draft.Guardian.Name) ? _localizer["Label_AnonymousGuardian"].Value : draft.Guardian.Name].Value);
 
             if (options.Count == 0)
             {
-                await _notifier.SendMessageAsync(request.ChatId, "⚠️ Daha önce başlatılan bir kayıt bulunamadı.");
+                await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_NoRegistrationToContinue"]);
                 return;
             }
 
-            await _notifier.SendQuestionWithButtonsAsync(request.ChatId, "Devam etmek istediğiniz kaydı seçin:", options);
+            await _notifier.SendQuestionWithButtonsAsync(request.ChatId, _localizer["Prompt_SelectRegistration"], options);
             return;
         }
 
@@ -43,13 +48,13 @@ public class ContinueRegistrationHandler(
 
         if (draft == null)
         {
-            await _notifier.SendMessageAsync(request.ChatId, $"⚠️ '<b>{registrationKey}</b>' takip koduna ait aktif bir başvuru kaydı bulunamadı.");
+            await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_RegistrationNotFound", registrationKey].Value);
             return;
         }
 
         if (draft.CurrentStep == RegistrationStep.Completed)
         {
-            await _notifier.SendMessageAsync(request.ChatId, $"✅ '<b>{registrationKey}</b>' takip kodlu başvuru zaten başarıyla tamamlanmıştır. Yeni kayıt için menüyü kullanabilirsiniz.");
+            await _notifier.SendMessageAsync(request.ChatId, _localizer["Info_RegistrationAlreadyCompleted", registrationKey].Value);
             return;
         }
 
@@ -63,44 +68,42 @@ public class ContinueRegistrationHandler(
 
     private async Task SendResumePromptAsync(RegistrationDraftState draft)
     {
-        string baseMessage = $"🔄 <b>Kayıt Yüklendi! (Takip Kodu: {draft.RegistrationKey})</b>\n\n";
-
         switch (draft.CurrentStep)
         {
             case RegistrationStep.WaitingForGuardianId:
-                await _notifier.SendMessageAsync(draft.ChatId, baseMessage + "Lütfen kayıt işlemini başlatmak için **Vasi T.C. Kimlik Numarasını** 11 haneli olarak yazınız.");
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Prompt_ResumeGuardianId", draft.RegistrationKey].Value);
                 break;
 
             case RegistrationStep.WaitingForPopulationRegistry:
-                await _notifier.SendMessageAsync(draft.ChatId, baseMessage + "Lütfen e-Devlet'ten aldığınız <b>Vukuatlı Nüfus Kayıt Örneği</b> belgenizi PDF (veya net bir ekran görüntüsü) olarak gönderiniz.");
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Prompt_ResumePopulationRegistry", draft.RegistrationKey].Value);
                 break;
 
             case RegistrationStep.WaitingForResidence:
-                await _notifier.SendMessageAsync(draft.ChatId, baseMessage + "Lütfen e-Devlet'ten aldığınız <b>İkametgah (Yerleşim Yeri)</b> belgenizi PDF olarak gönderiniz.");
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Prompt_ResumeResidence", draft.RegistrationKey].Value);
                 break;
 
             case RegistrationStep.WaitingForIdentityFront:
-                string targetFront = draft.CurrentDocumentTargetName == "Vasi" ? "Vasi" : $"{draft.CurrentDocumentTargetName} isimli çocuğunuz";
-                await _notifier.SendMessageAsync(draft.ChatId, baseMessage + $"Lütfen **{targetFront}** için kimlik belgesinin <b>ÖN YÜZ</b> fotoğrafını gönderiniz.");
+                string targetFront = draft.CurrentDocumentTargetName == "Vasi" ? _localizer["Label_Guardian"].Value : _localizer["Label_ChildNamed", draft.CurrentDocumentTargetName].Value;
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Prompt_ResumeIdentityFront", draft.RegistrationKey, targetFront].Value);
                 break;
 
             case RegistrationStep.WaitingForIdentityBack:
-                string targetBack = draft.CurrentDocumentTargetName == "Vasi" ? "Vasi" : $"{draft.CurrentDocumentTargetName} isimli çocuğunuz";
-                await _notifier.SendMessageAsync(draft.ChatId, baseMessage + $"Lütfen **{targetBack}** için kimlik belgesinin <b>ARKA YÜZ</b> fotoğrafını gönderiniz.");
+                string targetBack = draft.CurrentDocumentTargetName == "Vasi" ? _localizer["Label_Guardian"].Value : _localizer["Label_ChildNamed", draft.CurrentDocumentTargetName].Value;
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Prompt_ResumeIdentityBack", draft.RegistrationKey, targetBack].Value);
                 break;
 
             case RegistrationStep.WaitingForQuestions:
-                await _notifier.SendMessageAsync(draft.ChatId, baseMessage + "Anket soruları aşamasındasınız.");
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Info_ResumeQuestionnaire", draft.RegistrationKey].Value);
                 await _mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey));
                 break;
 
             case RegistrationStep.WaitingForConfirmation:
-                await _notifier.SendMessageAsync(draft.ChatId, baseMessage + "Başvuru onay aşamasındasınız.");
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Info_ResumeConfirmation", draft.RegistrationKey].Value);
                 await _mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey));
                 break;
 
             default:
-                await _notifier.SendMessageAsync(draft.ChatId, baseMessage + "Kaldığınız yerden devam etmek için lütfen bir mesaj gönderiniz.");
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Prompt_ResumeSendMessage", draft.RegistrationKey].Value);
                 break;
         }
     }

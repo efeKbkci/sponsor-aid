@@ -10,6 +10,7 @@ using SponsorAid.Infrastructure.Services;
 using SponsorAid.Infrastructure.Services.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddLocalization();
 
 // ==============================================================================
 // 1. GÜVENLİK VE AYARLAR (.env)
@@ -94,6 +95,15 @@ builder.Services.AddHostedService<WorkerResultConsumerService>();
 // ==============================================================================
 var app = builder.Build();
 
+// Türkçe kültür ayarını zorunlu kılın (Middleware sırasının başlarında olmalı)
+var supportedCultures = new[] { "tr-TR" };
+var localizationOptions = new RequestLocalizationOptions()
+    .SetDefaultCulture("tr-TR")
+    .AddSupportedCultures(supportedCultures)
+    .AddSupportedUICultures(supportedCultures);
+
+app.UseRequestLocalization(localizationOptions);
+
 // Geliştirme ortamındaysak Swagger (Görsel API Test Ekranı) arayüzünü aç
 if (app.Environment.IsDevelopment())
 {
@@ -110,6 +120,7 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation(System.Globalization.CultureInfo.CurrentUICulture.Name);
     try
     {
         logger.LogInformation("Veritabanı tabloları kontrol ediliyor/güncelleniyor...");

@@ -16,12 +16,12 @@ public class ProcessIdentityImageCommandHandler(IFileStorageService fileStorage,
     {
         if (request.FileSize > MaxFileSizeInBytes)
         {
-            throw new BusinessRuleException("Dosya boyutu çok büyük! Lütfen en fazla 5 MB boyutunda bir fotoğraf yükleyin.");
+            throw new BusinessRuleException("Error_IdentityImageTooLarge");
         }
 
         if (request.Extension.ToLower() is not ("jpg" or "png" or "jpeg"))
         {
-            throw new BusinessRuleException("Kimlik fotoğrafınızın uzantısı sadece JPG, PNG veya JPEG olabilir.");
+            throw new BusinessRuleException("Error_UnsupportedIdentityImageType");
         }
 
         // 1. Fotoğrafı indir

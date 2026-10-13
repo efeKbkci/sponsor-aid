@@ -1,0 +1,1365 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Error_ChildNameRequired" xml:space="preserve">
+    <value>Çocuk ismi boş olamaz.</value>
+  </data>
+  <data name="Error_ChildBirthDateCannotBeFuture" xml:space="preserve">
+    <value>Doğum tarihi gelecekte olamaz.</value>
+  </data>
+  <data name="Error_ChildMustBeUnder15" xml:space="preserve">
+    <value>Sistem sadece 15 yaşından küçüklere burs vermeyi vaat ediyor.</value>
+  </data>
+  <data name="Error_DisabledMemberFieldsRequired" xml:space="preserve">
+    <value>Hasta adı, teşhis ve durum bilgileri boş olamaz.</value>
+  </data>
+  <data name="Error_GuardianNameRequired" xml:space="preserve">
+    <value>Vasi ismi boş olamaz.</value>
+  </data>
+  <data name="Error_ChildAlreadyRegistered" xml:space="preserve">
+    <value>Bu TC Kimlik numarasına sahip çocuk zaten kayıtlı.</value>
+  </data>
+  <data name="Error_AddressFieldsRequired" xml:space="preserve">
+    <value>Adres bilgileri eksik bırakılamaz.</value>
+  </data>
+  <data name="Error_FatherNameRequired" xml:space="preserve">
+    <value>Baba adı boş olamaz.</value>
+  </data>
+  <data name="Error_FatherDeathDateCannotBeFuture" xml:space="preserve">
+    <value>Baba ölüm tarihi gelecekte bir zaman olamaz.</value>
+  </data>
+  <data name="Error_HouseholdSizeMustBePositive" xml:space="preserve">
+    <value>Ailede yaşayan kişi sayısı 0 veya negatif olamaz.</value>
+  </data>
+  <data name="Error_IncomeExpenseCannotBeNegative" xml:space="preserve">
+    <value>Gelir ve gider bilgisi negatif olamaz.</value>
+  </data>
+  <data name="Error_IbanRequired" xml:space="preserve">
+    <value>IBAN boş olamaz.</value>
+  </data>
+  <data name="Error_InvalidIbanFormat" xml:space="preserve">
+    <value>IBAN 'TR' ile başlamalı ve tam 26 karakter uzunluğunda olmalıdır.</value>
+  </data>
+  <data name="Error_InvalidIbanChecksum" xml:space="preserve">
+    <value>IBAN algoritma doğrulaması (Mod 97) başarısız.</value>
+  </data>
+  <data name="Error_TcNumberMustBe11Digits" xml:space="preserve">
+    <value>TC Kimlik Numarası 11 haneli olmalı ve sadece rakamlardan oluşmalıdır.</value>
+  </data>
+  <data name="Error_TcNumberCannotStartWithZero" xml:space="preserve">
+    <value>TC Kimlik Numarası 0 ile başlayamaz.</value>
+  </data>
+  <data name="Error_InvalidTcNumber" xml:space="preserve">
+    <value>Geçersiz TC Kimlik Numarası (Algoritma doğrulaması başarısız).</value>
+  </data>
+  <data name="Error_PetitionMinimumLength" xml:space="preserve">
+    <value>Dilekçe içeriği en az 300 karakter olmak zorundadır.</value>
+  </data>
+  <data name="Error_PhoneNumberRequired" xml:space="preserve">
+    <value>İletişim bilgisi boş olamaz.</value>
+  </data>
+  <data name="Error_InvalidPhoneNumber" xml:space="preserve">
+    <value>Telefon numarası 0 ile başlıyorsa 11 hane, 5 ile başlıyorsa 10 hane olmalıdır.</value>
+  </data>
+  <data name="Error_OperationFailed" xml:space="preserve">
+    <value>⚠️ İşlem Başarısız:
+{0}</value>
+  </data>
+  <data name="Error_UnexpectedSystemError" xml:space="preserve">
+    <value>❌ Sunucu kaynaklı teknik bir sorun oluştu. Lütfen işlemi daha sonra tekrar deneyiniz.</value>
+  </data>
+  <data name="Error_InvalidCommand" xml:space="preserve">
+    <value>⚠️ Geçersiz komut. Seçenekleri görmek için &lt;b&gt;menü&lt;/b&gt; yazabilirsiniz.</value>
+  </data>
+  <data name="Prompt_Greeting" xml:space="preserve">
+    <value>Merhaba! Seçenekleri görmek için "menü" yazabilirsiniz.</value>
+  </data>
+  <data name="Prompt_AvailableCommands" xml:space="preserve">
+    <value>📋 Kullanabileceğiniz komutlar:</value>
+  </data>
+  <data name="Label_Menu" xml:space="preserve">
+    <value>📋 Menü</value>
+  </data>
+  <data name="Command_NewRegistration" xml:space="preserve">
+    <value>Yeni Kayıt</value>
+  </data>
+  <data name="Command_ContinueRegistration" xml:space="preserve">
+    <value>Kayıtları Görüntüle</value>
+  </data>
+  <data name="Command_CancelRegistration" xml:space="preserve">
+    <value>Kaydı İptal Et</value>
+  </data>
+  <data name="Command_UpdateRegistration" xml:space="preserve">
+    <value>Bilgi Güncelle</value>
+  </data>
+  <data name="Success_NewRegistrationStarted" xml:space="preserve">
+    <value>✅ Yeni bir kayıt başlatıldı!
+
+Lütfen vasiye ait T.C. Kimlik numarasını metin olarak yazınız.</value>
+  </data>
+  <data name="Success_RegistrationCreated" xml:space="preserve">
+    <value>✅ Kayıt başarıyla oluşturuldu!
+
+🆔 &lt;b&gt;T.C.:&lt;/b&gt; {0}
+🔑 &lt;b&gt;Takip Kodu:&lt;/b&gt; &lt;code&gt;{1}&lt;/code&gt;
+
+Lütfen e-Devlet'ten aldığınız &lt;b&gt;Vukuatlı Nüfus Kayıt Örneği&lt;/b&gt; belgenizi PDF veya fotoğraf olarak gönderiniz.</value>
+  </data>
+  <data name="Error_NoActiveRegistration_StartFromMenu" xml:space="preserve">
+    <value>⚠️ Aktif bir başvurunuz bulunmuyor. Yeni bir kayıt başlatmak için &lt;b&gt;menü&lt;/b&gt; yazabilirsiniz.</value>
+  </data>
+  <data name="Error_NoActiveRegistration_StartWithCommand" xml:space="preserve">
+    <value>⚠️ Aktif bir başvurunuz bulunamadı. Lütfen önce &lt;b&gt;/new&lt;/b&gt; yazarak kayıt başlatınız.</value>
+  </data>
+  <data name="Error_NoRegistrationToContinue" xml:space="preserve">
+    <value>⚠️ Daha önce başlatılan bir kayıt bulunamadı.</value>
+  </data>
+  <data name="Prompt_SelectRegistration" xml:space="preserve">
+    <value>Devam etmek istediğiniz kaydı seçin:</value>
+  </data>
+  <data name="Label_RegistrationSelection" xml:space="preserve">
+    <value>📂 Kayıt Seçimi</value>
+  </data>
+  <data name="Option_Registration" xml:space="preserve">
+    <value>{0} - {1}</value>
+  </data>
+  <data name="Label_AnonymousGuardian" xml:space="preserve">
+    <value>İsimsiz Vasi</value>
+  </data>
+  <data name="Error_RegistrationNotFound" xml:space="preserve">
+    <value>⚠️ '&lt;b&gt;{0}&lt;/b&gt;' takip koduna ait aktif bir başvuru kaydı bulunamadı.</value>
+  </data>
+  <data name="Info_RegistrationAlreadyCompleted" xml:space="preserve">
+    <value>✅ '&lt;b&gt;{0}&lt;/b&gt;' takip kodlu başvuru zaten başarıyla tamamlanmıştır. Yeni kayıt için menüyü kullanabilirsiniz.</value>
+  </data>
+  <data name="Success_RegistrationCancelled" xml:space="preserve">
+    <value>❌ Başvurunuz iptal edildi.</value>
+  </data>
+  <data name="Error_NoActiveRegistrationToCancel" xml:space="preserve">
+    <value>⚠️ İptal edilecek aktif bir kayıt bulunamadı.</value>
+  </data>
+  <data name="Prompt_ResumeGuardianId" xml:space="preserve">
+    <value>🔄 &lt;b&gt;Kayıt Yüklendi! (Takip Kodu: {0})&lt;/b&gt;
+
+Lütfen kayıt işlemini başlatmak için **Vasi T.C. Kimlik Numarasını** 11 haneli olarak yazınız.</value>
+  </data>
+  <data name="Prompt_ResumePopulationRegistry" xml:space="preserve">
+    <value>🔄 &lt;b&gt;Kayıt Yüklendi! (Takip Kodu: {0})&lt;/b&gt;
+
+Lütfen e-Devlet'ten aldığınız &lt;b&gt;Vukuatlı Nüfus Kayıt Örneği&lt;/b&gt; belgenizi PDF (veya net bir ekran görüntüsü) olarak gönderiniz.</value>
+  </data>
+  <data name="Prompt_ResumeResidence" xml:space="preserve">
+    <value>🔄 &lt;b&gt;Kayıt Yüklendi! (Takip Kodu: {0})&lt;/b&gt;
+
+Lütfen e-Devlet'ten aldığınız &lt;b&gt;İkametgah (Yerleşim Yeri)&lt;/b&gt; belgenizi PDF olarak gönderiniz.</value>
+  </data>
+  <data name="Label_Guardian" xml:space="preserve">
+    <value>Vasi</value>
+  </data>
+  <data name="Label_ChildNamed" xml:space="preserve">
+    <value>{0} isimli çocuğunuz</value>
+  </data>
+  <data name="Prompt_ResumeIdentityFront" xml:space="preserve">
+    <value>🔄 &lt;b&gt;Kayıt Yüklendi! (Takip Kodu: {0})&lt;/b&gt;
+
+Lütfen **{1}** için kimlik belgesinin &lt;b&gt;ÖN YÜZ&lt;/b&gt; fotoğrafını gönderiniz.</value>
+  </data>
+  <data name="Prompt_ResumeIdentityBack" xml:space="preserve">
+    <value>🔄 &lt;b&gt;Kayıt Yüklendi! (Takip Kodu: {0})&lt;/b&gt;
+
+Lütfen **{1}** için kimlik belgesinin &lt;b&gt;ARKA YÜZ&lt;/b&gt; fotoğrafını gönderiniz.</value>
+  </data>
+  <data name="Info_ResumeQuestionnaire" xml:space="preserve">
+    <value>🔄 &lt;b&gt;Kayıt Yüklendi! (Takip Kodu: {0})&lt;/b&gt;
+
+Anket soruları aşamasındasınız.</value>
+  </data>
+  <data name="Info_ResumeConfirmation" xml:space="preserve">
+    <value>🔄 &lt;b&gt;Kayıt Yüklendi! (Takip Kodu: {0})&lt;/b&gt;
+
+Başvuru onay aşamasındasınız.</value>
+  </data>
+  <data name="Prompt_ResumeSendMessage" xml:space="preserve">
+    <value>🔄 &lt;b&gt;Kayıt Yüklendi! (Takip Kodu: {0})&lt;/b&gt;
+
+Kaldığınız yerden devam etmek için lütfen bir mesaj gönderiniz.</value>
+  </data>
+  <data name="Info_ProcessingPopulationRegistry" xml:space="preserve">
+    <value>⏳ Nüfus belgeniz okunuyor, lütfen bekleyiniz...</value>
+  </data>
+  <data name="Info_ProcessingResidence" xml:space="preserve">
+    <value>⏳ İkametgah belgeniz işleniyor, lütfen bekleyiniz...</value>
+  </data>
+  <data name="Info_ProcessingIdentityFront" xml:space="preserve">
+    <value>⏳ Kimlik ön yüzünüz yapay zeka ile işleniyor...</value>
+  </data>
+  <data name="Info_ProcessingIdentityBack" xml:space="preserve">
+    <value>⏳ Kimlik arka yüzünüz yapay zeka ile işleniyor...</value>
+  </data>
+  <data name="Error_PreviousDocumentStillProcessing" xml:space="preserve">
+    <value>⚠️ Şu an sistem bir önceki belgeniz üzerinde çalışıyor. Lütfen işlemin bitmesini bekleyiniz.</value>
+  </data>
+  <data name="Error_DocumentUploadNotExpected" xml:space="preserve">
+    <value>⚠️ Şu an belge yükleme aşamasında değilsiniz. Lütfen metin olarak cevap veriniz veya seçenek butonlarını kullanınız.</value>
+  </data>
+  <data name="Error_DocumentUploadRequired" xml:space="preserve">
+    <value>⚠️ Şu an belge yükleme aşamasındasınız. Lütfen istenen belgeyi dosya/fotoğraf olarak gönderiniz.</value>
+  </data>
+  <data name="Error_DocumentFileTooLarge" xml:space="preserve">
+    <value>⚠️ Dosya boyutu çok büyük! Lütfen en fazla 5 MB boyutunda bir belge yükleyin.</value>
+  </data>
+  <data name="Error_IdentityImageTooLarge" xml:space="preserve">
+    <value>⚠️ Dosya boyutu çok büyük! Lütfen en fazla 5 MB boyutunda bir fotoğraf yükleyin.</value>
+  </data>
+  <data name="Error_UnsupportedDocumentFileType" xml:space="preserve">
+    <value>⚠️ Desteklenmeyen dosya türü! Lütfen sadece PDF veya fotoğraf dosyalarınızı yükleyin.</value>
+  </data>
+  <data name="Error_UnsupportedIdentityImageType" xml:space="preserve">
+    <value>⚠️ Kimlik fotoğrafınızın uzantısı sadece JPG, PNG veya JPEG olabilir.</value>
+  </data>
+  <data name="Error_DocumentProcessingFailed" xml:space="preserve">
+    <value>⚠️ Belgeniz işlenirken bir sorun oluştu: {0}. Lütfen daha net bir belge/fotoğraf gönderiniz.</value>
+  </data>
+  <data name="Info_EGovernmentBarcodeDetected" xml:space="preserve">
+    <value>🔍 Belgenizde e-Devlet barkodu ({0}) tespit edildi. Orijinal belge sunucudan indiriliyor, lütfen bekleyiniz...</value>
+  </data>
+  <data name="Error_EGovernmentDocumentDownloadFailed" xml:space="preserve">
+    <value>e-Devlet üzerinden belge indirilemedi. Lütfen belgenin tam PDF halini yüklemeyi deneyin.</value>
+  </data>
+  <data name="Error_EGovernmentSecurityTokenNotFound" xml:space="preserve">
+    <value>e-Devlet sistemi ile bağlantı kurulamadı ({0}: Güvenlik belirteci bulunamadı). Gönderdiğiniz barkod e-Devlet tarafından reddedilmiş olabilir.</value>
+  </data>
+  <data name="Success_PopulationRegistryProcessed" xml:space="preserve">
+    <value>✅ Nüfus örneği başarıyla işlendi.
+
+Şimdi lütfen e-Devlet'ten aldığınız &lt;b&gt;İkametgah (Yerleşim Yeri) Belgenizi&lt;/b&gt; PDF olarak gönderiniz.</value>
+  </data>
+  <data name="Success_ResidenceProcessed" xml:space="preserve">
+    <value>✅ İkametgah adresiniz başarıyla kaydedildi.
+
+Şimdi lütfen vasi için kimliğin ön yüzünü fotoğraflayıp gönderiniz.</value>
+  </data>
+  <data name="Error_IdentityNumberMismatch" xml:space="preserve">
+    <value>Yüklenen kimlikteki TC No ({0}) ile sıradaki kişinin ({1}) beklenen TC Numarası eşleşmiyor. Lütfen doğru kişinin kimliğini yüklediğinizden ve ön/arka yüzlerin aynı kimliğe ait olduğundan emin olun.</value>
+  </data>
+  <data name="Error_GuardianIdMismatch" xml:space="preserve">
+    <value>Girdiğiniz T.C. Kimlik Numarası ({0}) ile Nüfus belgesindeki kayıtlar eşleşmiyor. Lütfen kendinize ait belgeyi yüklediğinize emin olun.</value>
+  </data>
+  <data name="Error_GuardianMustAppearAsSelf" xml:space="preserve">
+    <value>Nüfus belgesinde sizin (Vasi'nin) 'KENDİSİ' olarak görünmeniz gerekmektedir. Belgeyi e-Devlet'ten kendi hesabınızla aldığınıza emin olun.</value>
+  </data>
+  <data name="Error_FatherDeathDateMissingFromDocument" xml:space="preserve">
+    <value>Baba vefat tarihinin nüfus belgesinde yazdığından emin olun.</value>
+  </data>
+  <data name="Error_NoEligibleChildFound" xml:space="preserve">
+    <value>Nüfus belgenizde 15 yaşından küçük yetim/ihtiyaç sahibi bir çocuk bulunamadı. Sistem sadece bu yaş sınırındaki çocukları işleme almaktadır.</value>
+  </data>
+  <data name="Error_ResidenceIdMismatch" xml:space="preserve">
+    <value>İkametgah belgesindeki TC Kimlik Numarası ({0}) ile Vasi'nin TC Kimlik Numarası eşleşmiyor. Lütfen size ait olan ikametgah belgesini yükleyin.</value>
+  </data>
+  <data name="Success_IdentityFrontProcessed" xml:space="preserve">
+    <value>✅ Kimlik Ön Yüzü alındı ve doğrulandı. Şimdi aynı kimliğin **ARKA YÜZ** fotoğrafını gönderiniz.</value>
+  </data>
+  <data name="Info_MergingIdentityDocuments" xml:space="preserve">
+    <value>✅ Kimlik Arka Yüzü alındı ve doğrulandı. Belgeleriniz güvenli bir şekilde tek bir PDF'e birleştiriliyor, lütfen bekleyiniz...</value>
+  </data>
+  <data name="Label_YourGuardianIdentity" xml:space="preserve">
+    <value>Sizin (Vasi)</value>
+  </data>
+  <data name="Label_ChildIdentity" xml:space="preserve">
+    <value>{0} isimli çocuğunuzun</value>
+  </data>
+  <data name="Success_IdentityProcessed_NextPerson" xml:space="preserve">
+    <value>✅ Kimlik başarıyla sisteme işlendi!
+
+Şimdi sıradaki kişiye geçiyoruz. Lütfen **{0}** kimlik ÖN YÜZ fotoğrafını gönderiniz.</value>
+  </data>
+  <data name="Success_AllIdentityDocumentsCollected" xml:space="preserve">
+    <value>🎉 Harika! Tüm aile bireylerinin kimlik belgeleri başarıyla toplandı.
+
+Son birkaç sorum kaldı. Devam etmek için bir mesaj gönderiniz.</value>
+  </data>
+  <data name="Question_ApplicantRole" xml:space="preserve">
+    <value>📋 Başvuruyu yapan kişi olarak yetimin nesi oluyorsunuz?</value>
+  </data>
+  <data name="Option_ApplicantRole_Mother" xml:space="preserve">
+    <value>Yetim Annesi</value>
+  </data>
+  <data name="Option_ApplicantRole_Guardian" xml:space="preserve">
+    <value>Yetim Vasisi</value>
+  </data>
+  <data name="Question_Gender" xml:space="preserve">
+    <value>👤 Cinsiyetiniz nedir?</value>
+  </data>
+  <data name="Option_Gender_Female" xml:space="preserve">
+    <value>Kadın</value>
+  </data>
+  <data name="Option_Gender_Male" xml:space="preserve">
+    <value>Erkek</value>
+  </data>
+  <data name="Question_MaritalStatus" xml:space="preserve">
+    <value>💍 Medeni durumunuz nedir?</value>
+  </data>
+  <data name="Option_MaritalStatus_Single" xml:space="preserve">
+    <value>Bekar</value>
+  </data>
+  <data name="Option_MaritalStatus_Married" xml:space="preserve">
+    <value>Evli</value>
+  </data>
+  <data name="Option_MaritalStatus_Divorced" xml:space="preserve">
+    <value>Boşanmış</value>
+  </data>
+  <data name="Option_MaritalStatus_Widowed" xml:space="preserve">
+    <value>Dul</value>
+  </data>
+  <data name="Question_EducationLevel" xml:space="preserve">
+    <value>🎓 Eğitim düzeyiniz nedir?</value>
+  </data>
+  <data name="Option_EducationLevel_Literate" xml:space="preserve">
+    <value>Okur Yazar</value>
+  </data>
+  <data name="Option_EducationLevel_PrimarySchool" xml:space="preserve">
+    <value>İlkokul</value>
+  </data>
+  <data name="Option_EducationLevel_MiddleSchool" xml:space="preserve">
+    <value>Ortaokul</value>
+  </data>
+  <data name="Option_EducationLevel_HighSchool" xml:space="preserve">
+    <value>Lise</value>
+  </data>
+  <data name="Option_EducationLevel_AssociatesDegree" xml:space="preserve">
+    <value>Ön Lisans</value>
+  </data>
+  <data name="Option_EducationLevel_BachelorsDegree" xml:space="preserve">
+    <value>Lisans</value>
+  </data>
+  <data name="Option_EducationLevel_MastersDegree" xml:space="preserve">
+    <value>Yüksek Lisans</value>
+  </data>
+  <data name="Option_EducationLevel_Doctorate" xml:space="preserve">
+    <value>Doktora</value>
+  </data>
+  <data name="Option_EducationLevel_Diploma" xml:space="preserve">
+    <value>Diploma</value>
+  </data>
+  <data name="Question_DegreeOfKinship" xml:space="preserve">
+    <value>👨‍👩‍👧‍👦 Yetime yakınlık dereceniz nedir?</value>
+  </data>
+  <data name="Option_DegreeOfKinship_Mother" xml:space="preserve">
+    <value>Anne</value>
+  </data>
+  <data name="Option_DegreeOfKinship_Grandmother" xml:space="preserve">
+    <value>Büyükanne</value>
+  </data>
+  <data name="Option_DegreeOfKinship_Grandfather" xml:space="preserve">
+    <value>Dede</value>
+  </data>
+  <data name="Option_DegreeOfKinship_PaternalUncle" xml:space="preserve">
+    <value>Amca</value>
+  </data>
+  <data name="Option_DegreeOfKinship_MaternalUncle" xml:space="preserve">
+    <value>Dayı</value>
+  </data>
+  <data name="Option_DegreeOfKinship_PaternalAunt" xml:space="preserve">
+    <value>Hala</value>
+  </data>
+  <data name="Option_DegreeOfKinship_MaternalAunt" xml:space="preserve">
+    <value>Teyze</value>
+  </data>
+  <data name="Option_DegreeOfKinship_Sibling" xml:space="preserve">
+    <value>Kardeş</value>
+  </data>
+  <data name="Option_DegreeOfKinship_Other" xml:space="preserve">
+    <value>Diğer</value>
+  </data>
+  <data name="Option_DegreeOfKinship_Relative" xml:space="preserve">
+    <value>Akraba</value>
+  </data>
+  <data name="Question_GuardianProfession" xml:space="preserve">
+    <value>💼 Lütfen şu anki **Mesleğinizi** yazınız. (Örn: Ev Hanımı, Muhasebeci)</value>
+  </data>
+  <data name="Question_GuardianPhoneNumber" xml:space="preserve">
+    <value>📱 Size ulaşabileceğimiz **Telefon Numaranızı** (Örn: 05551234567) rakamla yazınız.</value>
+  </data>
+  <data name="Question_FamilyMemberCount" xml:space="preserve">
+    <value>🏠 Ailede sizinle birlikte yaşayan toplam **Kişi Sayısını** rakamla yazınız. (Örn: 4)</value>
+  </data>
+  <data name="Question_FatherProfession" xml:space="preserve">
+    <value>🛠️ Vefat eden babanın mesleği neydi?</value>
+  </data>
+  <data name="Option_FatherProfession_Worker" xml:space="preserve">
+    <value>İşçi</value>
+  </data>
+  <data name="Option_FatherProfession_CivilServant" xml:space="preserve">
+    <value>Memur</value>
+  </data>
+  <data name="Option_FatherProfession_Farmer" xml:space="preserve">
+    <value>Çiftçi</value>
+  </data>
+  <data name="Option_FatherProfession_Freelancer" xml:space="preserve">
+    <value>Serbest Meslek</value>
+  </data>
+  <data name="Option_FatherProfession_Other" xml:space="preserve">
+    <value>Diğer</value>
+  </data>
+  <data name="Option_FatherProfession_MilitaryOrPolice" xml:space="preserve">
+    <value>Asker / Polis</value>
+  </data>
+  <data name="Option_FatherProfession_Chef" xml:space="preserve">
+    <value>Aşçı</value>
+  </data>
+  <data name="Option_FatherProfession_Lawyer" xml:space="preserve">
+    <value>Avukat</value>
+  </data>
+  <data name="Option_FatherProfession_BarberOrHairdresser" xml:space="preserve">
+    <value>Berber / Kuaför</value>
+  </data>
+  <data name="Option_FatherProfession_Doctor" xml:space="preserve">
+    <value>Doktor</value>
+  </data>
+  <data name="Option_FatherProfession_Pharmacist" xml:space="preserve">
+    <value>Eczacı</value>
+  </data>
+  <data name="Option_FatherProfession_Waiter" xml:space="preserve">
+    <value>Garson</value>
+  </data>
+  <data name="Option_FatherProfession_DayLaborer" xml:space="preserve">
+    <value>Gündelik İşçi</value>
+  </data>
+  <data name="Option_FatherProfession_AnimalHusbandry" xml:space="preserve">
+    <value>Hayvancılık</value>
+  </data>
+  <data name="Option_FatherProfession_Nurse" xml:space="preserve">
+    <value>Hemşire</value>
+  </data>
+  <data name="Option_FatherProfession_ReligiousOfficial" xml:space="preserve">
+    <value>İmam / Din Görevlisi</value>
+  </data>
+  <data name="Option_FatherProfession_Miner" xml:space="preserve">
+    <value>Madenci</value>
+  </data>
+  <data name="Option_FatherProfession_Accountant" xml:space="preserve">
+    <value>Muhasebeci</value>
+  </data>
+  <data name="Option_FatherProfession_Engineer" xml:space="preserve">
+    <value>Mühendis</value>
+  </data>
+  <data name="Option_FatherProfession_AutoMechanic" xml:space="preserve">
+    <value>Oto Tamircisi</value>
+  </data>
+  <data name="Option_FatherProfession_TeacherOrEducator" xml:space="preserve">
+    <value>Öğretmen / Eğitimci</value>
+  </data>
+  <data name="Option_FatherProfession_HealthcareWorker" xml:space="preserve">
+    <value>Sağlık Görevlisi</value>
+  </data>
+  <data name="Option_FatherProfession_Driver" xml:space="preserve">
+    <value>Şoför</value>
+  </data>
+  <data name="Option_FatherProfession_Tailor" xml:space="preserve">
+    <value>Terzi</value>
+  </data>
+  <data name="Option_FatherProfession_Plumber" xml:space="preserve">
+    <value>Tesisatçı</value>
+  </data>
+  <data name="Option_FatherProfession_Artisan" xml:space="preserve">
+    <value>Zanaatkar / Esnaf</value>
+  </data>
+  <data name="Question_FatherDeathReason" xml:space="preserve">
+    <value>🕊️ Babanın ölüm nedeni nedir?</value>
+  </data>
+  <data name="Option_FatherDeathReason_NaturalDeath" xml:space="preserve">
+    <value>Doğal Ölüm</value>
+  </data>
+  <data name="Option_FatherDeathReason_HeartAttack" xml:space="preserve">
+    <value>Kalp Krizi</value>
+  </data>
+  <data name="Option_FatherDeathReason_Cancer" xml:space="preserve">
+    <value>Kanser</value>
+  </data>
+  <data name="Option_FatherDeathReason_TrafficAccident" xml:space="preserve">
+    <value>Trafik Kazası</value>
+  </data>
+  <data name="Option_FatherDeathReason_WorkAccident" xml:space="preserve">
+    <value>İş Kazası</value>
+  </data>
+  <data name="Option_FatherDeathReason_Earthquake" xml:space="preserve">
+    <value>Deprem</value>
+  </data>
+  <data name="Option_FatherDeathReason_Other" xml:space="preserve">
+    <value>Diğer</value>
+  </data>
+  <data name="Option_FatherDeathReason_Fever" xml:space="preserve">
+    <value>Ateş (Humma)</value>
+  </data>
+  <data name="Option_FatherDeathReason_BrainHemorrhage" xml:space="preserve">
+    <value>Beyin Kanaması</value>
+  </data>
+  <data name="Option_FatherDeathReason_Drowning" xml:space="preserve">
+    <value>Boğulma</value>
+  </data>
+  <data name="Option_FatherDeathReason_KidneyFailure" xml:space="preserve">
+    <value>Böbrek Yetmezliği</value>
+  </data>
+  <data name="Option_FatherDeathReason_NaturalDisasterOther" xml:space="preserve">
+    <value>Doğal Afet (Diğer)</value>
+  </data>
+  <data name="Option_FatherDeathReason_Ebola" xml:space="preserve">
+    <value>Ebola</value>
+  </data>
+  <data name="Option_FatherDeathReason_Electrocution" xml:space="preserve">
+    <value>Elektrik Çarpması</value>
+  </data>
+  <data name="Option_FatherDeathReason_HomeAccident" xml:space="preserve">
+    <value>Ev Kazası</value>
+  </data>
+  <data name="Option_FatherDeathReason_Paralysis" xml:space="preserve">
+    <value>Felç</value>
+  </data>
+  <data name="Option_FatherDeathReason_IllnessOther" xml:space="preserve">
+    <value>Hastalık (Diğer)</value>
+  </data>
+  <data name="Option_FatherDeathReason_Hepatitis" xml:space="preserve">
+    <value>Hepatit</value>
+  </data>
+  <data name="Option_FatherDeathReason_HivAids" xml:space="preserve">
+    <value>HIV / AIDS</value>
+  </data>
+  <data name="Option_FatherDeathReason_Execution" xml:space="preserve">
+    <value>İdam</value>
+  </data>
+  <data name="Option_FatherDeathReason_Suicide" xml:space="preserve">
+    <value>İntihar</value>
+  </data>
+  <data name="Option_FatherDeathReason_Missing" xml:space="preserve">
+    <value>Kayıp</value>
+  </data>
+  <data name="Option_FatherDeathReason_Murdered" xml:space="preserve">
+    <value>Öldürülme, Cinayet</value>
+  </data>
+  <data name="Option_FatherDeathReason_War" xml:space="preserve">
+    <value>Savaş</value>
+  </data>
+  <data name="Option_FatherDeathReason_Flood" xml:space="preserve">
+    <value>Sel</value>
+  </data>
+  <data name="Option_FatherDeathReason_Malaria" xml:space="preserve">
+    <value>Sıtma</value>
+  </data>
+  <data name="Option_FatherDeathReason_Cirrhosis" xml:space="preserve">
+    <value>Siroz</value>
+  </data>
+  <data name="Option_FatherDeathReason_Diabetes" xml:space="preserve">
+    <value>Şeker Hastalığı</value>
+  </data>
+  <data name="Option_FatherDeathReason_BloodPressure" xml:space="preserve">
+    <value>Tansiyon</value>
+  </data>
+  <data name="Option_FatherDeathReason_Terrorism" xml:space="preserve">
+    <value>Terör Olayları</value>
+  </data>
+  <data name="Question_DisabledMemberExists" xml:space="preserve">
+    <value>♿ Evde yaşayan engelli veya sürekli hastalığı olan bir birey var mı?</value>
+  </data>
+  <data name="Option_Yes" xml:space="preserve">
+    <value>Evet, var</value>
+  </data>
+  <data name="Option_No" xml:space="preserve">
+    <value>Hayır, yok</value>
+  </data>
+  <data name="Question_DisabledMemberName" xml:space="preserve">
+    <value>🏥 Lütfen evdeki hasta/engelli bireyin **Adını ve Soyadını** yazınız.</value>
+  </data>
+  <data name="Question_DisabledMemberDiagnosis" xml:space="preserve">
+    <value>🩺 Hastalık veya Engellilik **Teşhisini** yazınız. (Örn: Görme Engelli)</value>
+  </data>
+  <data name="Question_DisabledMemberStatus" xml:space="preserve">
+    <value>📉 Hastalığın/Engelliliğin **Durumunu/Derecesini** yazınız. (Örn: %80 Ağır)</value>
+  </data>
+  <data name="Question_TreatmentStatus" xml:space="preserve">
+    <value>💊 Bireyin şu anki tedavi durumu nedir?</value>
+  </data>
+  <data name="Option_TreatmentStatus_BeingTreated" xml:space="preserve">
+    <value>Tedavi Ediliyor</value>
+  </data>
+  <data name="Option_TreatmentStatus_NeedsTreatment" xml:space="preserve">
+    <value>Tedavi Gerekiyor</value>
+  </data>
+  <data name="Option_TreatmentStatus_Incurable" xml:space="preserve">
+    <value>Tedavisi Mümkün Değil</value>
+  </data>
+  <data name="Option_TreatmentStatus_NeedsTreatmentAbroad" xml:space="preserve">
+    <value>Yurt Dışında Tedavi Gerekiyor</value>
+  </data>
+  <data name="Question_DisabledMemberDescription" xml:space="preserve">
+    <value>📝 Hastalıkla ilgili eklemek istediğiniz bir **Açıklama** var mı? (Veya Geç butonuna basabilirsiniz)</value>
+  </data>
+  <data name="Option_SkipDescription" xml:space="preserve">
+    <value>Geç (Açıklama Yok)</value>
+  </data>
+  <data name="Question_HousingStatus" xml:space="preserve">
+    <value>🏡 Şu anki konut durumunuz nedir?</value>
+  </data>
+  <data name="Option_HousingStatus_OwnHouse" xml:space="preserve">
+    <value>Kendi Evi</value>
+  </data>
+  <data name="Option_HousingStatus_Rent" xml:space="preserve">
+    <value>Kira</value>
+  </data>
+  <data name="Option_HousingStatus_LivingWithRelatives" xml:space="preserve">
+    <value>Akraba Yanı</value>
+  </data>
+  <data name="Option_HousingStatus_RentFree" xml:space="preserve">
+    <value>Bedelsiz Kira</value>
+  </data>
+  <data name="Option_HousingStatus_Tent" xml:space="preserve">
+    <value>Çadır</value>
+  </data>
+  <data name="Option_HousingStatus_Container" xml:space="preserve">
+    <value>Konteyner</value>
+  </data>
+  <data name="Option_HousingStatus_InheritedHouse" xml:space="preserve">
+    <value>Miras Evi</value>
+  </data>
+  <data name="Question_SocialSecurity" xml:space="preserve">
+    <value>🛡️ Sosyal güvenceniz var mı?</value>
+  </data>
+  <data name="Option_SocialSecurity_Sgk" xml:space="preserve">
+    <value>SGK</value>
+  </data>
+  <data name="Option_SocialSecurity_BagKur" xml:space="preserve">
+    <value>Bağ-Kur</value>
+  </data>
+  <data name="Option_SocialSecurity_GreenCard" xml:space="preserve">
+    <value>Yeşil Kart</value>
+  </data>
+  <data name="Option_SocialSecurity_Other" xml:space="preserve">
+    <value>Diğer / Yok</value>
+  </data>
+  <data name="Question_IncomeStatus" xml:space="preserve">
+    <value>💰 Gelir tipiniz nedir?</value>
+  </data>
+  <data name="Option_IncomeStatus_FixedSalary" xml:space="preserve">
+    <value>Sabit Maaş</value>
+  </data>
+  <data name="Option_IncomeStatus_DailyWage" xml:space="preserve">
+    <value>Günlük İş</value>
+  </data>
+  <data name="Option_IncomeStatus_RentIncome" xml:space="preserve">
+    <value>Kira Geliri</value>
+  </data>
+  <data name="Option_IncomeStatus_Other" xml:space="preserve">
+    <value>Diğer</value>
+  </data>
+  <data name="Question_MonthlyIncome" xml:space="preserve">
+    <value>💵 Ailenizin toplam **Aylık Gelirini** sadece rakamla yazınız. (Örn: 17000, Geliriniz yoksa 0 yazınız)</value>
+  </data>
+  <data name="Question_MonthlyExpense" xml:space="preserve">
+    <value>💸 Ailenizin yaklaşık **Aylık Giderini** rakamla yazınız. (Örn: 12000)</value>
+  </data>
+  <data name="Question_GuardianIban" xml:space="preserve">
+    <value>💳 Son olarak, burs bağlandığı takdirde yatırılacak olan kendinize ait **IBAN Numaranızı** (TR ile başlayarak) yazınız.</value>
+  </data>
+  <data name="Enum_ApplicantRole_Mother" xml:space="preserve">
+    <value>Yetim Annesi</value>
+  </data>
+  <data name="Enum_ApplicantRole_Guardian" xml:space="preserve">
+    <value>Yetim Vasisi</value>
+  </data>
+  <data name="Enum_Gender_Female" xml:space="preserve">
+    <value>Kadın</value>
+  </data>
+  <data name="Enum_Gender_Male" xml:space="preserve">
+    <value>Erkek</value>
+  </data>
+  <data name="Enum_MaritalStatus_Single" xml:space="preserve">
+    <value>Bekar</value>
+  </data>
+  <data name="Enum_MaritalStatus_Married" xml:space="preserve">
+    <value>Evli</value>
+  </data>
+  <data name="Enum_MaritalStatus_Divorced" xml:space="preserve">
+    <value>Boşanmış</value>
+  </data>
+  <data name="Enum_MaritalStatus_Widowed" xml:space="preserve">
+    <value>Dul</value>
+  </data>
+  <data name="Enum_EducationLevel_Literate" xml:space="preserve">
+    <value>Okur Yazar</value>
+  </data>
+  <data name="Enum_EducationLevel_PrimarySchool" xml:space="preserve">
+    <value>İlkokul</value>
+  </data>
+  <data name="Enum_EducationLevel_MiddleSchool" xml:space="preserve">
+    <value>Ortaokul</value>
+  </data>
+  <data name="Enum_EducationLevel_HighSchool" xml:space="preserve">
+    <value>Lise</value>
+  </data>
+  <data name="Enum_EducationLevel_AssociatesDegree" xml:space="preserve">
+    <value>Ön Lisans</value>
+  </data>
+  <data name="Enum_EducationLevel_BachelorsDegree" xml:space="preserve">
+    <value>Lisans</value>
+  </data>
+  <data name="Enum_EducationLevel_MastersDegree" xml:space="preserve">
+    <value>Yüksek Lisans</value>
+  </data>
+  <data name="Enum_EducationLevel_Doctorate" xml:space="preserve">
+    <value>Doktora</value>
+  </data>
+  <data name="Enum_EducationLevel_Diploma" xml:space="preserve">
+    <value>Diploma</value>
+  </data>
+  <data name="Enum_EducationStatus_Graduated" xml:space="preserve">
+    <value>Mezun</value>
+  </data>
+  <data name="Enum_EducationStatus_NeverAttended" xml:space="preserve">
+    <value>Hiç Okula Gitmedi</value>
+  </data>
+  <data name="Enum_EducationStatus_DroppedOut" xml:space="preserve">
+    <value>Okulu Bıraktı</value>
+  </data>
+  <data name="Enum_EducationStatus_Student" xml:space="preserve">
+    <value>Öğrenci</value>
+  </data>
+  <data name="Enum_DegreeOfKinship_Mother" xml:space="preserve">
+    <value>Anne</value>
+  </data>
+  <data name="Enum_DegreeOfKinship_Grandmother" xml:space="preserve">
+    <value>Büyükanne</value>
+  </data>
+  <data name="Enum_DegreeOfKinship_Grandfather" xml:space="preserve">
+    <value>Dede</value>
+  </data>
+  <data name="Enum_DegreeOfKinship_PaternalUncle" xml:space="preserve">
+    <value>Amca</value>
+  </data>
+  <data name="Enum_DegreeOfKinship_MaternalUncle" xml:space="preserve">
+    <value>Dayı</value>
+  </data>
+  <data name="Enum_DegreeOfKinship_PaternalAunt" xml:space="preserve">
+    <value>Hala</value>
+  </data>
+  <data name="Enum_DegreeOfKinship_MaternalAunt" xml:space="preserve">
+    <value>Teyze</value>
+  </data>
+  <data name="Enum_DegreeOfKinship_Sibling" xml:space="preserve">
+    <value>Kardeş</value>
+  </data>
+  <data name="Enum_DegreeOfKinship_Other" xml:space="preserve">
+    <value>Diğer</value>
+  </data>
+  <data name="Enum_DegreeOfKinship_Relative" xml:space="preserve">
+    <value>Akraba</value>
+  </data>
+  <data name="Enum_FatherProfession_Worker" xml:space="preserve">
+    <value>İşçi</value>
+  </data>
+  <data name="Enum_FatherProfession_CivilServant" xml:space="preserve">
+    <value>Memur</value>
+  </data>
+  <data name="Enum_FatherProfession_Farmer" xml:space="preserve">
+    <value>Çiftçi</value>
+  </data>
+  <data name="Enum_FatherProfession_Freelancer" xml:space="preserve">
+    <value>Serbest Meslek</value>
+  </data>
+  <data name="Enum_FatherProfession_MilitaryOrPolice" xml:space="preserve">
+    <value>Asker / Polis</value>
+  </data>
+  <data name="Enum_FatherProfession_Chef" xml:space="preserve">
+    <value>Aşçı</value>
+  </data>
+  <data name="Enum_FatherProfession_Lawyer" xml:space="preserve">
+    <value>Avukat</value>
+  </data>
+  <data name="Enum_FatherProfession_BarberOrHairdresser" xml:space="preserve">
+    <value>Berber / Kuaför</value>
+  </data>
+  <data name="Enum_FatherProfession_Doctor" xml:space="preserve">
+    <value>Doktor</value>
+  </data>
+  <data name="Enum_FatherProfession_Pharmacist" xml:space="preserve">
+    <value>Eczacı</value>
+  </data>
+  <data name="Enum_FatherProfession_Waiter" xml:space="preserve">
+    <value>Garson</value>
+  </data>
+  <data name="Enum_FatherProfession_DayLaborer" xml:space="preserve">
+    <value>Gündelik İşçi</value>
+  </data>
+  <data name="Enum_FatherProfession_AnimalHusbandry" xml:space="preserve">
+    <value>Hayvancılık</value>
+  </data>
+  <data name="Enum_FatherProfession_Nurse" xml:space="preserve">
+    <value>Hemşire</value>
+  </data>
+  <data name="Enum_FatherProfession_ReligiousOfficial" xml:space="preserve">
+    <value>İmam / Din Görevlisi</value>
+  </data>
+  <data name="Enum_FatherProfession_Miner" xml:space="preserve">
+    <value>Madenci</value>
+  </data>
+  <data name="Enum_FatherProfession_Accountant" xml:space="preserve">
+    <value>Muhasebeci</value>
+  </data>
+  <data name="Enum_FatherProfession_Engineer" xml:space="preserve">
+    <value>Mühendis</value>
+  </data>
+  <data name="Enum_FatherProfession_AutoMechanic" xml:space="preserve">
+    <value>Oto Tamircisi</value>
+  </data>
+  <data name="Enum_FatherProfession_TeacherOrEducator" xml:space="preserve">
+    <value>Öğretmen / Eğitimci</value>
+  </data>
+  <data name="Enum_FatherProfession_HealthcareWorker" xml:space="preserve">
+    <value>Sağlık Görevlisi</value>
+  </data>
+  <data name="Enum_FatherProfession_Driver" xml:space="preserve">
+    <value>Şoför</value>
+  </data>
+  <data name="Enum_FatherProfession_Tailor" xml:space="preserve">
+    <value>Terzi</value>
+  </data>
+  <data name="Enum_FatherProfession_Plumber" xml:space="preserve">
+    <value>Tesisatçı</value>
+  </data>
+  <data name="Enum_FatherProfession_Artisan" xml:space="preserve">
+    <value>Zanaatkar / Esnaf</value>
+  </data>
+  <data name="Enum_FatherProfession_Other" xml:space="preserve">
+    <value>Diğer</value>
+  </data>
+  <data name="Enum_FatherDeathReason_NaturalDeath" xml:space="preserve">
+    <value>Doğal Ölüm</value>
+  </data>
+  <data name="Enum_FatherDeathReason_HeartAttack" xml:space="preserve">
+    <value>Kalp Krizi</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Cancer" xml:space="preserve">
+    <value>Kanser</value>
+  </data>
+  <data name="Enum_FatherDeathReason_TrafficAccident" xml:space="preserve">
+    <value>Trafik Kazası</value>
+  </data>
+  <data name="Enum_FatherDeathReason_WorkAccident" xml:space="preserve">
+    <value>İş Kazası</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Earthquake" xml:space="preserve">
+    <value>Deprem</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Fever" xml:space="preserve">
+    <value>Ateş (Humma)</value>
+  </data>
+  <data name="Enum_FatherDeathReason_BrainHemorrhage" xml:space="preserve">
+    <value>Beyin Kanaması</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Drowning" xml:space="preserve">
+    <value>Boğulma</value>
+  </data>
+  <data name="Enum_FatherDeathReason_KidneyFailure" xml:space="preserve">
+    <value>Böbrek Yetmezliği</value>
+  </data>
+  <data name="Enum_FatherDeathReason_NaturalDisasterOther" xml:space="preserve">
+    <value>Doğal Afet (Diğer)</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Ebola" xml:space="preserve">
+    <value>Ebola</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Electrocution" xml:space="preserve">
+    <value>Elektrik Çarpması</value>
+  </data>
+  <data name="Enum_FatherDeathReason_HomeAccident" xml:space="preserve">
+    <value>Ev Kazası</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Paralysis" xml:space="preserve">
+    <value>Felç</value>
+  </data>
+  <data name="Enum_FatherDeathReason_IllnessOther" xml:space="preserve">
+    <value>Hastalık (Diğer)</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Hepatitis" xml:space="preserve">
+    <value>Hepatit</value>
+  </data>
+  <data name="Enum_FatherDeathReason_HivAids" xml:space="preserve">
+    <value>HIV / AIDS</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Execution" xml:space="preserve">
+    <value>İdam</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Suicide" xml:space="preserve">
+    <value>İntihar</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Missing" xml:space="preserve">
+    <value>Kayıp</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Murdered" xml:space="preserve">
+    <value>Öldürülme, Cinayet</value>
+  </data>
+  <data name="Enum_FatherDeathReason_War" xml:space="preserve">
+    <value>Savaş</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Flood" xml:space="preserve">
+    <value>Sel</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Malaria" xml:space="preserve">
+    <value>Sıtma</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Cirrhosis" xml:space="preserve">
+    <value>Siroz</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Diabetes" xml:space="preserve">
+    <value>Şeker Hastalığı</value>
+  </data>
+  <data name="Enum_FatherDeathReason_BloodPressure" xml:space="preserve">
+    <value>Tansiyon</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Terrorism" xml:space="preserve">
+    <value>Terör Olayları</value>
+  </data>
+  <data name="Enum_FatherDeathReason_Other" xml:space="preserve">
+    <value>Diğer</value>
+  </data>
+  <data name="Enum_HousingStatus_OwnHouse" xml:space="preserve">
+    <value>Kendi Evi</value>
+  </data>
+  <data name="Enum_HousingStatus_Rent" xml:space="preserve">
+    <value>Kira</value>
+  </data>
+  <data name="Enum_HousingStatus_LivingWithRelatives" xml:space="preserve">
+    <value>Akraba Yanı</value>
+  </data>
+  <data name="Enum_HousingStatus_RentFree" xml:space="preserve">
+    <value>Bedelsiz Kira</value>
+  </data>
+  <data name="Enum_HousingStatus_Tent" xml:space="preserve">
+    <value>Çadır</value>
+  </data>
+  <data name="Enum_HousingStatus_Container" xml:space="preserve">
+    <value>Konteyner</value>
+  </data>
+  <data name="Enum_HousingStatus_InheritedHouse" xml:space="preserve">
+    <value>Miras Evi</value>
+  </data>
+  <data name="Enum_SocialSecurity_Sgk" xml:space="preserve">
+    <value>SGK</value>
+  </data>
+  <data name="Enum_SocialSecurity_BagKur" xml:space="preserve">
+    <value>Bağ-Kur</value>
+  </data>
+  <data name="Enum_SocialSecurity_GreenCard" xml:space="preserve">
+    <value>Yeşil Kart</value>
+  </data>
+  <data name="Enum_SocialSecurity_Other" xml:space="preserve">
+    <value>Diğer / Yok</value>
+  </data>
+  <data name="Enum_IncomeStatus_FixedSalary" xml:space="preserve">
+    <value>Sabit Maaş</value>
+  </data>
+  <data name="Enum_IncomeStatus_DailyWage" xml:space="preserve">
+    <value>Günlük İş</value>
+  </data>
+  <data name="Enum_IncomeStatus_RentIncome" xml:space="preserve">
+    <value>Kira Geliri</value>
+  </data>
+  <data name="Enum_IncomeStatus_Other" xml:space="preserve">
+    <value>Diğer</value>
+  </data>
+  <data name="Enum_TreatmentStatus_BeingTreated" xml:space="preserve">
+    <value>Tedavi Ediliyor</value>
+  </data>
+  <data name="Enum_TreatmentStatus_NeedsTreatment" xml:space="preserve">
+    <value>Tedavi Gerekiyor</value>
+  </data>
+  <data name="Enum_TreatmentStatus_Incurable" xml:space="preserve">
+    <value>Tedavisi Mümkün Değil</value>
+  </data>
+  <data name="Enum_TreatmentStatus_NeedsTreatmentAbroad" xml:space="preserve">
+    <value>Yurt Dışında Tedavi Gerekiyor</value>
+  </data>
+  <data name="Error_ActiveRegistrationRequiredForUpdate" xml:space="preserve">
+    <value>⚠️ Güncelleme yapabilmek için sohbetinizde aktif bir kayıt bulunmalıdır.</value>
+  </data>
+  <data name="Error_NoActiveRegistration" xml:space="preserve">
+    <value>⚠️ Aktif bir başvuru kaydı bulunamadı.</value>
+  </data>
+  <data name="Error_RegistrationNotInQuestionnaire" xml:space="preserve">
+    <value>⚠️ Henüz soru-cevap aşamasına gelmediniz. Belge yükleme adımlarında güncelleme yapılamaz.</value>
+  </data>
+  <data name="Error_CompletedRegistrationCannotBeUpdated" xml:space="preserve">
+    <value>⚠️ Başvuru zaten tamamlanmış. Güncellemeye izin verilmiyor.</value>
+  </data>
+  <data name="Prompt_WhichInformationToUpdate" xml:space="preserve">
+    <value>✏️ &lt;b&gt;Hangi bilginizi güncellemek istiyorsunuz?&lt;/b&gt;
+
+(Örn: &lt;i&gt;'Telefon numaramı değiştirmek istiyorum', 'IBAN yanlış oldu', 'Mesleğimi düzelt'&lt;/i&gt;)
+
+Çıkmak için &lt;b&gt;vazgeç&lt;/b&gt; yazabilirsiniz.</value>
+  </data>
+  <data name="Info_UpdateCancelled" xml:space="preserve">
+    <value>✅ Güncelleme işleminden vazgeçildi.</value>
+  </data>
+  <data name="Error_UpdateFieldNotFound" xml:space="preserve">
+    <value>⚠️ Hangi bilgiyi güncellemek istediğinizi anlayamadım. (Örn: 'Telefon numaramı', 'IBAN', 'Mesleğimi'). Çıkmak için &lt;b&gt;vazgeç&lt;/b&gt; yazabilirsiniz.</value>
+  </data>
+  <data name="Error_UpdateFieldRequired" xml:space="preserve">
+    <value>⚠️ Lütfen güncellemek istediğiniz bilgiyi belirtin.</value>
+  </data>
+  <data name="Error_InvalidQuestionKey" xml:space="preserve">
+    <value>Geçersiz soru anahtarı.</value>
+  </data>
+  <data name="Error_QuestionNotAnswered" xml:space="preserve">
+    <value>⚠️ &lt;b&gt;{0}&lt;/b&gt; sorusu henüz cevaplanmamış. Sadece daha önce cevap verdiğiniz soruları güncelleyebilirsiniz.</value>
+  </data>
+  <data name="Success_QuestionAnswerReset" xml:space="preserve">
+    <value>🔄 &lt;b&gt;{0}&lt;/b&gt; bilgisi sıfırlandı. Lütfen yeni cevabı giriniz:</value>
+  </data>
+  <data name="Label_Update_ApplicantRole" xml:space="preserve">
+    <value>Başvuran Rolü</value>
+  </data>
+  <data name="Label_Update_Gender" xml:space="preserve">
+    <value>Cinsiyet</value>
+  </data>
+  <data name="Label_Update_MaritalStatus" xml:space="preserve">
+    <value>Medeni Durum</value>
+  </data>
+  <data name="Label_Update_EducationLevel" xml:space="preserve">
+    <value>Eğitim Düzeyi</value>
+  </data>
+  <data name="Label_Update_DegreeOfKinship" xml:space="preserve">
+    <value>Yetime Yakınlık Derecesi</value>
+  </data>
+  <data name="Label_Update_Profession" xml:space="preserve">
+    <value>Vasi Mesleği</value>
+  </data>
+  <data name="Label_Update_PhoneNumber" xml:space="preserve">
+    <value>Telefon Numarası</value>
+  </data>
+  <data name="Label_Update_FamilyMemberCount" xml:space="preserve">
+    <value>Aile Birey Sayısı</value>
+  </data>
+  <data name="Label_Update_FatherProfession" xml:space="preserve">
+    <value>Baba Mesleği</value>
+  </data>
+  <data name="Label_Update_FatherDeathReason" xml:space="preserve">
+    <value>Baba Ölüm Nedeni</value>
+  </data>
+  <data name="Label_Update_DisabledMember" xml:space="preserve">
+    <value>Engelli / Hasta Birey Durumu</value>
+  </data>
+  <data name="Label_Update_HousingStatus" xml:space="preserve">
+    <value>Konut Durumu</value>
+  </data>
+  <data name="Label_Update_SocialSecurity" xml:space="preserve">
+    <value>Sosyal Güvence</value>
+  </data>
+  <data name="Label_Update_IncomeStatus" xml:space="preserve">
+    <value>Gelir Tipi</value>
+  </data>
+  <data name="Label_Update_Income" xml:space="preserve">
+    <value>Aylık Gelir</value>
+  </data>
+  <data name="Label_Update_Expense" xml:space="preserve">
+    <value>Aylık Gider</value>
+  </data>
+  <data name="Label_Update_Iban" xml:space="preserve">
+    <value>IBAN Numarası</value>
+  </data>
+  <data name="Error_RegistrationConfirmationRequired" xml:space="preserve">
+    <value>⚠️ Başvuruyu tamamlamak için lütfen yukarıdaki &lt;b&gt;'Bilgileri Onaylıyorum'&lt;/b&gt; butonuna basınız.</value>
+  </data>
+  <data name="Button_ConfirmRegistration" xml:space="preserve">
+    <value>✅ Bilgileri Onaylıyorum ve Kaydı Tamamla</value>
+  </data>
+  <data name="Success_RegistrationFinalized" xml:space="preserve">
+    <value>✅ &lt;b&gt;Başvurunuz Başarıyla Tamamlandı!&lt;/b&gt;
+
+Tüm bilgileriniz ve belgeleriniz şifreli olarak yetkili birime aktarılmıştır.
+Takip kodunuz: &lt;code&gt;{0}&lt;/code&gt;</value>
+  </data>
+  <data name="Label_Required_GuardianName" xml:space="preserve">
+    <value>Vasi İsmi</value>
+  </data>
+  <data name="Label_Required_GuardianId" xml:space="preserve">
+    <value>Vasi TC Kimlik No</value>
+  </data>
+  <data name="Label_Required_ApplicantRole" xml:space="preserve">
+    <value>Başvuru Yapan Kişi (Rol)</value>
+  </data>
+  <data name="Label_Required_Gender" xml:space="preserve">
+    <value>Vasi Cinsiyeti</value>
+  </data>
+  <data name="Label_Required_PhoneNumber" xml:space="preserve">
+    <value>Vasi İletişim Numarası</value>
+  </data>
+  <data name="Label_Required_Iban" xml:space="preserve">
+    <value>IBAN</value>
+  </data>
+  <data name="Label_Required_IncomeExpense" xml:space="preserve">
+    <value>Gelir/Gider Bilgisi</value>
+  </data>
+  <data name="Label_Required_FamilyMemberCount" xml:space="preserve">
+    <value>Aile Kişi Sayısı</value>
+  </data>
+  <data name="Label_Required_FatherName" xml:space="preserve">
+    <value>Baba Adı</value>
+  </data>
+  <data name="Label_Required_FatherDeathDate" xml:space="preserve">
+    <value>Baba Ölüm Tarihi</value>
+  </data>
+  <data name="Label_Required_FatherProfession" xml:space="preserve">
+    <value>Baba Mesleği</value>
+  </data>
+  <data name="Label_Required_FatherDeathReason" xml:space="preserve">
+    <value>Baba Ölüm Nedeni</value>
+  </data>
+  <data name="Label_Required_ResidenceAddress" xml:space="preserve">
+    <value>İkametgah Adresi</value>
+  </data>
+  <data name="Label_Required_Petition" xml:space="preserve">
+    <value>Sistem Dilekçesi</value>
+  </data>
+  <data name="Label_Required_Child" xml:space="preserve">
+    <value>Çocuk Bilgisi (En az 1 çocuk gereklidir)</value>
+  </data>
+  <data name="Error_RequiredFieldsMissing" xml:space="preserve">
+    <value>Aşağıdaki zorunlu alanlar eksik:
+- {0}</value>
+  </data>
+  <data name="Document_PetitionContent" xml:space="preserve">
+    <value>İlgili Makama,
+
+Ben {0}, {1} tarihinde vefat eden eşimin vefatı neticesinde yetim kalan {2} çocuğum ile birlikte ailemizin geçimini ve idamesini sağlamaya çalışmaktayım. Hanemizin gelir düzeyinin yetersiz olması sebebiyle çocuklarımın temel gıda, barınma, sağlık ve özellikle eğitim ihtiyaçlarını karşılamakta ciddi maddi zorluklar yaşamaktayım. Yetim çocuklarımızın eğitim hayatlarını aksatmadan sürdürebilmeleri ve geleceğe güvenle hazırlanabilmeleri adına vakfınızın / derneğinizin yetim burs ve aile destek programından istifade etmek istiyorum. Yetim sponsorluk ve burs talebimin değerlendirilerek kabul edilmesini saygılarımla arz ederim.</value>
+  </data>
+  <data name="Generated_ChildHobby_ReadingAndDrawing" xml:space="preserve">
+    <value>Kitap okumak ve resim çizmek</value>
+  </data>
+  <data name="Generated_ChildHobby_FootballAndCycling" xml:space="preserve">
+    <value>Futbol oynamak ve bisiklete binmek</value>
+  </data>
+  <data name="Generated_ChildHobby_ChessAndMusic" xml:space="preserve">
+    <value>Satranç oynamak ve müzik dinlemek</value>
+  </data>
+  <data name="Generated_ChildHobby_LegoAndScience" xml:space="preserve">
+    <value>Lego yapmak ve bilim belgeselleri izlemek</value>
+  </data>
+  <data name="Generated_ChildHobby_SwimmingAndHiking" xml:space="preserve">
+    <value>Yüzmek ve doğa yürüyüşü yapmak</value>
+  </data>
+  <data name="Generated_ChildDream_Teacher" xml:space="preserve">
+    <value>Öğretmen olmak</value>
+  </data>
+  <data name="Generated_ChildDream_Doctor" xml:space="preserve">
+    <value>Doktor olmak</value>
+  </data>
+  <data name="Generated_ChildDream_ComputerEngineer" xml:space="preserve">
+    <value>Bilgisayar Mühendisi olmak</value>
+  </data>
+  <data name="Generated_ChildDream_Pilot" xml:space="preserve">
+    <value>Pilot olmak</value>
+  </data>
+  <data name="Generated_ChildDream_Architect" xml:space="preserve">
+    <value>Mimar olmak</value>
+  </data>
+  <data name="Generated_ChildDream_PoliceOfficer" xml:space="preserve">
+    <value>Polis olmak</value>
+  </data>
+  <data name="Summary_Title" xml:space="preserve">
+    <value>📋 &lt;b&gt;BAŞVURU BİLGİLERİ ÖZETİ&lt;/b&gt;</value>
+  </data>
+  <data name="Summary_RegistrationKey" xml:space="preserve">
+    <value>🔑 &lt;b&gt;Takip Kodu:&lt;/b&gt; &lt;code&gt;{0}&lt;/code&gt;</value>
+  </data>
+  <data name="Summary_GuardianSection" xml:space="preserve">
+    <value>👤 &lt;b&gt;Vasi Bilgileri:&lt;/b&gt;</value>
+  </data>
+  <data name="Summary_GuardianName" xml:space="preserve">
+    <value>• &lt;b&gt;Ad Soyad:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_GuardianId" xml:space="preserve">
+    <value>• &lt;b&gt;T.C. Kimlik No:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_GuardianBirthDate" xml:space="preserve">
+    <value>• &lt;b&gt;Doğum Tarihi:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_GuardianPhone" xml:space="preserve">
+    <value>• &lt;b&gt;Telefon:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_GuardianIban" xml:space="preserve">
+    <value>• &lt;b&gt;IBAN:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_FatherSection" xml:space="preserve">
+    <value>🕊️ &lt;b&gt;Vefat Eden Baba:&lt;/b&gt;</value>
+  </data>
+  <data name="Summary_FatherName" xml:space="preserve">
+    <value>• &lt;b&gt;Ad Soyad:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_FatherDeathDate" xml:space="preserve">
+    <value>• &lt;b&gt;Ölüm Tarihi:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_FatherDeathReason" xml:space="preserve">
+    <value>• &lt;b&gt;Ölüm Nedeni:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_ResidenceSection" xml:space="preserve">
+    <value>🏠 &lt;b&gt;İkametgâh:&lt;/b&gt;</value>
+  </data>
+  <data name="Summary_Address" xml:space="preserve">
+    <value>• &lt;b&gt;Açık Adres:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_HousingStatus" xml:space="preserve">
+    <value>• &lt;b&gt;Konut Durumu:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_FinancialSection" xml:space="preserve">
+    <value>&lt;b&gt;Maddi Durum:&lt;/b&gt;</value>
+  </data>
+  <data name="Summary_HouseholdSize" xml:space="preserve">
+    <value>• &lt;b&gt;Aile Kişi Sayısı:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_SocialSecurity" xml:space="preserve">
+    <value>• &lt;b&gt;Sosyal Güvence:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_MonthlyIncome" xml:space="preserve">
+    <value>• &lt;b&gt;Aylık Gelir:&lt;/b&gt; {0} TL ({1})</value>
+  </data>
+  <data name="Summary_MonthlyExpense" xml:space="preserve">
+    <value>• &lt;b&gt;Aylık Gider:&lt;/b&gt; {0} TL</value>
+  </data>
+  <data name="Summary_ChildrenSection" xml:space="preserve">
+    <value>&lt;b&gt;Çocuklar ({0} Kişi):&lt;/b&gt;</value>
+  </data>
+  <data name="Summary_Child" xml:space="preserve">
+    <value>• &lt;b&gt;{0}&lt;/b&gt; (T.C: {1}, D.Tarihi: {2})</value>
+  </data>
+  <data name="Summary_DisabledMemberSection" xml:space="preserve">
+    <value>🏥 &lt;b&gt;Engelli / Hasta Birey:&lt;/b&gt;</value>
+  </data>
+  <data name="Summary_DisabledMemberName" xml:space="preserve">
+    <value>• &lt;b&gt;Ad Soyad:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_DisabledMemberDiagnosis" xml:space="preserve">
+    <value>• &lt;b&gt;Teşhis / Durum:&lt;/b&gt; {0} ({1})</value>
+  </data>
+  <data name="Summary_DisabledMemberTreatment" xml:space="preserve">
+    <value>• &lt;b&gt;Tedavi Durumu:&lt;/b&gt; {0}</value>
+  </data>
+  <data name="Summary_ConfirmationInstructions" xml:space="preserve">
+    <value>&lt;i&gt;Lütfen yukarıdaki bilgileri kontrol ediniz. Bilgiler doğruysa aşağıdaki butona basarak başvurunuzu tamamlayabilirsiniz. Hatalı bir bilgi varsa &lt;code&gt;/update &amp;lt;alan&amp;gt;&lt;/code&gt; komutu ile düzeltebilirsiniz.&lt;/i&gt;</value>
+  </data>
+</root>

@@ -44,7 +44,7 @@ public class Guardian
         SocialSecurity socialSecurity, FinancialInfo financialInfo,
         Address address, PhoneNumber contactInfo, Iban iban)
     {
-        if (string.IsNullOrWhiteSpace(name)) throw new BusinessRuleException("Vasi ismi boş olamaz.");
+        if (string.IsNullOrWhiteSpace(name)) throw new BusinessRuleException("Error_GuardianNameRequired");
 
         Id = Guid.NewGuid();
         Name = name;
@@ -71,7 +71,7 @@ public class Guardian
 
         // Aynı TC Kimlik numarasına sahip çocuk eklenmesini engelle
         if (_children.Any(c => c.IdentityNumber.Value == child.IdentityNumber.Value))
-            throw new InvalidOperationException("Bu TC Kimlik numarasına sahip çocuk zaten kayıtlı.");
+            throw new BusinessRuleException("Error_ChildAlreadyRegistered");
 
         _children.Add(child);
     }

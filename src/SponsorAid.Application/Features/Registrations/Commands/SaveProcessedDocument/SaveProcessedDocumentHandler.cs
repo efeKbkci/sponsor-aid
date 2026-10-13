@@ -1,6 +1,8 @@
 using MediatR;
+using Microsoft.Extensions.Localization;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
+using SponsorAid.Application.Resources;
 using SponsorAid.Domain.Enums;
 using SponsorAid.Domain.Exceptions;
 using SponsorAid.Integration.Contracts;
@@ -12,7 +14,8 @@ public class SaveProcessedDocumentCommandHandler(
     IUserNotifier notifier,
     IEventPublisher eventPublisher,
     IEGovermentDocumentService eGovernment,
-    IRegistrationTrackingRepository trackingRepository
+    IRegistrationTrackingRepository trackingRepository,
+    IStringLocalizer<BotMessages> localizer
     ) : IRequestHandler<SaveProcessedDocumentCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
@@ -20,6 +23,7 @@ public class SaveProcessedDocumentCommandHandler(
     private readonly IEventPublisher _eventPublisher = eventPublisher; // Event yayıncısı
     private readonly IEGovermentDocumentService _eGoverment = eGovernment; // e-Devlet belge indirme servisi
     private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository; // Takip tablosu servisi
+    private readonly IStringLocalizer<BotMessages> _localizer = localizer;
 
     public async Task Handle(SaveProcessedDocumentCommand request, CancellationToken cancellationToken)
     {
@@ -39,13 +43,13 @@ public class SaveProcessedDocumentCommandHandler(
                 draft.SetStep(RegistrationStep.WaitingForIdentityBack);
 
             await _draftRepository.SaveAsync(draft, cancellationToken);
-            await _notifier.SendMessageAsync(draft.ChatId, $"⚠️ Belgeniz işlenirken bir sorun oluştu: {request.ErrorMessage}. Lütfen daha net bir belge/fotoğraf gönderiniz.");
+            await _notifier.SendMessageAsync(draft.ChatId, _localizer["Error_DocumentProcessingFailed", request.ErrorMessage ?? string.Empty].Value);
             return;
         }
         // GERİ BESLEME DÖNGÜSÜ: WORKER BİZE BARKOD GÖNDERDİYSE
         if (!string.IsNullOrEmpty(request.ExtractedBarcode))
         {
-            await _notifier.SendMessageAsync(draft.ChatId, $"🔍 Belgenizde e-Devlet barkodu ({request.ExtractedBarcode}) tespit edildi. Orijinal belge sunucudan indiriliyor, lütfen bekleyiniz...");
+            await _notifier.SendMessageAsync(draft.ChatId, _localizer["Info_EGovernmentBarcodeDetected", request.ExtractedBarcode].Value);
 
             try
             {
@@ -78,7 +82,7 @@ public class SaveProcessedDocumentCommandHandler(
                 // İndirme başarısız olursa durumu "Bekliyor"a çek ve hata fırlat
                 draft.RevertProcessingState();
                 await _draftRepository.SaveAsync(draft, cancellationToken);
-                throw new BusinessRuleException("e-Devlet üzerinden belge indirilemedi. Lütfen belgenin tam PDF halini yüklemeyi deneyin.");
+                throw new BusinessRuleException("Error_EGovernmentDocumentDownloadFailed");
             }
         }
         // 2. BAŞARILI SONUÇLARIN DAĞITILMASI
@@ -96,9 +100,7 @@ public class SaveProcessedDocumentCommandHandler(
             // Nüfus bitti, İkametgaha geçiyoruz
             draft.SetStep(RegistrationStep.WaitingForResidence);
 
-            string msg = "✅ Nüfus örneği başarıyla işlendi.\n\nŞimdi lütfen e-Devlet'ten aldığınız <b>İkametgah (Yerleşim Yeri) Belgenizi</b> PDF olarak gönderiniz.";
-
-            await _notifier.SendMessageAsync(draft.ChatId, msg);
+            await _notifier.SendMessageAsync(draft.ChatId, _localizer["Success_PopulationRegistryProcessed"]);
         }
         else if (request.DocumentType == "Residence")
         {
@@ -110,7 +112,7 @@ public class SaveProcessedDocumentCommandHandler(
             var targetName = draft.GetNextPersonNeedingIdentity();
             draft.SetDocumentTarget(targetName);
             draft.SetStep(RegistrationStep.WaitingForIdentityFront);
-            await _notifier.SendMessageAsync(draft.ChatId, "✅ İkametgah adresiniz başarıyla kaydedildi.\n\nŞimdi lütfen vasi için kimliğin ön yüzünü fotoğraflayıp gönderiniz.");
+            await _notifier.SendMessageAsync(draft.ChatId, _localizer["Success_ResidenceProcessed"]);
         }
         else if (request.DocumentType == "IdentityFront" || request.DocumentType == "IdentityBack")
         {
@@ -120,20 +122,20 @@ public class SaveProcessedDocumentCommandHandler(
             // 🚀 KURAL 1 & KURAL 2: Hem Ön hem Arka yüzdeki TC, Nüfustan gelen beklenen TC ile aynı olmak zorundadır.
             if (expectedTc == null || extractedTc != expectedTc)
             {
-                throw new DocumentValidationException($"Yüklenen kimlikteki TC No ({extractedTc}) ile sıradaki kişinin ({draft.CurrentDocumentTargetName}) beklenen TC Numarası eşleşmiyor. Lütfen doğru kişinin kimliğini yüklediğinizden ve ön/arka yüzlerin aynı kimliğe ait olduğundan emin olun.");
+                throw new DocumentValidationException("Error_IdentityNumberMismatch", extractedTc, draft.CurrentDocumentTargetName ?? string.Empty);
             }
 
             if (request.DocumentType == "IdentityFront")
             {
                 draft.SystemDocuments.IdentityFrontPath = request.SavedFilePath;
                 draft.SetStep(RegistrationStep.WaitingForIdentityBack);
-                await _notifier.SendMessageAsync(draft.ChatId, "✅ Kimlik Ön Yüzü alındı ve doğrulandı. Şimdi aynı kimliğin **ARKA YÜZ** fotoğrafını gönderiniz.");
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Success_IdentityFrontProcessed"]);
             }
             else // IdentityBack
             {
                 draft.SystemDocuments.IdentityBackPath = request.SavedFilePath;
                 draft.SetStep(RegistrationStep.MergingDocuments);
-                await _notifier.SendMessageAsync(draft.ChatId, "✅ Kimlik Arka Yüzü alındı ve doğrulandı. Belgeleriniz güvenli bir şekilde tek bir PDF'e birleştiriliyor, lütfen bekleyiniz...");
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Info_MergingIdentityDocuments"]);
 
                 var task = new MergePdfTask
                 {
@@ -172,14 +174,14 @@ public class SaveProcessedDocumentCommandHandler(
                 draft.SetDocumentTarget(nextTarget);
                 draft.SetStep(RegistrationStep.WaitingForIdentityFront);
 
-                string targetName = nextTarget == "Vasi" ? "Sizin (Vasi)" : $"{nextTarget} isimli çocuğunuzun";
-                await _notifier.SendMessageAsync(draft.ChatId, $"✅ Kimlik başarıyla sisteme işlendi!\n\nŞimdi sıradaki kişiye geçiyoruz. Lütfen **{targetName}** kimlik ÖN YÜZ fotoğrafını gönderiniz.");
+                string targetName = nextTarget == "Vasi" ? _localizer["Label_YourGuardianIdentity"].Value : _localizer["Label_ChildIdentity", nextTarget].Value;
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Success_IdentityProcessed_NextPerson", targetName].Value);
             }
             else
             {
                 // Döngü bitti! Soru aşamasına geç.
                 draft.SetStep(RegistrationStep.WaitingForQuestions);
-                await _notifier.SendMessageAsync(draft.ChatId, "🎉 Harika! Tüm aile bireylerinin kimlik belgeleri başarıyla toplandı.\n\nSon birkaç sorum kaldı. Devam etmek için bir mesaj gönderiniz.");
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Success_AllIdentityDocumentsCollected"]);
             }
         }
         else

@@ -13,16 +13,16 @@ public record Iban
     public Iban(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new BusinessRuleException("IBAN boş olamaz.");
+            throw new BusinessRuleException("Error_IbanRequired");
 
         // Boşlukları temizle ve büyük harfe çevir
         var sanitizedIban = value.Replace(" ", "").ToUpperInvariant();
 
         if (!sanitizedIban.StartsWith("TR") || sanitizedIban.Length != 26)
-            throw new BusinessRuleException("IBAN 'TR' ile başlamalı ve tam 26 karakter uzunluğunda olmalıdır.");
+            throw new BusinessRuleException("Error_InvalidIbanFormat");
 
         if (!ValidateMod97(sanitizedIban))
-            throw new BusinessRuleException("IBAN algoritma doğrulaması (Mod 97) başarısız.");
+            throw new BusinessRuleException("Error_InvalidIbanChecksum");
 
         Value = sanitizedIban;
     }
