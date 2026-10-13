@@ -46,6 +46,7 @@ services:
       - ConnectionStrings__DefaultConnection=Host=db;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};
       - RABBITMQ_HOST=rabbitmq
       - ASPNETCORE_URLS=http://+:5000
+      - WORKER_API_URL=http://worker:8000
     ports:
       - "5000:5000"
     volumes:
@@ -68,6 +69,8 @@ services:
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    ports:
+      - "8000:8000"
     volumes:
       - uploads_data:/app/wwwroot/uploads
     depends_on:

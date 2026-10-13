@@ -1,11 +1,9 @@
 using MediatR;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
-using SponsorAid.Application.Models; // DTO'lar için
 using SponsorAid.Domain.Enums;
 using SponsorAid.Domain.Exceptions;
 using SponsorAid.Integration.Contracts;
-using System.Text.Json;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.SaveProcessedDocument;
 

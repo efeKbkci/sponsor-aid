@@ -133,4 +133,28 @@ public class TelegramUserNotifier(HttpClient httpClient, IConfiguration configur
         var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
         await _httpClient.PostAsync(url, content);
     }
+    public async Task RemoveButtonsAsync(long chatId, int messageId)
+    {
+        var url = $"https://api.telegram.org/bot{_botToken}/editMessageReplyMarkup";
+
+        // editMessageReplyMarkup metoduna reply_markup göndermediğimizde (veya boş klavye gönderdiğimizde) 
+        // Telegram mesaja hiç dokunmaz, sadece altındaki butonları tamamen siler.
+        var payload = new
+        {
+            chat_id = chatId,
+            message_id = messageId
+        };
+
+        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        try
+        {
+            var response = await _httpClient.PostAsync(url, content);
+            response.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[HATA] Mesaj butonları kaldırılamadı: {ex.Message}");
+        }
+    }
 }

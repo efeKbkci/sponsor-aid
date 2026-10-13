@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using SponsorAid.Application.Features.Registrations.Common;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Application.Models;
@@ -8,10 +9,12 @@ namespace SponsorAid.Application.Features.Registrations.Commands.ProcessQuestion
 
 public class ProcessQuestionnaireAnswerHandler(
     IDraftStateRepository draftRepository,
-    IUserNotifier notifier) : IRequestHandler<ProcessQuestionnaireAnswerCommand>
+    IUserNotifier notifier,
+    ISemanticMatcher semanticMatcher) : IRequestHandler<ProcessQuestionnaireAnswerCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
     private readonly IUserNotifier _notifier = notifier;
+    private readonly ISemanticMatcher _semanticMatcher = semanticMatcher;
 
     public async Task Handle(ProcessQuestionnaireAnswerCommand request, CancellationToken cancellationToken)
     {
@@ -181,6 +184,13 @@ public class ProcessQuestionnaireAnswerHandler(
         // 9. BABA MESLEĞİ
         if (draft.Father.Profession == null)
         {
+            // Serbest metin geldiyse ve enum ile birebir eşleşmiyorsa Python modeline danış
+            if (!string.IsNullOrEmpty(text) && !Enum.TryParse<FatherProfession>(text, out _))
+            {
+                var match = await _semanticMatcher.FindBestMatchAsync(text, RegistrationSemanticCatalog.FatherProfessions, 0.65f, cancellationToken);
+                if (match != null) text = match.Key; // Örn: text "Worker" haline gelir
+            }
+
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<FatherProfession>(text, out var parsedProfession))
             {
                 draft.ApplyUpdates(new() { { "FatherProfession", text } });
@@ -202,6 +212,11 @@ public class ProcessQuestionnaireAnswerHandler(
         // 10. BABA ÖLÜM NEDENİ
         if (draft.Father.DeathReason == null)
         {
+            if (!string.IsNullOrEmpty(text) && !Enum.TryParse<FatherDeathReason>(text, out _))
+            {
+                var match = await _semanticMatcher.FindBestMatchAsync(text, RegistrationSemanticCatalog.FatherDeathReasons, 0.65f, cancellationToken);
+                if (match != null) text = match.Key; // Örn: text "NaturalDeath" haline gelir
+            }
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<FatherDeathReason>(text, out var parsedDeathReason))
             {
                 draft.ApplyUpdates(new() { { "FatherDeathReason", text } });

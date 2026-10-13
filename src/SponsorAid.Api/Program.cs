@@ -72,6 +72,7 @@ builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
 // Telegram Servisleri (Modern, tıkanıklık yapmayan HttpClient Factory yapısı)
 builder.Services.AddHttpClient<IFileStorageService, TelegramLocalFileStorageService>();
 builder.Services.AddHttpClient<IUserNotifier, TelegramUserNotifier>();
+builder.Services.AddHttpClient<ISemanticMatcher, HttpSemanticMatcher>();
 
 // 🚀 YÖNLENDİRİCİ (ROUTER) SERVİSİ KAYDI (BUNU EKLE)
 builder.Services.AddScoped<IDialogRouter, TelegramDialogRouter>();
@@ -123,3 +124,6 @@ using (var scope = app.Services.CreateScope())
 
 // Ve Motor Çalışır!
 app.Run();
+
+// Test için Program sınıfını public yapıyoruz ki WebApplicationFactory<Program> erişebilsin.
+public partial class Program { }

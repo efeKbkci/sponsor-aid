@@ -5,6 +5,6 @@ namespace SponsorAid.Application.Features.Registrations.Commands.UpdateQuestionA
 
 public record UpdateQuestionAnswerCommand(
     string RegistrationKey,
-    string QuestionKey,
+    string? UserInput,
     long ChatId 
 ) : IRequest, IRegistrationCommand;
