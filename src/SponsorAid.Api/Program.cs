@@ -8,6 +8,7 @@ using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Infrastructure.Persistence;
 using SponsorAid.Infrastructure.Services;
 using SponsorAid.Infrastructure.Services.Repositories;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddLocalization();
@@ -38,6 +39,9 @@ builder.Services.AddMediatR(cfg =>
 
     // Merkezi Hata Yakalayıcı (Pipeline) mekanizmamızı sisteme tanıtıyoruz.
     cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ExceptionHandlingBehavior<,>));
+
+    // Trafik polisimizi MediatR boru hattına (pipeline) ekliyoruz
+    cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(RequestSerializationBehavior<,>));
 });
 
 // ==============================================================================
