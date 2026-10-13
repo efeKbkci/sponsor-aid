@@ -14,11 +14,15 @@ RUN dotnet restore src/SponsorAid.Api/SponsorAid.Api.csproj
 
 # Tüm kaynak kodları içeri al ve derle
 COPY src/ ./src/
-RUN dotnet publish src/SponsorAid.Api/SponsorAid.Api.csproj -c Debug -o /app/publish --no-restore
+RUN dotnet publish src/SponsorAid.Api/SponsorAid.Api.csproj -c Release -o /app/publish --no-restore
 
 # 2. Aşama: Üretime Hazır, Hafif ve Temiz Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+ENV LC_ALL=tr_TR.UTF-8
+ENV LANG=tr_TR.UTF-8
 
 # Yalnızca derlenmiş DLL çıktılarını al
 COPY --from=build /app/publish .

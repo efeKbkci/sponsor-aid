@@ -15,11 +15,11 @@ public record FinancialInfo
     {
         // Kişi sayısı sadece sayılardan oluşabilir[cite: 1] ve mantıken 0'dan büyük olmalıdır.
         if (householdSize <= 0)
-            throw new BusinessRuleException("Ailede yaşayan kişi sayısı 0 veya negatif olamaz.");
+            throw new BusinessRuleException("Error_HouseholdSizeMustBePositive");
 
         // Gelir (sayı), gider (sayı)[cite: 1] negatif olamaz.
         if (income < 0 || expense < 0)
-            throw new BusinessRuleException("Gelir ve gider bilgisi negatif olamaz.");
+            throw new BusinessRuleException("Error_IncomeExpenseCannotBeNegative");
 
         HouseholdSize = householdSize;
         Income = income;

@@ -1,13 +1,13 @@
 ﻿using Microsoft.Win32;
+using Microsoft.Extensions.Localization;
+using SponsorAid.Application.Resources;
 using SponsorAid.Domain.Enums;
 using SponsorAid.Domain.Exceptions;
 using SponsorAid.Domain.ValueObjects;
 using SponsorAid.Integration.Contracts;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Globalization;
-using System.Reflection;
 using System.Text;
 
 namespace SponsorAid.Application.Models;
@@ -105,13 +105,13 @@ public class RegistrationDraftState
 
         if (guardianPerson == null)
         {
-            throw new DocumentValidationException($"Girdiğiniz T.C. Kimlik Numarası ({Guardian.IdNumber?.Value}) ile Nüfus belgesindeki kayıtlar eşleşmiyor. Lütfen kendinize ait belgeyi yüklediğinize emin olun.");
+            throw new DocumentValidationException("Error_GuardianIdMismatch", Guardian.IdNumber?.Value ?? string.Empty);
         }
 
         // Kural: Nüfus belgesini Vasi KENDİSİ almış olmalıdır.
         if (!IsTurkishMatch(guardianPerson.Kinship, "KENDİSİ"))
         {
-            throw new DocumentValidationException("Nüfus belgesinde sizin (Vasi'nin) 'KENDİSİ' olarak görünmeniz gerekmektedir. Belgeyi e-Devlet'ten kendi hesabınızla aldığınıza emin olun.");
+            throw new DocumentValidationException("Error_GuardianMustAppearAsSelf");
         }
 
         // 🚀 İSİM ARTIK %100 RESMİ OLARAK BELGEDEN ALINIYOR (Kullanıcının harf hatası yapma ihtimali bitti)
@@ -132,7 +132,7 @@ public class RegistrationDraftState
             }
             else
             {
-                throw new BusinessRuleException("Baba vefat tarihinin nüfus belgesinde yazdığından emin olun.");
+                throw new BusinessRuleException("Error_FatherDeathDateMissingFromDocument");
             }
         }
 
@@ -156,7 +156,7 @@ public class RegistrationDraftState
 
         if (Children.Count == 0)
         {
-            throw new BusinessRuleException("Nüfus belgenizde 15 yaşından küçük yetim/ihtiyaç sahibi bir çocuk bulunamadı. Sistem sadece bu yaş sınırındaki çocukları işleme almaktadır.");
+            throw new BusinessRuleException("Error_NoEligibleChildFound");
         }
     }
 
@@ -165,7 +165,7 @@ public class RegistrationDraftState
         // 🚀 KURAL 4: İkametgahtan gelen Kimlik Numarası, Vasiye ait olmalıdır.
         if (Guardian.IdNumber == null || data.IdNumber != Guardian.IdNumber.Value)
         {
-            throw new DocumentValidationException($"İkametgah belgesindeki TC Kimlik Numarası ({data.IdNumber}) ile Vasi'nin TC Kimlik Numarası eşleşmiyor. Lütfen size ait olan ikametgah belgesini yükleyin.");
+            throw new DocumentValidationException("Error_ResidenceIdMismatch", data.IdNumber);
         }
 
         ResidenceAddress = new AddressDraft
@@ -245,39 +245,34 @@ public class RegistrationDraftState
     /// <summary>
     /// Vasi dilekçesini ve çocukların hobi/hayal bilgilerini otomatik oluşturup atar.
     // </summary>
-    public void GenerateAutomatedDetails()
+    public void GenerateAutomatedDetails(IStringLocalizer<BotMessages> localizer)
     {
         // 1. DİLEKÇE ŞABLONU (300+ Karakter Kuralını Karşılar)
         string deathDateStr = Father.DeathDate?.ToString("dd.MM.yyyy") ?? "belirtilen tarihte";
         int childCount = Children.Count;
 
-        string petitionText =
-            $"İlgili Makama,\n\n" +
-            $"Ben {Guardian.Name}, {deathDateStr} tarihinde vefat eden eşimin vefatı neticesinde yetim kalan {childCount} çocuğum ile birlikte ailemizin geçimini ve idamesini sağlamaya çalışmaktayım. " +
-            $"Hanemizin gelir düzeyinin yetersiz olması sebebiyle çocuklarımın temel gıda, barınma, sağlık ve özellikle eğitim ihtiyaçlarını karşılamakta ciddi maddi zorluklar yaşamaktayım. " +
-            $"Yetim çocuklarımızın eğitim hayatlarını aksatmadan sürdürebilmeleri ve geleceğe güvenle hazırlanabilmeleri adına vakfınızın / derneğinizin yetim burs ve aile destek programından istifade etmek istiyorum. " +
-            $"Yetim sponsorluk ve burs talebimin değerlendirilerek kabul edilmesini saygılarımla arz ederim.";
+        string petitionText = localizer["Document_PetitionContent", Guardian.Name, deathDateStr, childCount].Value;
         
         SystemDocuments.Petition = new Petition(petitionText);
 
         // 2. ÇOCUKLARIN HOBİ VE GELECEK HAYALLERİ LİSTESİ
         var hobbiesPool = new[]
         {
-            "Kitap okumak ve resim çizmek",
-            "Futbol oynamak ve bisiklete binmek",
-            "Satranç oynamak ve müzik dinlemek",
-            "Lego yapmak ve bilim belgeselleri izlemek",
-            "Yüzmek ve doğa yürüyüşü yapmak"
+            localizer["Generated_ChildHobby_ReadingAndDrawing"].Value,
+            localizer["Generated_ChildHobby_FootballAndCycling"].Value,
+            localizer["Generated_ChildHobby_ChessAndMusic"].Value,
+            localizer["Generated_ChildHobby_LegoAndScience"].Value,
+            localizer["Generated_ChildHobby_SwimmingAndHiking"].Value
         };
 
         var dreamsPool = new[]
         {
-            "Öğretmen olmak",
-            "Doktor olmak",
-            "Bilgisayar Mühendisi olmak",
-            "Pilot olmak",
-            "Mimar olmak",
-            "Polis olmak"
+            localizer["Generated_ChildDream_Teacher"].Value,
+            localizer["Generated_ChildDream_Doctor"].Value,
+            localizer["Generated_ChildDream_ComputerEngineer"].Value,
+            localizer["Generated_ChildDream_Pilot"].Value,
+            localizer["Generated_ChildDream_Architect"].Value,
+            localizer["Generated_ChildDream_PoliceOfficer"].Value
         };
 
         for (int i = 0; i < Children.Count; i++)
@@ -290,132 +285,129 @@ public class RegistrationDraftState
     }
 
     // Belirtilen soru anahtarının daha önce cevaplanıp cevaplanmadığını denetler ve cevabı sıfırlar.
-    public (bool Success, string Message) ResetQuestionAnswer(string key)
+    public (bool Success, string MessageKey, string QuestionLabelKey) ResetQuestionAnswer(string key)
     {
         var normalizedKey = key.Trim().ToLowerInvariant();
 
         return normalizedKey switch
         {
             "applicantrole" =>
-                ResetIfAnswered(() => Guardian.ApplicantRole != null, () => Guardian.ApplicantRole = null, "Başvuran Rolü"),
+                ResetIfAnswered(() => Guardian.ApplicantRole != null, () => Guardian.ApplicantRole = null, "Label_Update_ApplicantRole"),
 
             "gender" =>
-                ResetIfAnswered(() => Guardian.Gender != null, () => Guardian.Gender = null, "Cinsiyet"),
+                ResetIfAnswered(() => Guardian.Gender != null, () => Guardian.Gender = null, "Label_Update_Gender"),
 
             "maritalstatus" =>
-                ResetIfAnswered(() => Guardian.MaritalStatus != null, () => Guardian.MaritalStatus = null, "Medeni Durum"),
+                ResetIfAnswered(() => Guardian.MaritalStatus != null, () => Guardian.MaritalStatus = null, "Label_Update_MaritalStatus"),
 
             "educationlevel" =>
-                ResetIfAnswered(() => Guardian.EducationLevel != null, () => Guardian.EducationLevel = null, "Eğitim Düzeyi"),
+                ResetIfAnswered(() => Guardian.EducationLevel != null, () => Guardian.EducationLevel = null, "Label_Update_EducationLevel"),
 
             "degreeofkinship" =>
-                ResetIfAnswered(() => Guardian.DegreeOfKinship != null, () => Guardian.DegreeOfKinship = null, "Yetime Yakınlık Derecesi"),
+                ResetIfAnswered(() => Guardian.DegreeOfKinship != null, () => Guardian.DegreeOfKinship = null, "Label_Update_DegreeOfKinship"),
 
             "profession" =>
-                ResetIfAnswered(() => !string.IsNullOrEmpty(Guardian.Profession), () => Guardian.Profession = null, "Vasi Mesleği"),
+                ResetIfAnswered(() => !string.IsNullOrEmpty(Guardian.Profession), () => Guardian.Profession = null, "Label_Update_Profession"),
 
             "phonenumber" =>
-                ResetIfAnswered(() => Guardian.PhoneNumber != null, () => Guardian.PhoneNumber = null, "Telefon Numarası"),
+                ResetIfAnswered(() => Guardian.PhoneNumber != null, () => Guardian.PhoneNumber = null, "Label_Update_PhoneNumber"),
 
             "familymembercount" =>
-                ResetIfAnswered(() => FamilyFinancial.FamilyMemberCount != null, () => FamilyFinancial.FamilyMemberCount = null, "Aile Birey Sayısı"),
+                ResetIfAnswered(() => FamilyFinancial.FamilyMemberCount != null, () => FamilyFinancial.FamilyMemberCount = null, "Label_Update_FamilyMemberCount"),
 
             "fatherprofession" =>
-                ResetIfAnswered(() => Father.Profession != null, () => Father.Profession = null, "Baba Mesleği"),
+                ResetIfAnswered(() => Father.Profession != null, () => Father.Profession = null, "Label_Update_FatherProfession"),
 
             "fatherdeathreason" =>
-                ResetIfAnswered(() => Father.DeathReason != null, () => Father.DeathReason = null, "Baba Ölüm Nedeni"),
+                ResetIfAnswered(() => Father.DeathReason != null, () => Father.DeathReason = null, "Label_Update_FatherDeathReason"),
 
             "disabledname" =>
-                ResetIfAnswered(() => DisabledMember != null && DisabledMember.Name != null, () => DisabledMember = null, "Engelli / Hasta Birey Durumu"),
+                ResetIfAnswered(() => DisabledMember != null && DisabledMember.Name != null, () => DisabledMember = null, "Label_Update_DisabledMember"),
 
             "housingstatus" =>
-                ResetIfAnswered(() => FamilyFinancial.HousingStatus != null, () => FamilyFinancial.HousingStatus = null, "Konut Durumu"),
+                ResetIfAnswered(() => FamilyFinancial.HousingStatus != null, () => FamilyFinancial.HousingStatus = null, "Label_Update_HousingStatus"),
 
             "socialsecurity" =>
-                ResetIfAnswered(() => FamilyFinancial.SocialSecurity != null, () => FamilyFinancial.SocialSecurity = null, "Sosyal Güvence"),
+                ResetIfAnswered(() => FamilyFinancial.SocialSecurity != null, () => FamilyFinancial.SocialSecurity = null, "Label_Update_SocialSecurity"),
 
             "incomestatus" =>
-                ResetIfAnswered(() => FamilyFinancial.IncomeStatus != null, () => FamilyFinancial.IncomeStatus = null, "Gelir Tipi"),
+                ResetIfAnswered(() => FamilyFinancial.IncomeStatus != null, () => FamilyFinancial.IncomeStatus = null, "Label_Update_IncomeStatus"),
 
             "income" =>
-                ResetIfAnswered(() => FamilyFinancial.Income != null, () => FamilyFinancial.Income = null, "Aylık Gelir"),
+                ResetIfAnswered(() => FamilyFinancial.Income != null, () => FamilyFinancial.Income = null, "Label_Update_Income"),
 
             "expense" =>
-                ResetIfAnswered(() => FamilyFinancial.Expense != null, () => FamilyFinancial.Expense = null, "Aylık Gider"),
+                ResetIfAnswered(() => FamilyFinancial.Expense != null, () => FamilyFinancial.Expense = null, "Label_Update_Expense"),
 
             "iban" =>
-                ResetIfAnswered(() => Guardian.Iban != null, () => Guardian.Iban = null, "IBAN Numarası"),
+                ResetIfAnswered(() => Guardian.Iban != null, () => Guardian.Iban = null, "Label_Update_Iban"),
 
-            _ => (false, "Geçersiz soru anahtarı. Güncellenebilir alanlar: applicantrole, gender, maritalstatus, educationlevel, degreeofkinship, profession, phonenumber, familymembercount, fatherprofession, fatherdeathreason, disabledname, housingstatus, socialsecurity, incomestatus, income, expense, iban")
+            _ => (false, "Error_InvalidQuestionKey", string.Empty)
         };
     }
 
-    private static (bool Success, string Message) ResetIfAnswered(Func<bool> isAnswered, Action resetAction, string questionLabel)
+    private static (bool Success, string MessageKey, string QuestionLabelKey) ResetIfAnswered(Func<bool> isAnswered, Action resetAction, string questionLabelKey)
     {
         if (!isAnswered())
         {
-            return (false, $"⚠️ <b>{questionLabel}</b> sorusu henüz cevaplanmamış. Sadece daha önce cevap verdiğiniz soruları güncelleyebilirsiniz.");
+            return (false, "Error_QuestionNotAnswered", questionLabelKey);
         }
 
         resetAction();
-        return (true, $"🔄 <b>{questionLabel}</b> bilgisi sıfırlandı. Lütfen yeni cevabı giriniz:");
+        return (true, "Success_QuestionAnswerReset", questionLabelKey);
     }
 
-    public string BuildSummaryHtml()
+    public string BuildSummaryHtml(IStringLocalizer<BotMessages> localizer)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("📋 <b>BAŞVURU BİLGİLERİ ÖZETİ</b>\n");
-        sb.AppendLine($"🔑 <b>Takip Kodu:</b> <code>{RegistrationKey}</code>\n");
+        sb.AppendLine(localizer["Summary_Title"].Value);
+        sb.AppendLine(localizer["Summary_RegistrationKey", RegistrationKey].Value);
 
-        sb.AppendLine("👤 <b>Vasi Bilgileri:</b>");
-        sb.AppendLine($"• <b>Ad Soyad:</b> {Guardian.Name}");
-        sb.AppendLine($"• <b>T.C. Kimlik No:</b> {Guardian.IdNumber?.Value}");
-        sb.AppendLine($"• <b>Doğum Tarihi:</b> {Guardian.BirthDate:dd.MM.yyyy}");
-        sb.AppendLine($"• <b>Telefon:</b> {Guardian.PhoneNumber?.Value}");
-        sb.AppendLine($"• <b>IBAN:</b> {Guardian.Iban?.Value}\n");
+        sb.AppendLine(localizer["Summary_GuardianSection"].Value);
+        sb.AppendLine(localizer["Summary_GuardianName", Guardian.Name].Value);
+        sb.AppendLine(localizer["Summary_GuardianId", Guardian.IdNumber?.Value].Value);
+        sb.AppendLine(localizer["Summary_GuardianBirthDate", Guardian.BirthDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)].Value);
+        sb.AppendLine(localizer["Summary_GuardianPhone", Guardian.PhoneNumber?.Value].Value);
+        sb.AppendLine(localizer["Summary_GuardianIban", Guardian.Iban?.Value].Value);
 
-        sb.AppendLine("🕊️ <b>Vefat Eden Baba:</b>");
-        sb.AppendLine($"• <b>Ad Soyad:</b> {Father.Name}");
-        sb.AppendLine($"• <b>Ölüm Tarihi:</b> {Father.DeathDate?.ToString("dd.MM.yyyy")}");
-        sb.AppendLine($"• <b>Ölüm Nedeni:</b> {GetEnumDescription(Father.DeathReason)}\n");
+        sb.AppendLine(localizer["Summary_FatherSection"].Value);
+        sb.AppendLine(localizer["Summary_FatherName", Father.Name].Value);
+        sb.AppendLine(localizer["Summary_FatherDeathDate", Father.DeathDate?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)].Value);
+        sb.AppendLine(localizer["Summary_FatherDeathReason", GetLocalizedEnumDescription(Father.DeathReason, localizer)].Value);
 
-        sb.AppendLine("🏠 <b>İkametgâh:</b>");
-        sb.AppendLine($"• <b>Açık Adres:</b> {ResidenceAddress.FullAddress}");
-        sb.AppendLine($"• <b>Konut Durumu:</b> {GetEnumDescription(FamilyFinancial.HousingStatus)}\n");
+        sb.AppendLine(localizer["Summary_ResidenceSection"].Value);
+        sb.AppendLine(localizer["Summary_Address", ResidenceAddress.FullAddress].Value);
+        sb.AppendLine(localizer["Summary_HousingStatus", GetLocalizedEnumDescription(FamilyFinancial.HousingStatus, localizer)].Value);
 
-        sb.AppendLine("<b>Maddi Durum:</b>");
-        sb.AppendLine($"• <b>Aile Kişi Sayısı:</b> {FamilyFinancial.FamilyMemberCount}");
-        sb.AppendLine($"• <b>Sosyal Güvence:</b> {GetEnumDescription(FamilyFinancial.SocialSecurity)}");
-        sb.AppendLine($"• <b>Aylık Gelir:</b> {FamilyFinancial.Income} TL ({GetEnumDescription(FamilyFinancial.IncomeStatus)})");
-        sb.AppendLine($"• <b>Aylık Gider:</b> {FamilyFinancial.Expense} TL\n");
+        sb.AppendLine(localizer["Summary_FinancialSection"].Value);
+        sb.AppendLine(localizer["Summary_HouseholdSize", FamilyFinancial.FamilyMemberCount].Value);
+        sb.AppendLine(localizer["Summary_SocialSecurity", GetLocalizedEnumDescription(FamilyFinancial.SocialSecurity, localizer)].Value);
+        sb.AppendLine(localizer["Summary_MonthlyIncome", FamilyFinancial.Income, GetLocalizedEnumDescription(FamilyFinancial.IncomeStatus, localizer)].Value);
+        sb.AppendLine(localizer["Summary_MonthlyExpense", FamilyFinancial.Expense].Value);
 
-        sb.AppendLine($"<b>Çocuklar ({Children.Count} Kişi):</b>");
+        sb.AppendLine(localizer["Summary_ChildrenSection", Children.Count].Value);
         foreach (var child in Children)
         {
-            sb.AppendLine($"• <b>{child.Name}</b> (T.C: {child.IdNumber?.Value}, D.Tarihi: {child.BirthDate:dd.MM.yyyy})");
+            sb.AppendLine(localizer["Summary_Child", child.Name, child.IdNumber?.Value, child.BirthDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)].Value);
         }
 
         if (DisabledMember != null && DisabledMember.Name != "Yok" && !string.IsNullOrWhiteSpace(DisabledMember.Name))
         {
-            sb.AppendLine("\n🏥 <b>Engelli / Hasta Birey:</b>");
-            sb.AppendLine($"• <b>Ad Soyad:</b> {DisabledMember.Name}");
-            sb.AppendLine($"• <b>Teşhis / Durum:</b> {DisabledMember.Diagnosis} ({DisabledMember.DiseaseStatus})");
-            sb.AppendLine($"• <b>Tedavi Durumu:</b> {GetEnumDescription(DisabledMember.TreatmentStatus)}");
+            sb.AppendLine(localizer["Summary_DisabledMemberSection"].Value);
+            sb.AppendLine(localizer["Summary_DisabledMemberName", DisabledMember.Name].Value);
+            sb.AppendLine(localizer["Summary_DisabledMemberDiagnosis", DisabledMember.Diagnosis, DisabledMember.DiseaseStatus].Value);
+            sb.AppendLine(localizer["Summary_DisabledMemberTreatment", GetLocalizedEnumDescription(DisabledMember.TreatmentStatus, localizer)].Value);
         }
 
-        sb.AppendLine("\n<i>Lütfen yukarıdaki bilgileri kontrol ediniz. Bilgiler doğruysa aşağıdaki butona basarak başvurunuzu tamamlayabilirsiniz. Hatalı bir bilgi varsa <code>/update &lt;alan&gt;</code> komutu ile düzeltebilirsiniz.</i>");
+        sb.AppendLine(localizer["Summary_ConfirmationInstructions"].Value);
 
         return sb.ToString();
     }
 
-    private static string GetEnumDescription(Enum? value)
+    private static string GetLocalizedEnumDescription(Enum? value, IStringLocalizer<BotMessages> localizer)
     {
         if (value == null) return "-";
-        var field = value.GetType().GetField(value.ToString());
-        if (field == null) return value.ToString();
-        var attribute = field.GetCustomAttribute<DescriptionAttribute>();
-        return attribute?.Description ?? value.ToString();
+        return localizer[$"Enum_{value.GetType().Name}_{value}"].Value;
     }
 }
 

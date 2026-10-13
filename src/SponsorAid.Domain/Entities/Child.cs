@@ -20,14 +20,14 @@ public class Child
     public Child(string name, IdNumber identityNumber, DateTime birthDate, FatherDetails fatherDetails)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new BusinessRuleException("Çocuk ismi boş olamaz.");
+            throw new BusinessRuleException("Error_ChildNameRequired");
 
         if (birthDate > DateTime.Now)
-            throw new BusinessRuleException("Doğum tarihi gelecekte olamaz.");
+            throw new BusinessRuleException("Error_ChildBirthDateCannotBeFuture");
 
         // 15 yaş kuralı denetimi (Bugünün tarihinden 15 yıl öncesinden daha eski doğmuş olamaz)
         if (birthDate <= DateTime.Now.AddYears(-15))
-            throw new BusinessRuleException("Sistem sadece 15 yaşından küçüklere burs vermeyi vaat ediyor.");
+            throw new BusinessRuleException("Error_ChildMustBeUnder15");
 
         Id = Guid.NewGuid();
         Name = name;

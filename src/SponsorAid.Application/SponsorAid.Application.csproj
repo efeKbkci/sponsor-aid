@@ -7,6 +7,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="MediatR" Version="14.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,5 +22,11 @@
 	
   <ItemGroup>
     <Protobuf Include="..\..\contracts\events.proto" GrpcServices="None" />
+  </ItemGroup>
+	
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\BotMessages.resx">
+      <Generator></Generator>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>

@@ -18,7 +18,7 @@ public class DisabledMember
     public DisabledMember(string name, string diagnosis, string status, TreatmentStatus treatmentStatus, string description)
     {
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(diagnosis) || string.IsNullOrWhiteSpace(status))
-            throw new BusinessRuleException("Hasta adı, teşhis ve durum bilgileri boş olamaz.");
+            throw new BusinessRuleException("Error_DisabledMemberFieldsRequired");
 
         Id = Guid.NewGuid();
         Name = name;

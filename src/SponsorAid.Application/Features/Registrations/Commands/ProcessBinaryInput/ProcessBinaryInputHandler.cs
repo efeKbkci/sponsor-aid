@@ -1,8 +1,10 @@
 ﻿using MediatR;
+using Microsoft.Extensions.Localization;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessBinaryDocument;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessIdentityImage;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
+using SponsorAid.Application.Resources;
 using SponsorAid.Domain.Enums;
 using System;
 using System.Collections.Generic;
@@ -12,11 +14,13 @@ namespace SponsorAid.Application.Features.Registrations.Commands.ProcessBinaryIn
 
 public class ProcessBinaryInputHandler(
     IDraftStateRepository draftRepository, 
-    IMediator mediator, IUserNotifier notifier) : IRequestHandler<ProcessBinaryInputCommand>
+    IMediator mediator, IUserNotifier notifier,
+    IStringLocalizer<BotMessages> localizer) : IRequestHandler<ProcessBinaryInputCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
     private readonly IMediator _mediator = mediator;
     private readonly IUserNotifier _notifier = notifier;
+    private readonly IStringLocalizer<BotMessages> _localizer = localizer;
 
     public async Task Handle(ProcessBinaryInputCommand request, CancellationToken cancellationToken)
     {
@@ -24,7 +28,7 @@ public class ProcessBinaryInputHandler(
 
         if (activeDraft == null)
         {
-            await _notifier.SendMessageAsync(request.ChatId, "⚠️ Aktif bir başvurunuz bulunamadı. Lütfen önce <b>/new</b> yazarak kayıt başlatınız.");
+            await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_NoActiveRegistration_StartWithCommand"]);
             return;
         }
 
@@ -33,7 +37,7 @@ public class ProcessBinaryInputHandler(
             case RegistrationStep.WaitingForPopulationRegistry:
                 activeDraft.SetStep(RegistrationStep.ProcessingPopulationRegistry);
                 await _draftRepository.SaveAsync(activeDraft, cancellationToken);
-                await _notifier.SendMessageAsync(request.ChatId, "⏳ Nüfus belgeniz okunuyor, lütfen bekleyiniz...");
+                await _notifier.SendMessageAsync(request.ChatId, _localizer["Info_ProcessingPopulationRegistry"]);
 
                 await _mediator.Send(new ProcessOfficialDocumentCommand(
                     activeDraft.RegistrationKey, request.FileId, request.FileSize, request.Extension, "PopulationRegistry"), cancellationToken);
@@ -42,7 +46,7 @@ public class ProcessBinaryInputHandler(
             case RegistrationStep.WaitingForResidence:
                 activeDraft.SetStep(RegistrationStep.ProcessingResidence);
                 await _draftRepository.SaveAsync(activeDraft, cancellationToken);
-                await _notifier.SendMessageAsync(request.ChatId, "⏳ İkametgah belgeniz işleniyor, lütfen bekleyiniz...");
+                await _notifier.SendMessageAsync(request.ChatId, _localizer["Info_ProcessingResidence"]);
 
                 await _mediator.Send(new ProcessOfficialDocumentCommand(
                     activeDraft.RegistrationKey, request.FileId, request.FileSize, request.Extension, "Residence"), cancellationToken);
@@ -51,7 +55,7 @@ public class ProcessBinaryInputHandler(
             case RegistrationStep.WaitingForIdentityFront:
                 activeDraft.SetStep(RegistrationStep.ProcessingIdentityFront);
                 await _draftRepository.SaveAsync(activeDraft, cancellationToken);
-                await _notifier.SendMessageAsync(request.ChatId, "⏳ Kimlik ön yüzünüz yapay zeka ile işleniyor...");
+                await _notifier.SendMessageAsync(request.ChatId, _localizer["Info_ProcessingIdentityFront"]);
 
                 await _mediator.Send(new ProcessIdentityImageCommand(
                     activeDraft.RegistrationKey, request.FileId, request.FileSize, request.Extension, "front"), cancellationToken);
@@ -60,7 +64,7 @@ public class ProcessBinaryInputHandler(
             case RegistrationStep.WaitingForIdentityBack:
                 activeDraft.SetStep(RegistrationStep.ProcessingIdentityBack);
                 await _draftRepository.SaveAsync(activeDraft, cancellationToken);
-                await _notifier.SendMessageAsync(request.ChatId, "⏳ Kimlik arka yüzünüz yapay zeka ile işleniyor...");
+                await _notifier.SendMessageAsync(request.ChatId, _localizer["Info_ProcessingIdentityBack"]);
 
                 await _mediator.Send(new ProcessIdentityImageCommand(
                     activeDraft.RegistrationKey, request.FileId, request.FileSize, request.Extension, "back"), cancellationToken);
@@ -72,12 +76,12 @@ public class ProcessBinaryInputHandler(
             case RegistrationStep.ProcessingIdentityFront:
             case RegistrationStep.ProcessingIdentityBack:
             case RegistrationStep.MergingDocuments:
-                await _notifier.SendMessageAsync(request.ChatId, "⚠️ Şu an sistem bir önceki belgeniz üzerinde çalışıyor. Lütfen işlemin bitmesini bekleyiniz.");
+                await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_PreviousDocumentStillProcessing"]);
                 break;
 
             // Belge Beklenmeyen Durumlar (Anket, Onay vb.)
             default:
-                await _notifier.SendMessageAsync(request.ChatId, "⚠️ Şu an belge yükleme aşamasında değilsiniz. Lütfen metin olarak cevap veriniz veya seçenek butonlarını kullanınız.");
+                await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_DocumentUploadNotExpected"]);
                 break;
         }
     }

@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+	  <!-- Bu satırı ekleyin: Derleyiciye çeviri klasörlerini kopyalamasını emreder -->
+	  <SupportedCultures>tr-TR;tr</SupportedCultures>
   </PropertyGroup>
 
   <ItemGroup>

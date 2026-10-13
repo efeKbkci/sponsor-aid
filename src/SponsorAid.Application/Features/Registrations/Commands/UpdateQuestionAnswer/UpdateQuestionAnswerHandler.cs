@@ -1,8 +1,10 @@
 using MediatR;
+using Microsoft.Extensions.Localization;
 using SponsorAid.Application.Features.Registrations.Commands.ProcessQuestionnaireAnswer;
 using SponsorAid.Application.Features.Registrations.Common;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
+using SponsorAid.Application.Resources;
 using SponsorAid.Domain.Enums;
 using static System.Net.Mime.MediaTypeNames;
 
@@ -12,12 +14,14 @@ public class UpdateQuestionAnswerHandler(
     IDraftStateRepository draftRepository,
     IUserNotifier notifier,
     IMediator mediator,
-    ISemanticMatcher semanticMatcher) : IRequestHandler<UpdateQuestionAnswerCommand>
+    ISemanticMatcher semanticMatcher,
+    IStringLocalizer<BotMessages> localizer) : IRequestHandler<UpdateQuestionAnswerCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
     private readonly IUserNotifier _notifier = notifier;
     private readonly IMediator _mediator = mediator;
     private readonly ISemanticMatcher _semanticMatcher = semanticMatcher;
+    private readonly IStringLocalizer<BotMessages> _localizer = localizer;
     private string _targetKey = string.Empty;
 
     public async Task Handle(UpdateQuestionAnswerCommand request, CancellationToken cancellationToken)
@@ -28,21 +32,21 @@ public class UpdateQuestionAnswerHandler(
 
         if (draft == null)
         {
-            await _notifier.SendMessageAsync(request.ChatId, "⚠️ Aktif kayıt bulunamadı.");
+            await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_NoActiveRegistration"]);
             return;
         }
 
         // 1. Durum Kontrolü: Kullanıcı anket aşamasına gelmiş mi?
         if (draft.CurrentStep < RegistrationStep.WaitingForQuestions)
         {
-            await _notifier.SendMessageAsync(request.ChatId, "⚠️ Henüz soru-cevap aşamasına gelmediniz. Belge yükleme adımlarında güncelleme yapılamaz.");
+            await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_RegistrationNotInQuestionnaire"]);
             return;
         }
 
         // 2. Eğer başvuru önceden tamamlanmışsa (Completed) güncellemeye izin verilmez.
         if (draft.CurrentStep == RegistrationStep.Completed)
         {
-            await _notifier.SendMessageAsync(request.ChatId, "⚠️ Başvuru zaten tamamlanmış. Güncellemeye izin verilmiyor.");
+            await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_CompletedRegistrationCannotBeUpdated"]);
             return;
         }
 
@@ -55,7 +59,7 @@ public class UpdateQuestionAnswerHandler(
         // Kullanıcı güncelle butonuna basmıştır. Şimdi alan bilgisi sorulacak.
         if (string.IsNullOrWhiteSpace(request.UserInput))
         {
-            await _notifier.SendMessageAsync(request.ChatId, "Hangi bilgiyi güncellemek istiyorsunuz?");
+            await _notifier.SendMessageAsync(request.ChatId, _localizer["Prompt_WhichInformationToUpdate"]);
             return;
         }
 
@@ -67,7 +71,7 @@ public class UpdateQuestionAnswerHandler(
             {
                 draft.IsWaitingForUpdateFieldSelection = false;
                 await draftRepository.SaveAsync(draft, cancellationToken);
-                await notifier.SendMessageAsync(request.ChatId, "✅ Güncelleme işleminden vazgeçildi.");
+                await notifier.SendMessageAsync(request.ChatId, _localizer["Info_UpdateCancelled"]);
                 return;
             }
 
@@ -80,9 +84,7 @@ public class UpdateQuestionAnswerHandler(
 
             if (targetMatch == null)
             {
-                await _notifier.SendMessageAsync(request.ChatId, "Güncelleme için belirttiğiniz alan bulunamadı. " +
-                                                                 "Lütfen geçerli bir alan adı girin. " +
-                                                                 "Güncelleme işleminden vazgeçmek için iptal yazın.");
+                await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_UpdateFieldNotFound"]);
                 return;
             }
 
@@ -97,12 +99,17 @@ public class UpdateQuestionAnswerHandler(
         }
         else
         {
-            await _notifier.SendMessageAsync(request.ChatId, "⚠️ Lütfen güncellemek istediğiniz bilgiyi belirtin.");
+            await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_UpdateFieldRequired"]);
             return;
         }
 
         // -- Güncelleme işlemi başlatılıyor -- //
-        var (success, message) = draft.ResetQuestionAnswer(_targetKey);
+        var (success, messageKey, questionLabelKey) = draft.ResetQuestionAnswer(_targetKey);
+        var message = success
+            ? _localizer[messageKey, _localizer[questionLabelKey].Value].Value
+            : questionLabelKey.Length == 0
+                ? _localizer[messageKey].Value
+                : _localizer[messageKey, _localizer[questionLabelKey].Value].Value;
         if (!success)
         {
             await _notifier.SendMessageAsync(request.ChatId, message);

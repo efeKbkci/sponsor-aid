@@ -16,10 +16,10 @@ public record FatherDetails
     public FatherDetails(string name, DateTime deathDate, FatherProfession profession, FatherDeathReason deathReason)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new BusinessRuleException("Baba adı boş olamaz.");
+            throw new BusinessRuleException("Error_FatherNameRequired");
 
         if (deathDate > DateTime.Now)
-            throw new BusinessRuleException("Baba ölüm tarihi gelecekte bir zaman olamaz.");
+            throw new BusinessRuleException("Error_FatherDeathDateCannotBeFuture");
 
         Name = name;
         DeathDate = deathDate;

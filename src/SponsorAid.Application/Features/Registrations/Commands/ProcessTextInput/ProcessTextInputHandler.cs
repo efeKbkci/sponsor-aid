@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.Localization;
 using SponsorAid.Application.Features.Registrations.Commands.ContinueRegistration;
 using SponsorAid.Application.Features.Registrations.Commands.FinalizeRegistration;
 using SponsorAid.Application.Features.Registrations.Commands.GreetUser;
@@ -7,6 +8,7 @@ using SponsorAid.Application.Features.Registrations.Commands.StartRegistration;
 using SponsorAid.Application.Features.Registrations.Commands.UpdateQuestionAnswer;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
+using SponsorAid.Application.Resources;
 using SponsorAid.Domain.Enums;
 using SponsorAid.Domain.Exceptions;
 using System.ComponentModel;
@@ -18,20 +20,14 @@ namespace SponsorAid.Application.Features.Registrations.Commands.ProcessTextInpu
 public class ProcessTextInputHandler(
     IDraftStateRepository draftRepository,
     IUserNotifier notifier,
-    IMediator mediator
+    IMediator mediator,
+    IStringLocalizer<BotMessages> localizer
 ) : IRequestHandler<ProcessTextInputCommand>
 {
+    private readonly IStringLocalizer<BotMessages> _localizer = localizer;
     private static readonly HashSet<string> MenuTriggers = new(StringComparer.OrdinalIgnoreCase)
     {
         "komut", "komutlar", "menu", "menü", "/komut", "/menu", "/yardim", "/help"
-    };
-
-    private static readonly Dictionary<string, string> CommandMenuOptions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["/new"] = "Yeni Kayıt",
-        ["/continue"] = "Eski Kayda Devam Et",
-        ["/cancel"] = "Kaydı İptal Et",
-        ["/update"] = "Bilgi Güncelle"
     };
 
     // Slash komutlarını Description ile eşleyen önbellek
@@ -57,7 +53,7 @@ public class ProcessTextInputHandler(
         // 2. MENÜ TETİKLEYİCİSİ ("menü", "komut" vb.)
         if (MenuTriggers.Contains(text))
         {
-            await notifier.SendQuestionWithButtonsAsync(request.ChatId, "📋 Kullanabileceğiniz komutlar:", GetCommandMenuOptions());
+            await notifier.SendQuestionWithButtonsAsync(request.ChatId, _localizer["Prompt_AvailableCommands"], GetCommandMenuOptions());
             return;
         }
 
@@ -86,7 +82,7 @@ public class ProcessTextInputHandler(
         // 6. AKTİF TASLAK YOKSA
         if (draft == null)
         {
-            await notifier.SendMessageAsync(request.ChatId, "⚠️ Aktif bir başvurunuz bulunmuyor. Yeni bir kayıt başlatmak için <b>menü</b> yazabilirsiniz.");
+            await notifier.SendMessageAsync(request.ChatId, _localizer["Error_NoActiveRegistration_StartFromMenu"]);
             return;
         }
 
@@ -99,8 +95,7 @@ public class ProcessTextInputHandler(
                 await draftRepository.SaveAsync(draft, cancellationToken);
 
                 await notifier.SendMessageAsync(draft.ChatId,
-                    $"✅ Kayıt başarıyla oluşturuldu!\n\n🆔 <b>T.C.:</b> {text}\n🔑 <b>Takip Kodu:</b> <code>{draft.RegistrationKey}</code>\n\n" +
-                    "Lütfen e-Devlet'ten aldığınız <b>Vukuatlı Nüfus Kayıt Örneği</b> belgenizi PDF veya fotoğraf olarak gönderiniz.");
+                    _localizer["Success_RegistrationCreated", text, draft.RegistrationKey].Value);
                 break;
 
             case RegistrationStep.WaitingForQuestions:
@@ -108,11 +103,11 @@ public class ProcessTextInputHandler(
                 break;
 
             case RegistrationStep.WaitingForConfirmation:
-                await notifier.SendMessageAsync(draft.ChatId, "⚠️ Başvuruyu tamamlamak için lütfen yukarıdaki <b>'Bilgileri Onaylıyorum'</b> butonuna basınız.");
+                await notifier.SendMessageAsync(draft.ChatId, _localizer["Error_RegistrationConfirmationRequired"]);
                 break;
 
             default:
-                await notifier.SendMessageAsync(draft.ChatId, "⚠️ Şu an belge yükleme aşamasındasınız. Lütfen istenen belgeyi dosya/fotoğraf olarak gönderiniz.");
+                await notifier.SendMessageAsync(draft.ChatId, _localizer["Error_DocumentUploadRequired"]);
                 break;
         }
     }
@@ -126,7 +121,7 @@ public class ProcessTextInputHandler(
         }
         else
         {
-            await notifier.SendMessageAsync(chatId, "⚠️ Geçersiz komut. Seçenekleri görmek için <b>menü</b> yazabilirsiniz.");
+            await notifier.SendMessageAsync(chatId, _localizer["Error_InvalidCommand"]);
         }
     }
 
@@ -150,11 +145,11 @@ public class ProcessTextInputHandler(
                 if (regKey != null)
                 {
                     await draftRepository.DeleteAsync(regKey, ct);
-                    await notifier.SendMessageAsync(chatId, "❌ Başvurunuz iptal edildi.");
+                    await notifier.SendMessageAsync(chatId, _localizer["Success_RegistrationCancelled"]);
                 }
                 else
                 {
-                    throw new BusinessRuleException("⚠️ İptal edilecek aktif bir kayıt bulunamadı.");
+                    throw new BusinessRuleException("Error_NoActiveRegistrationToCancel");
                 }
                 break;
 
@@ -165,7 +160,7 @@ public class ProcessTextInputHandler(
                 }
                 else
                 {
-                    throw new BusinessRuleException("⚠️ Güncelleme yapabilmek için sohbetinizde aktif bir kayıt bulunmalıdır.");
+                    throw new BusinessRuleException("Error_ActiveRegistrationRequiredForUpdate");
                 }
                 break;
         }
@@ -177,7 +172,7 @@ public class ProcessTextInputHandler(
         if (callBackMessage.StartsWith(ContinueRegistrationCommand.SelectionCallbackPrefix, StringComparison.OrdinalIgnoreCase))
         {
             var selectedKey = callBackMessage[ContinueRegistrationCommand.SelectionCallbackPrefix.Length..];
-            await notifier.UpdateMessageAsAnsweredAsync(chatId, callBackMessageId, "📂 Kayıt Seçimi", selectedKey);
+            await notifier.UpdateMessageAsAnsweredAsync(chatId, callBackMessageId, _localizer["Label_RegistrationSelection"], selectedKey);
             await mediator.Send(new ContinueRegistrationCommand(selectedKey, chatId), cancellation);
             return;
         }
@@ -187,7 +182,7 @@ public class ProcessTextInputHandler(
         {
             if (string.IsNullOrWhiteSpace(regKey))
             {
-                await notifier.SendMessageAsync(chatId, "⚠️ Aktif bir başvuru kaydı bulunamadı.");
+                await notifier.SendMessageAsync(chatId, _localizer["Error_NoActiveRegistration"]);
                 return;
             }
 
@@ -201,9 +196,9 @@ public class ProcessTextInputHandler(
 
         // 2. Ana Menü Komut Butonuna Basıldıysa
         if (SlashCommandMap.TryGetValue(callBackMessage, out var command) &&
-            CommandMenuOptions.TryGetValue(callBackMessage, out var buttonLabel))
+            GetCommandMenuOptions().TryGetValue(callBackMessage, out var buttonLabel))
         {
-            await notifier.UpdateMessageAsAnsweredAsync(chatId, callBackMessageId, "📋 Menü", buttonLabel);
+            await notifier.UpdateMessageAsAnsweredAsync(chatId, callBackMessageId, _localizer["Label_Menu"], buttonLabel);
             await ExecuteCommandAsync(chatId, regKey, command, cancellation);
             return;
         }
@@ -212,8 +207,14 @@ public class ProcessTextInputHandler(
         await mediator.Send(new ProcessQuestionnaireAnswerCommand(regKey!, callBackMessage, callBackMessageId), cancellation);
     }
 
-    private static Dictionary<string, string> GetCommandMenuOptions()
+    private Dictionary<string, string> GetCommandMenuOptions()
     {
-        return new Dictionary<string, string>(CommandMenuOptions, StringComparer.OrdinalIgnoreCase);
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["/new"] = _localizer["Command_NewRegistration"],
+            ["/continue"] = _localizer["Command_ContinueRegistration"],
+            ["/cancel"] = _localizer["Command_CancelRegistration"],
+            ["/update"] = _localizer["Command_UpdateRegistration"]
+        };
     }
 }

@@ -103,7 +103,7 @@ public class EGovermentDocumentService : IEGovermentDocumentService
             }
         }
 
-        throw new BusinessRuleException("e-Devlet belge indirme işlemi başarısız oldu. Barkod veya T.C. Kimlik numarası hatalı olabilir.");
+        throw new BusinessRuleException("Error_EGovernmentDocumentDownloadFailed");
     }
 
     // BeautifulSoup yerine Regex kullanarak HTML içinden data-token değerini saniyenin binde biri hızında çeken yardımcı metot
@@ -119,6 +119,6 @@ public class EGovermentDocumentService : IEGovermentDocumentService
             return match.Groups[1].Value;
         }
 
-        throw new BusinessRuleException($"e-Devlet sistemi ile bağlantı kurulamadı ({step}: Güvenlik belirteci bulunamadı). Gönderdiğiniz barkod e-Devlet tarafından reddedilmiş olabilir.");
+        throw new BusinessRuleException("Error_EGovernmentSecurityTokenNotFound", step);
     }
 }

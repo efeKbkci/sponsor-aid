@@ -1,7 +1,9 @@
 ﻿using MediatR;
+using Microsoft.Extensions.Localization;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Application.Models;
+using SponsorAid.Application.Resources;
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
@@ -12,12 +14,14 @@ namespace SponsorAid.Application.Features.Registrations.Commands.StartRegistrati
 public class StartRegistrationHandler(
     IDraftStateRepository draftRepository, 
     IRegistrationTrackingRepository trackingRepository,
-    IUserNotifier notifier
+    IUserNotifier notifier,
+    IStringLocalizer<BotMessages> localizer
     ) : IRequestHandler<StartRegistrationCommand, string>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
     private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository;
     private readonly IUserNotifier _notifier = notifier;
+    private readonly IStringLocalizer<BotMessages> _localizer = localizer;
 
     public async Task<string> Handle(StartRegistrationCommand request, CancellationToken cancellationToken)
     {
@@ -48,7 +52,7 @@ public class StartRegistrationHandler(
         await _trackingRepository.CreateAsync(generatedKey, cancellationToken);
 
         // 4. Anahtarı dış dünyaya (Bot'a) döndürüyoruz
-        await _notifier.SendMessageAsync(request.ChatId, "✅ Yeni bir kayıt başlatıldı!\n\nLütfen vasiye ait T.C. Kimlik numarasını metin olarak yazınız.");
+        await _notifier.SendMessageAsync(request.ChatId, _localizer["Success_NewRegistrationStarted"]);
         return generatedKey;
     }
 }
