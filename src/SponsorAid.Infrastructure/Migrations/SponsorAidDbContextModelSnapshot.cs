@@ -55,6 +55,9 @@ namespace SponsorAid.Infrastructure.Migrations
                     b.Property<string>("RegistrationKey")
                         .HasColumnType("text");
 
+                    b.Property<long>("ChatId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
