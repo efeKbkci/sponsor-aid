@@ -166,11 +166,17 @@ public class ProcessQuestionnaireAnswerHandler(
         // 9. BABA MESLEĞİ
         if (draft.Father.Profession == null)
         {
+            bool isSemanticMatch = false; // 🚀 EŞLEŞME BAYRAĞI
+
             // Serbest metin geldiyse ve enum ile birebir eşleşmiyorsa Python modeline danış
             if (!string.IsNullOrEmpty(text) && !Enum.TryParse<FatherProfession>(text, out _))
             {
                 var match = await _semanticMatcher.FindBestMatchAsync(text, RegistrationSemanticCatalog.FatherProfessions, 0.65f, cancellationToken);
-                if (match != null) text = match.Key; // Örn: text "Worker" haline gelir
+                if (match != null)
+                {
+                    text = match.Key; // Örn: text "Worker" haline gelir
+                    isSemanticMatch = true; // 🚀 Yapay zeka devrede
+                }
             }
 
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<FatherProfession>(text, out var parsedProfession))
@@ -178,6 +184,13 @@ public class ProcessQuestionnaireAnswerHandler(
                 draft.ApplyUpdates(new() { { "FatherProfession", text } });
                 string label = _localizer[$"Option_FatherProfession_{parsedProfession}"].Value;
                 await MarkAsAnsweredIfCallback(draft.ChatId, request.CallbackMessageId, _localizer["Question_FatherProfession"], label);
+
+                // 🚀 YENİ: Eşleşme yapıldıysa kullanıcıya bilgi ver
+                if (isSemanticMatch)
+                {
+                    await _notifier.SendMessageAsync(draft.ChatId, _localizer["Info_SemanticMatchSaved", label].Value);
+                }
+
                 text = "";
             }
             else
@@ -191,16 +204,30 @@ public class ProcessQuestionnaireAnswerHandler(
         // 10. BABA ÖLÜM NEDENİ
         if (draft.Father.DeathReason == null)
         {
+            bool isSemanticMatch = false; // 🚀 EŞLEŞME BAYRAĞI
+
             if (!string.IsNullOrEmpty(text) && !Enum.TryParse<FatherDeathReason>(text, out _))
             {
                 var match = await _semanticMatcher.FindBestMatchAsync(text, RegistrationSemanticCatalog.FatherDeathReasons, 0.65f, cancellationToken);
-                if (match != null) text = match.Key; // Örn: text "NaturalDeath" haline gelir
+                if (match != null)
+                {
+                    text = match.Key; // Örn: text "NaturalDeath" haline gelir
+                    isSemanticMatch = true; // 🚀 Yapay zeka devrede
+                }
             }
+
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<FatherDeathReason>(text, out var parsedDeathReason))
             {
                 draft.ApplyUpdates(new() { { "FatherDeathReason", text } });
                 string label = _localizer[$"Option_FatherDeathReason_{parsedDeathReason}"].Value;
                 await MarkAsAnsweredIfCallback(draft.ChatId, request.CallbackMessageId, _localizer["Question_FatherDeathReason"], label);
+
+                // 🚀 YENİ: Eşleşme yapıldıysa kullanıcıya bilgi ver
+                if (isSemanticMatch)
+                {
+                    await _notifier.SendMessageAsync(draft.ChatId, _localizer["Info_SemanticMatchSaved", label].Value);
+                }
+
                 text = "";
             }
             else
