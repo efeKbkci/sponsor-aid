@@ -123,8 +123,8 @@
   <data name="Error_ChildBirthDateCannotBeFuture" xml:space="preserve">
     <value>Doğum tarihi gelecekte olamaz.</value>
   </data>
-  <data name="Error_ChildMustBeUnder15" xml:space="preserve">
-    <value>Sistem sadece 15 yaşından küçüklere burs vermeyi vaat ediyor.</value>
+  <data name="Error_ChildMustBeUnder13" xml:space="preserve">
+    <value>Sistem sadece 13 yaşından küçüklere burs vermeyi vaat ediyor.</value>
   </data>
   <data name="Error_DisabledMemberFieldsRequired" xml:space="preserve">
     <value>Hasta adı, teşhis ve durum bilgileri boş olamaz.</value>
@@ -368,7 +368,7 @@ Kaldığınız yerden devam etmek için lütfen bir mesaj gönderiniz.</value>
     <value>Baba vefat tarihinin nüfus belgesinde yazdığından emin olun.</value>
   </data>
   <data name="Error_NoEligibleChildFound" xml:space="preserve">
-    <value>Nüfus belgenizde 15 yaşından küçük yetim/ihtiyaç sahibi bir çocuk bulunamadı. Sistem sadece bu yaş sınırındaki çocukları işleme almaktadır.</value>
+    <value>Nüfus belgenizde 13 yaşından küçük yetim/ihtiyaç sahibi bir çocuk bulunamadı. Sistem sadece bu yaş sınırındaki çocukları işleme almaktadır.</value>
   </data>
   <data name="Error_ResidenceIdMismatch" xml:space="preserve">
     <value>İkametgah belgesindeki TC Kimlik Numarası ({0}) ile Vasi'nin TC Kimlik Numarası eşleşmiyor. Lütfen size ait olan ikametgah belgesini yükleyin.</value>
@@ -1364,4 +1364,35 @@ Ben {0}, {1} tarihinde vefat eden eşimin vefatı neticesinde yetim kalan {2} ç
   </data>
 	<data name="Enum_RegistrationStatus_InProgress" xml:space="preserve"><value>Devam Ediyor</value></data>
 	<data name="Enum_RegistrationStatus_Completed" xml:space="preserve"><value>Tamamlandı</value></data>
+
+	<!-- ========================================== -->
+	<!-- BELGE OKUMA ÖZETLERİ                       -->
+	<!-- ========================================== -->
+	<data name="Summary_Population_Title" xml:space="preserve">
+    <value>👨‍👩‍👧‍👦 &lt;b&gt;Nüfus Kayıt Örneği Özeti&lt;/b&gt;</value>
+  </data>
+	<data name="Summary_Population_Mother" xml:space="preserve">
+    <value>• &lt;b&gt;Anne Adı:&lt;/b&gt; {0}</value>
+  </data>
+	<data name="Summary_Population_Father" xml:space="preserve">
+    <value>• &lt;b&gt;Baba Adı:&lt;/b&gt; {0}</value>
+  </data>
+	<data name="Summary_Population_FatherDeath" xml:space="preserve">
+    <value>• &lt;b&gt;Baba Vefat Tarihi:&lt;/b&gt; {0}</value>
+  </data>
+	<data name="Summary_Population_EligibleChildren" xml:space="preserve">
+    <value>• &lt;b&gt;Uygun Çocuklar (15 Yaş Altı):&lt;/b&gt; {0}</value>
+  </data>
+	<data name="Summary_NotSpecified" xml:space="preserve">
+    <value>Belirtilmedi</value>
+  </data>
+	<data name="Summary_NoEligibleChild" xml:space="preserve">
+    <value>Uygun çocuk bulunamadı</value>
+  </data>
+	<data name="Summary_Residence_Title" xml:space="preserve">
+    <value>🏠 &lt;b&gt;İkametgâh Özeti&lt;/b&gt;</value>
+  </data>
+	<data name="Summary_Residence_Address" xml:space="preserve">
+    <value>• &lt;b&gt;Açık Adres:&lt;/b&gt; {0}</value>
+  </data>
 </root>

@@ -144,7 +144,7 @@ public class RegistrationDraftState
         foreach (var child in children)
         {
             var birthDate = DateOnly.Parse(child.BirthDate);
-            if (birthDate.Year <= DateTime.Now.Year - 15) continue;
+            if (birthDate.Year < DateTime.Now.Year - 13) continue;
 
             Children.Add(new ChildDraft
             {
