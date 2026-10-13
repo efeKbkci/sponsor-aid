@@ -25,9 +25,9 @@ public class Child
         if (birthDate > DateTime.Now)
             throw new BusinessRuleException("Error_ChildBirthDateCannotBeFuture");
 
-        // 15 yaş kuralı denetimi (Bugünün tarihinden 15 yıl öncesinden daha eski doğmuş olamaz)
-        if (birthDate <= DateTime.Now.AddYears(-15))
-            throw new BusinessRuleException("Error_ChildMustBeUnder15");
+        // 13 yaş kuralı denetimi (Bugünün tarihinden 13 yıl öncesinden daha eski doğmuş olamaz)
+        if (birthDate <= DateTime.Now.AddYears(-13))
+            throw new BusinessRuleException("Error_ChildMustBeUnder13");
 
         Id = Guid.NewGuid();
         Name = name;

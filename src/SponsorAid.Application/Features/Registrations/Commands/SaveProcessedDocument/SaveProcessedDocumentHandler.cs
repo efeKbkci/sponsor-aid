@@ -6,6 +6,7 @@ using SponsorAid.Application.Resources;
 using SponsorAid.Domain.Enums;
 using SponsorAid.Domain.Exceptions;
 using SponsorAid.Integration.Contracts;
+using System.Text;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.SaveProcessedDocument;
 
@@ -100,6 +101,22 @@ public class SaveProcessedDocumentCommandHandler(
             // Nüfus bitti, İkametgaha geçiyoruz
             draft.SetStep(RegistrationStep.WaitingForResidence);
 
+            // Kullanıcıya özet mesajı gönderiyoruz
+            string fatherDeathStr = draft.Father.DeathDate.HasValue
+                ? draft.Father.DeathDate.Value.ToString("dd.MM.yyyy")
+                : _localizer["Summary_NotSpecified"].Value;
+            var eligibleChildren = draft.Children.Select(c => c.Name).ToList();
+            string childrenStr = eligibleChildren.Any()
+                ? string.Join(", ", eligibleChildren)
+                : _localizer["Summary_NoEligibleChild"].Value;
+            var populationSummary = new StringBuilder();
+            populationSummary.AppendLine(_localizer["Summary_Population_Title"].Value);
+            populationSummary.AppendLine(_localizer["Summary_Population_Mother", draft.Guardian.Name ?? _localizer["Summary_NotSpecified"].Value].Value);
+            populationSummary.AppendLine(_localizer["Summary_Population_Father", draft.Father.Name ?? _localizer["Summary_NotSpecified"].Value].Value);
+            populationSummary.AppendLine(_localizer["Summary_Population_FatherDeath", fatherDeathStr].Value);
+            populationSummary.AppendLine(_localizer["Summary_Population_EligibleChildren", childrenStr].Value);
+            await _notifier.SendMessageAsync(draft.ChatId, populationSummary.ToString());
+            
             await _notifier.SendMessageAsync(draft.ChatId, _localizer["Success_PopulationRegistryProcessed"]);
         }
         else if (request.DocumentType == "Residence")
@@ -112,6 +129,16 @@ public class SaveProcessedDocumentCommandHandler(
             var targetName = draft.GetNextPersonNeedingIdentity();
             draft.SetDocumentTarget(targetName);
             draft.SetStep(RegistrationStep.WaitingForIdentityFront);
+
+            // Kullanıcıya özet mesajı gönderiyoruz
+            var residenceSummary = new StringBuilder();
+            residenceSummary.AppendLine(_localizer["Summary_Residence_Title"].Value);
+            string fullAddress = !string.IsNullOrWhiteSpace(draft.ResidenceAddress?.FullAddress)
+                ? draft.ResidenceAddress.FullAddress
+                : _localizer["Summary_NotSpecified"].Value;
+            residenceSummary.AppendLine(_localizer["Summary_Residence_Address", fullAddress].Value);
+            await _notifier.SendMessageAsync(draft.ChatId, residenceSummary.ToString());
+
             await _notifier.SendMessageAsync(draft.ChatId, _localizer["Success_ResidenceProcessed"]);
         }
         else if (request.DocumentType == "IdentityFront" || request.DocumentType == "IdentityBack")
