@@ -7,6 +7,7 @@
 .env
 
 workers/venv/
+repomix-output.xml
 
 **/venv/
 venv/
