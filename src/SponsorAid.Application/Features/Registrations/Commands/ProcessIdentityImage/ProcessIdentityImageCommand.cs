@@ -1,8 +1,5 @@
 ﻿using MediatR;
 using SponsorAid.Application.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.ProcessIdentityImage;
 

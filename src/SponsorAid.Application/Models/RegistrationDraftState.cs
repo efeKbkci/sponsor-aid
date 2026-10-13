@@ -17,8 +17,18 @@ public class RegistrationDraftState
     public string RegistrationKey { get; set; } = string.Empty;
     public long ChatId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;  
-    public bool IsActive { get; set; } = true; // 🚀 YENİ
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // Aynı chatid altında birden fazla kayıt varsa, sadece 1 tanesi aktif olabilir.
+    public bool IsActive { get; set; } = true;
+
+    // Kullanıcı "Bilgi Güncelle" butonuna bastığında 1 olur
+    // Flag 1 ise, kullanıcıdan gelen metin tabanlı girdiler NLI modeline iletilir. 
+    public bool IsWaitingForUpdateFieldSelection { get; set; } = false;
+
+    // Kullanıcı "Kayıt Tamamlama" butonuna bastığında 1 olur
+    // Flag 1 ise, kullanıcıdan gelen eski kaydın anahtarları ContinueReg özelliğine iletilir.
+    public bool IsWaitingForRegistrationKey { get; set; } = false;
 
     // --- FOLDERS (Composition) ---
     public GuardianDraft Guardian { get; set; } = new();

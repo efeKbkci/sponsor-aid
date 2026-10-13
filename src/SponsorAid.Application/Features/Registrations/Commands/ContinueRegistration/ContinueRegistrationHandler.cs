@@ -4,6 +4,7 @@ using SponsorAid.Application.Interfaces;
 using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Application.Models;
 using SponsorAid.Domain.Enums;
+using System.Text.RegularExpressions;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.ContinueRegistration;
 
@@ -18,39 +19,45 @@ public class ContinueRegistrationHandler(
 
     public async Task Handle(ContinueRegistrationCommand request, CancellationToken cancellationToken)
     {
-        bool isValidKey = request.RegistrationKey.Length == 6 && request.RegistrationKey.All(char.IsAsciiLetterOrDigit);
-        if (!isValidKey)
+        // 1. Kod Gönderilmediyse (Menüden Tıklandıysa) -> Kayıtları Listele
+        if (string.IsNullOrWhiteSpace(request.RegistrationKey))
         {
-            await _notifier.SendMessageAsync(request.ChatId, "⚠️ Takip kodunun 6 karakterli olduğundan ve yalnızca harf/rakam içerdiğinden emin olun.");
+            var registrations = await _draftRepository.ListAllAsync(request.ChatId.ToString(), cancellationToken);
+            var options = registrations.ToDictionary(
+                draft => ContinueRegistrationCommand.SelectionCallbackPrefix + draft.RegistrationKey,
+                draft => $"{draft.RegistrationKey} - {(string.IsNullOrWhiteSpace(draft.Guardian.Name) ? "İsimsiz Vasi" : draft.Guardian.Name)}");
+
+            if (options.Count == 0)
+            {
+                await _notifier.SendMessageAsync(request.ChatId, "⚠️ Daha önce başlatılan bir kayıt bulunamadı.");
+                return;
+            }
+
+            await _notifier.SendQuestionWithButtonsAsync(request.ChatId, "Devam etmek istediğiniz kaydı seçin:", options);
             return;
         }
 
-        var draft = await _draftRepository.GetAsync(request.RegistrationKey, cancellationToken);
+        // 2. Kod Gönderildiyse -> Doğrudan Kaydı Yükle
+        var registrationKey = request.RegistrationKey.Trim().ToUpperInvariant();
+        var draft = await _draftRepository.GetAsync(registrationKey, cancellationToken);
 
-        // 1. KAYIT BULUNAMADI KONTROLÜ
         if (draft == null)
         {
-            await _notifier.SendMessageAsync(request.ChatId, $"⚠️ '<b>{request.RegistrationKey}</b>' takip koduna ait aktif bir başvuru kaydı bulunamadı.");
+            await _notifier.SendMessageAsync(request.ChatId, $"⚠️ '<b>{registrationKey}</b>' takip koduna ait aktif bir başvuru kaydı bulunamadı.");
             return;
         }
 
-        // 2. ZATEN BİTMİŞ KAYIT KONTROLÜ
         if (draft.CurrentStep == RegistrationStep.Completed)
         {
-            await _notifier.SendMessageAsync(request.ChatId, $"✅ '<b>{request.RegistrationKey}</b>' takip kodlu başvuru zaten başarıyla tamamlanmıştır. Yeni bir kayıt için /start yazabilirsiniz.");
+            await _notifier.SendMessageAsync(request.ChatId, $"✅ '<b>{registrationKey}</b>' takip kodlu başvuru zaten başarıyla tamamlanmıştır. Yeni kayıt için menüyü kullanabilirsiniz.");
             return;
         }
 
-        // 3. YENİ SOHBETE SAHİPLENDİRME VE KİLİT ÇÖZME
-        // Kullanıcı başka sohbete geçtiği için ChatId güncellenir
         draft.ChatId = request.ChatId;
-        draft.IsActive = true; // 🚀 Bu taslağı bu sohbet için aktif oturum yap
-
-        // Eğer önceki oturumda sunucuda bir işlem yarım kaldıysa güvenli adıma geri çekilir
+        draft.IsActive = true;
         draft.RevertProcessingState();
         await _draftRepository.SaveAsync(draft, cancellationToken);
 
-        // 4. KULLANICIYA KALDIĞI ADIMI HATIRLAT
         await SendResumePromptAsync(draft);
     }
 

@@ -6,4 +6,9 @@ using System.Text;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.ContinueRegistration;
 
-public record ContinueRegistrationCommand(string RegistrationKey, long ChatId) : IRequest, IRegistrationCommand;
+public record ContinueRegistrationCommand(
+    string? RegistrationKey,
+    long ChatId) : IRequest, IChatCommand
+{
+    public const string SelectionCallbackPrefix = "continue:";
+}

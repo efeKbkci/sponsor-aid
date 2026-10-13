@@ -7,6 +7,7 @@ using SponsorAid.Domain.Exceptions;
 namespace SponsorAid.Application.Behaviors;
 
 public class ExceptionHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : notnull
 {
     private readonly IDraftStateRepository _draftRepository;
     private readonly IUserNotifier _notifier;
@@ -33,33 +34,45 @@ public class ExceptionHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<
         {
             // 2. EĞER HANDLER'DA HATA PATLARSA BURAYA DÜŞER
 
-            // Eğer komutumuz IRegistrationCommand değilse (ChatId bulamayacağımız bir arka plan işiyse), hatayı fırlatıp geç.
-            if (request is not IRegistrationCommand registrationCommand)
+            long chatId;
+            if (request is IRegistrationCommand registrationCommand)
+            {
+                var draft = await _draftRepository.GetAsync(registrationCommand.RegistrationKey, cancellationToken);
+                if (draft == null) throw;
+
+                draft.RevertProcessingState();
+                await _draftRepository.SaveAsync(draft, cancellationToken);
+                chatId = draft.ChatId;
+            }
+            else if (request is IChatCommand chatCommand)
+            {
+                var draft = await _draftRepository.GetActiveByChatIdAsync(chatCommand.ChatId, cancellationToken);
+                if (draft != null)
+                {
+                    draft.RevertProcessingState();
+                    await _draftRepository.SaveAsync(draft, cancellationToken);
+                }
+
+                chatId = chatCommand.ChatId;
+            }
+            else
             {
                 throw;
             }
-
-            // Hatanın sahibini (ChatId) bulmak için hafızadan sepeti çekiyoruz
-            var draft = await _draftRepository.GetAsync(registrationCommand.RegistrationKey, cancellationToken);
-            if (draft == null) throw;
-
-            // 🚀 SİHİRLİ DOKUNUŞ: EĞER BİR "PROCESSING" KİLİDİ VARSA ONU "WAITING" DURUMUNA GERİ AL VE KAYDET
-            draft.RevertProcessingState();
-            await _draftRepository.SaveAsync(draft, cancellationToken);
 
             // 3. HATAYI KİMLİKLE VE KULLANICIYA BİLDİR
             if (ex is SponsorAidException businessException)
             {
                 // BİZİM FIRLATTIĞIMIZ İŞ KURALI HATALARI: Kullanıcıya kibarca ilet.
-                await _notifier.SendMessageAsync(draft.ChatId, $"⚠️ İşlem Başarısız:\n{businessException.Message}");
+                await _notifier.SendMessageAsync(chatId, $"⚠️ İşlem Başarısız:\n{businessException.Message}");
             }
             else
             {
                 // BEKLENMEYEN SİSTEM HATALARI (Örn: NullReference, Veritabanı kopması)
                 // Hatayı kullanıcıya GÖSTERME. Sadece logla ve genel bir mesaj at.
-                _logger.LogError(ex, "Sistem hatası oluştu. RegistrationKey: {Key}", registrationCommand.RegistrationKey);
+                _logger.LogError(ex, "Sistem hatası oluştu. ChatId: {ChatId}", chatId);
 
-                await _notifier.SendMessageAsync(draft.ChatId, "❌ Sunucu kaynaklı teknik bir sorun oluştu. Lütfen işlemi daha sonra tekrar deneyiniz.");
+                await _notifier.SendMessageAsync(chatId, "❌ Sunucu kaynaklı teknik bir sorun oluştu. Lütfen işlemi daha sonra tekrar deneyiniz.");
             }
 
             // 4. İŞLEMİ SESSİZCE BİTİR 
