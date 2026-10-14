@@ -1,0 +1,75 @@
+services:
+  # 1. Veritabanı
+  db:
+    image: postgres:16-alpine
+    container_name: sponsoraid_db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # 2. Mesaj Kuyruğu
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: sponsoraid_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "127.0.0.1:15672:15672" # localhost üzerinden arayüz erişimi
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  # 3. ASP.NET Backend (Tamamen İzole ve Temiz)
+  api:
+    image: ghcr.io/${GITHUB_REPOSITORY_LOWER}/api:latest
+    container_name: sponsoraid_api
+    env_file:
+      - .env
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=db;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};
+      - RABBITMQ_HOST=rabbitmq
+      - ASPNETCORE_URLS=http://+:5000
+      - WORKER_API_URL=http://worker:8000
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      # Sadece Worker ile paylaşılan dosya alanı
+      - uploads_data:/app/wwwroot/uploads
+    depends_on:
+      db:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+  # 4. Python Worker
+  worker:
+    image: ghcr.io/${GITHUB_REPOSITORY_LOWER}/worker:latest
+    container_name: sponsoraid_worker
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    volumes:
+      - uploads_data:/app/wwwroot/uploads
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  uploads_data:
