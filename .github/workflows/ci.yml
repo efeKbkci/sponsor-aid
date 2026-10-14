@@ -1,0 +1,32 @@
+name: SponsorAid CI Pipeline
+
+on:
+  push:
+    branches: ["main", "feature"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-and-test:
+    name: Build & Test (.NET 10)
+    runs-on: ubuntu-latest # GitHub'ın bize verdiği temiz Linux Runner
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+        
+      - name: Restore Dependencies
+        run: dotnet restore src/SponsorAid.slnx
+
+      - name: Build Solution
+        run: dotnet build src/SponsorAid.slnx -c Release --no-restore
+
+      - name: Run Unit Tests
+        run: dotnet test src/SponsorAid.slnx -c Release --no-build --verbosity normal --filter "Category!=Integration"
