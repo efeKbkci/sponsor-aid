@@ -10,10 +10,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    mem_limit: 48m
+    memswap_limit: 256m
+    mem_swappiness: 80
 
   # 2. Mesaj Kuyruğu
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:3-alpine # management versiyonu 160, arayüz içermeyen bu versiyonu 60 mb bellek işgal ediyor
     container_name: sponsoraid_rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
@@ -29,6 +32,9 @@ services:
       retries: 10
       start_period: 10s
     restart: unless-stopped
+    mem_limit: 96m
+    memswap_limit: 384m
+    mem_swappiness: 80
 
   # 3. ASP.NET Backend (Tamamen İzole ve Temiz)
   api:
@@ -53,6 +59,9 @@ services:
       rabbitmq:
         condition: service_healthy
     restart: on-failure
+    mem_limit: 96m
+    memswap_limit: 384m
+    mem_swappiness: 60
 
   # 4. Python Worker
   worker:
@@ -68,6 +77,8 @@ services:
       rabbitmq:
         condition: service_healthy
     restart: on-failure
+    # Worker'ın kütüphanelerini fiziksel RAM'de tutmaya öncelik ver:
+    mem_swappiness: 10
 
 volumes:
   postgres_data:

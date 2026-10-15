@@ -1,4 +1,6 @@
 import json
+import gc
+import ctypes
 import os
 import traceback
 import uuid
@@ -61,6 +63,13 @@ class IdProcessingHandler:
             error_message = str(e)
             print(f"   [❌] HATA: {error_message}")
             traceback.print_exc()
+
+        finally:
+            gc.collect()
+            try:
+                ctypes.CDLL("libc.so.6").malloc_trim(0)
+            except Exception:
+                pass
 
         extracted_data_dict = {"IdNumber": extracted_tc} if extracted_tc else {}
         doc_type_enum = events_pb2.DocumentType.DOCUMENT_TYPE_IDENTITY_FRONT if side_str == "front" else events_pb2.DocumentType.DOCUMENT_TYPE_IDENTITY_BACK
