@@ -1,5 +1,6 @@
 import torch
 from sentence_transformers import SentenceTransformer, util
+from collections import OrderedDict
 from ..config import SemanticMatcherConfig
 
 class SemanticMatcherService:
@@ -7,21 +8,35 @@ class SemanticMatcherService:
         self.config = config or SemanticMatcherConfig()
         print(f"[*] [Semantic Matcher] Model RAM'e yükleniyor: {self.config.MODEL_NAME}...")
         self.model = SentenceTransformer(self.config.MODEL_NAME, device=self.config.DEVICE)
-        self._cache: dict[str, torch.Tensor] = {}
+
+        # Sınırsız dict yerine maksimum 512 eleman tutan LRU Cache yapısı:
+        self._cache: OrderedDict[str, torch.Tensor] = OrderedDict()
+        self._max_cache_size: int = 512
         print("[+] [Semantic Matcher] Model hazır!")
 
     def _get_embedding(self, text: str, is_query: bool = False) -> torch.Tensor:
         prefix = "query: " if is_query else "passage: "
-        formatted_text = f"{prefix}{text.strip().lower()}"
+        prefixed_text = f"{prefix}{text.strip().lower()}"
 
-        if formatted_text not in self._cache:
-            self._cache[formatted_text] = self.model.encode(
-                formatted_text, 
-                convert_to_tensor=True, 
-                device=self.config.DEVICE,
+        # 1. Önbellekte varsa, elemanı "en son kullanılan" olarak sona taşı ve döndür
+        if prefixed_text in self._cache:
+            self._cache.move_to_end(prefixed_text)
+            return self._cache[prefixed_text]
+
+        # 2. Önbellekte yoksa modeli çalıştır (CPU üzerinde, gradyan hesaplamadan)
+        with torch.no_grad():
+            embedding = self.model.encode(
+                prefixed_text,
+                convert_to_tensor=True,
                 normalize_embeddings=True
             )
-        return self._cache[formatted_text]
+
+        # 3. Yeni sonucu önbelleğe ekle; sınır (512) aşıldıysa en eskiyi (ilk gireni) sil
+        self._cache[prefixed_text] = embedding
+        if len(self._cache) > self._max_cache_size:
+            self._cache.popitem(last=False)
+
+        return embedding
 
     def match(self, user_input: str, candidates: list[dict], threshold: float | None = None) -> dict | None:
         if not user_input or not candidates:
