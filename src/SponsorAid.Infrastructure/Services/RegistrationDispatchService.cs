@@ -23,13 +23,18 @@ public class RegistrationDispatchService(
             ?? Environment.GetEnvironmentVariable("DISPATCH_EMAIL_RECIPIENT")
             ?? throw new InvalidOperationException("DISPATCH_EMAIL_RECIPIENT tanımlanmamış.");
 
-        var smtpHost = _configuration["SMTP_HOST"] ?? Environment.GetEnvironmentVariable("SMTP_HOST") ?? "smtp.gmail.com";
+        var smtpHost = _configuration["SMTP_HOST"] ?? Environment.GetEnvironmentVariable("SMTP_HOST") ?? "smtp-relay.brevo.com";
         var smtpPort = int.Parse(_configuration["SMTP_PORT"] ?? Environment.GetEnvironmentVariable("SMTP_PORT") ?? "587");
         var smtpUser = _configuration["SMTP_USER"] ?? Environment.GetEnvironmentVariable("SMTP_USER");
         var smtpPass = _configuration["SMTP_PASS"] ?? Environment.GetEnvironmentVariable("SMTP_PASS");
 
+        // Gönderici adresi (Örn: no-reply@sponsoraid.live). Yoksa smtpUser'a geri döner:
+        var smtpFrom = _configuration["SMTP_FROM"]
+            ?? Environment.GetEnvironmentVariable("SMTP_FROM")
+            ?? smtpUser;
+
         var message = new MimeMessage();
-        message.From.Add(new MailboxAddress("SponsorAid Otomasyonu", smtpUser));
+        message.From.Add(new MailboxAddress("SponsorAid Otomasyonu", smtpFrom));
         message.To.Add(new MailboxAddress("Yetkili İnceleme", recipientEmail));
         message.Subject = $"[Yeni Başvuru - Şifreli] {guardianName} - Takip No: {registrationKey}";
 
