@@ -12,6 +12,9 @@ from microservices.residence_parsing.handler import ResidenceHandler
 from microservices.barcode_extraction.handler import BarcodeExtractionHandler
 from microservices.semantic_matching.handler import router as semantic_router
 
+import gc
+import ctypes
+
 # 1. FastAPI Uygulaması
 app = FastAPI(title="SponsorAid Worker Internal API")
 app.include_router(semantic_router)
@@ -24,6 +27,13 @@ id_service = IdProcessingHandler(reader)
 population_registry_service = PopulationRegistryHandler()
 residence_service = ResidenceHandler()
 barcode_service = BarcodeExtractionHandler()
+
+# 🚀 Başlangıçta modeller yüklenirken oluşan geçici kurulum çöplerini işletim sistemine iade et:
+gc.collect()
+try:
+    ctypes.CDLL("libc.so.6").malloc_trim(0)
+except Exception:
+    pass
 
 def route_event(ch, method, properties, body):
     envelope = events_pb2.WorkerTaskEnvelope()
