@@ -13,7 +13,7 @@ services:
 
   # 2. Mesaj Kuyruğu
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:3-alpine # management versiyonu 160, arayüz içermeyen bu versiyonu 60 mb bellek işgal ediyor
     container_name: sponsoraid_rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}

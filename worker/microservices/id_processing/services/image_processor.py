@@ -17,8 +17,14 @@ class ImageProcessor:
         if image is None:
             raise ValueError("Görsel okunamadı veya format desteklenmiyor.")
 
-        # YOLO tahminini yap
-        results = self.model.predict(source=image, conf=0.5, save=False, verbose=False)
+        # 🚀 YENİ: Çok yüksek çözünürlüklü fotoğrafları YOLO maske tensörlerini şişirmemesi için 1280px ile sınırla
+        h_orig, w_orig = image.shape[:2]
+        if max(h_orig, w_orig) > 1280:
+            scale = 1280.0 / max(h_orig, w_orig)
+            image = cv2.resize(image, (int(w_orig * scale), int(h_orig * scale)), interpolation=cv2.INTER_AREA)
+
+        # YOLO tahminini yap (imgsz=640 ile sınırla)
+        results = self.model.predict(source=image, imgsz=640, conf=0.5, save=False, verbose=False)
         result = results[0]
 
         # Güvenlik Kontrolü: Maske veya Bounding Box var mı?
