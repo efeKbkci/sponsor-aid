@@ -1,16 +1,6 @@
 FROM python:3.12-slim-bookworm
 
-ENV PYTHONUNBUFFERED=1 \
-    # PyTorch ve OpenCV'nin 2 vCPU'lu sunucuda thread çarpışması (Context Switch) yapmasını önler:
-    OMP_NUM_THREADS=2 \
-    MKL_NUM_THREADS=2 \
-    OPENBLAS_NUM_THREADS=2 \
-    VECLIB_MAXIMUM_THREADS=2 \
-    NUMEXPR_NUM_THREADS=2 \
-    # glibc'nin her thread için ayrı bellek havuzu (arena) açmasını engeller:
-    MALLOC_ARENA_MAX=2 \
-    # Boşa çıkan C++ / PyTorch tensör belleğinin 64 KB'ı geçtiği an işletim sistemine (fiziksel RAM'e) iade edilmesini zorlar:
-    MALLOC_TRIM_THRESHOLD_=65536
+ENV PYTHONUNBUFFERED=1
 
 # RUN useradd -m sponsorworker
 

@@ -17,38 +17,33 @@ class OcrService:
         h, w = image.shape[:2]
         
         # 1. ROI (İlgilenilen Bölge) KESİMİ
+        # OCR'ı tüm resimde gezdirip zaman kaybetmek yerine, sadece TC'nin olduğu bölgeleri kesiyoruz.
         if document_side.lower() == "front":
+            # Ön Yüz: TC No en üstte yer alır. Sadece üst %35'lik yatay şeridi kesiyoruz.
             roi = image[0:int(h * 0.35), 0:w]
         elif document_side.lower() == "back":
+            # Arka Yüz: MRZ kodları en alttadır. Sadece alt %35'lik yatay şeridi kesiyoruz.
             roi = image[int(h * 0.65):h, 0:w]
         else:
-            roi = image
+            roi = image # Yön belli değilse mecbur tamamını okuruz
 
+        # OCR başarısını artırmak için resmi gri tona çeviriyoruz
         gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
 
-        # YENİ: ROI genişliği 640 pikselden büyükse orantılı küçült (Aktivasyon tensörlerini %80 küçültür)
-        roi_h, roi_w = gray_roi.shape[:2]
-        if roi_w > 640:
-            scale = 640.0 / roi_w
-            gray_roi = cv2.resize(gray_roi, (640, int(roi_h * scale)), interpolation=cv2.INTER_AREA)
-
-        # 2. METİN OKUMA (Sadece rakamları ara ve VGG-16 tuvalini 640px ile sınırla)
-        results = self.reader.readtext(
-            gray_roi,
-            detail=0,
-            allowlist="0123456789", # Hem 1-I, 0-O gibi harf ve sayıları karıştırmaz, hem de performansı arttırır 
-            canvas_size=640,
-            mag_ratio=1.0
-        )
+        # 2. METİN OKUMA
+        # detail=0 komutu bize sadece metinleri net bir liste olarak döndürür (koordinatlarla uğraşmayız)
+        results = self.reader.readtext(gray_roi, detail=0)
         full_text = " ".join(results)
 
         # 3. REGEX İLE TC KİMLİK AYIKLAMA
+        # Kurallar: 11 haneli rakam olacak, 0 ile başlamayacak.
+        # \b (kelime sınırı) sayesinde "123456789012" (12 haneli) veya başka metne bitişik yazıları atlar.
         tc_pattern = r'\b[1-9][0-9]{10}\b'
         match = re.search(tc_pattern, full_text)
 
         if match:
-            return match.group(0)
-        return None
+            return match.group(0) # Bulunan 11 haneli rakamı döndür
+        return None # Bulunamazsa None dön
 
 if __name__ == "__main__":
     import argparse
