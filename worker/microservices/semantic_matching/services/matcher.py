@@ -1,6 +1,4 @@
 import torch
-import gc
-import ctypes
 from sentence_transformers import SentenceTransformer, util
 from collections import OrderedDict
 from ..config import SemanticMatcherConfig
@@ -10,15 +8,8 @@ class SemanticMatcherService:
         self.config = config or SemanticMatcherConfig()
         print(f"[*] [Semantic Matcher] Model RAM'e yükleniyor: {self.config.MODEL_NAME}...")
         self.model = SentenceTransformer(self.config.MODEL_NAME, device=self.config.DEVICE)
-        
-        # 🚀 Model ağırlıklarını 32-bit'ten 16-bit'e (bfloat16) düşür (~235 MB RAM tasarrufu sağlar):
-        self.model = self.model.to(torch.bfloat16)
-        gc.collect()
-        try:
-            ctypes.CDLL("libc.so.6").malloc_trim(0)
-        except Exception:
-            pass
 
+        # Sınırsız dict yerine maksimum 512 eleman tutan LRU Cache yapısı:
         self._cache: OrderedDict[str, torch.Tensor] = OrderedDict()
         self._max_cache_size: int = 512
         print("[+] [Semantic Matcher] Model hazır!")
