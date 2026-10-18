@@ -72,9 +72,9 @@ public class ProcessTextInputHandler(
             return;
         }
 
-        // 5. YALNIZCA TAM METİN 6 KARAKTERLİ VE EN AZ BİR HARF İÇERİYORSA TAKİP KODUDUR
+        // 5. YALNIZCA TAM METİN 6 KARAKTERLİ, EN AZ BİR HARF VE EN AZ BİR RAKAM İÇERİYORSA TAKİP KODUDUR
         // (Cümle içi "Doktor", "Garson" gibi kelimelerin yanlışlıkla kod sanılmasını engeller)
-        if (Regex.IsMatch(text, @"^(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{6}$"))
+        if (Regex.IsMatch(text, @"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{6}$"))
         {
             await mediator.Send(new ContinueRegistrationCommand(text.ToUpperInvariant(), request.ChatId), cancellationToken);
             return;

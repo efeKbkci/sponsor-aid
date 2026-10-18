@@ -1398,4 +1398,19 @@ Ben {0}, {1} tarihinde vefat eden eşimin vefatı neticesinde yetim kalan {2} ç
   <data name="Info_SemanticMatchSaved" xml:space="preserve">
     <value>🤖 Sistem cevabınızı &lt;b&gt;{0}&lt;/b&gt; olarak eşleştirdi ve kaydetti. (Yanlışsa menüden güncelleyebilirsiniz.)</value>
   </data>
+	<data name="Question_EducationStatus" xml:space="preserve">
+    <value>🎓 Eğitim durumunuz nedir?</value>
+  </data>
+	<data name="Option_EducationStatus_Graduated" xml:space="preserve">
+    <value>Mezun</value>
+  </data>
+	<data name="Option_EducationStatus_NeverAttended" xml:space="preserve">
+    <value>Hiç Okula Gitmedi</value>
+  </data>
+	<data name="Option_EducationStatus_DroppedOut" xml:space="preserve">
+    <value>Okulu Bıraktı</value>
+  </data>
+	<data name="Option_EducationStatus_Student" xml:space="preserve">
+    <value>Öğrenci</value>
+  </data>
 </root>
