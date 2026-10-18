@@ -218,9 +218,16 @@ public class ProcessQuestionnaireAnswerHandler(
             }
             else
             {
+                // 🚀 YENİ EKLENEN KONTROL: Kullanıcı bir metin gönderdiyse ama hiçbir şeyle eşleşmediyse uyar!
+                if (!string.IsNullOrEmpty(text))
+                {
+                    await _notifier.SendMessageAsync(draft.ChatId, _localizer["Error_InvalidAnswer"].Value);
+                }
+
                 var options = new Dictionary<string, string> { { "Worker", _localizer["Option_FatherProfession_Worker"] }, { "CivilServant", _localizer["Option_FatherProfession_CivilServant"] }, { "Farmer", _localizer["Option_FatherProfession_Farmer"] }, { "Freelancer", _localizer["Option_FatherProfession_Freelancer"] }, { "Other", _localizer["Option_FatherProfession_Other"] } };
                 await _notifier.SendQuestionWithButtonsAsync(draft.ChatId, _localizer["Question_FatherProfession"], options);
-                await _draftRepository.SaveAsync(draft, cancellationToken); return;
+                await _draftRepository.SaveAsync(draft, cancellationToken);
+                return;
             }
         }
 
@@ -255,9 +262,16 @@ public class ProcessQuestionnaireAnswerHandler(
             }
             else
             {
+                // 🚀 YENİ EKLENEN KONTROL: Kullanıcı anlamsız bir metin gönderdiyse uyar!
+                if (!string.IsNullOrEmpty(text))
+                {
+                    await _notifier.SendMessageAsync(draft.ChatId, _localizer["Error_InvalidAnswer"].Value);
+                }
+
                 var options = new Dictionary<string, string> { { "NaturalDeath", _localizer["Option_FatherDeathReason_NaturalDeath"] }, { "HeartAttack", _localizer["Option_FatherDeathReason_HeartAttack"] }, { "Cancer", _localizer["Option_FatherDeathReason_Cancer"] }, { "TrafficAccident", _localizer["Option_FatherDeathReason_TrafficAccident"] }, { "WorkAccident", _localizer["Option_FatherDeathReason_WorkAccident"] }, { "Earthquake", _localizer["Option_FatherDeathReason_Earthquake"] }, { "Other", _localizer["Option_FatherDeathReason_Other"] } };
                 await _notifier.SendQuestionWithButtonsAsync(draft.ChatId, _localizer["Question_FatherDeathReason"], options);
-                await _draftRepository.SaveAsync(draft, cancellationToken); return;
+                await _draftRepository.SaveAsync(draft, cancellationToken);
+                return;
             }
         }
 

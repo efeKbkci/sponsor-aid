@@ -1413,4 +1413,7 @@ Ben {0}, {1} tarihinde vefat eden eşimin vefatı neticesinde yetim kalan {2} ç
 	<data name="Option_EducationStatus_Student" xml:space="preserve">
     <value>Öğrenci</value>
   </data>
+	<data name="Error_InvalidAnswer" xml:space="preserve">
+    <value>⚠️ Yazdığınız ifadeyi anlayamadım. Lütfen geçerli bir kelime yazın veya aşağıdaki butonlardan birini seçin.</value>
+  </data>
 </root>
