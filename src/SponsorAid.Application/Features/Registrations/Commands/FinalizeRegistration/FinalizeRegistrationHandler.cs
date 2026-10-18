@@ -117,10 +117,6 @@ public class FinalizeRegistrationHandler(
             deathReason: draft.Father.DeathReason!.Value
         );
 
-        // 🚀 ÇÖZÜM 1: EducationStatus ankette sorulmadığı için vasiye varsayılan olarak 'Graduated' (Mezun) atanır.
-        var educationStatus = draft.Guardian.EducationStatus
-            ?? (draft.Guardian.EducationLevel == EducationLevel.Literate ? EducationStatus.NeverAttended : EducationStatus.Graduated);
-
         var guardian = new Guardian(
             name: draft.Guardian.Name!,
             identityNumber: draft.Guardian.IdNumber!,
@@ -129,7 +125,7 @@ public class FinalizeRegistrationHandler(
             gender: draft.Guardian.Gender!.Value,
             maritalStatus: draft.Guardian.MaritalStatus!.Value,
             educationLevel: draft.Guardian.EducationLevel!.Value,
-            educationStatus: educationStatus,
+            educationStatus: draft.Guardian.EducationStatus!.Value,
             kinship: draft.Guardian.DegreeOfKinship!.Value,
             profession: draft.Guardian.Profession!,
             housingStatus: draft.FamilyFinancial.HousingStatus!.Value,

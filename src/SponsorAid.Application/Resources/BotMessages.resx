@@ -120,4 +120,7 @@
   <data name="Test" xml:space="preserve">
     <value>Test</value>
   </data>
+  <data name="Question_EducationStatus" xml:space="preserve">
+    <value />
+  </data>
 </root>

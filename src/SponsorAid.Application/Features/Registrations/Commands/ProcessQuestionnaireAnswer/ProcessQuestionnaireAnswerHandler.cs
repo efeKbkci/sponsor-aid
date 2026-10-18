@@ -104,6 +104,29 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
+        // 4.5. EĞİTİM DURUMU
+        if (draft.Guardian.EducationStatus == null)
+        {
+            if (!string.IsNullOrEmpty(text) && Enum.TryParse<EducationStatus>(text, out var parsedEducationStatus))
+            {
+                draft.ApplyUpdates(new() { { "GuardianEducationStatus", text } });
+                string label = _localizer[$"Option_EducationStatus_{parsedEducationStatus}"].Value;
+                await MarkAsAnsweredIfCallback(draft.ChatId, request.CallbackMessageId, _localizer["Question_EducationStatus"], label);
+                text = "";
+            }
+            else
+            {
+                var options = new Dictionary<string, string> {
+                    { "Graduated", _localizer["Option_EducationStatus_Graduated"] },
+                    { "NeverAttended", _localizer["Option_EducationStatus_NeverAttended"] },
+                    { "DroppedOut", _localizer["Option_EducationStatus_DroppedOut"] },
+                    { "Student", _localizer["Option_EducationStatus_Student"] }
+                };
+                await _notifier.SendQuestionWithButtonsAsync(draft.ChatId, _localizer["Question_EducationStatus"], options);
+                await _draftRepository.SaveAsync(draft, cancellationToken); return;
+            }
+        }
+
         // 5. YETİME YAKINLIK DERECESİ
         if (draft.Guardian.DegreeOfKinship == null)
         {
@@ -380,10 +403,11 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 🚀 GÜNCELLEME SONRASI KONTROLÜ:
-        // Eğer hiçbir adımda 'return' edilmediyse tüm sorular doludur.
-        if (draft.CurrentStep != RegistrationStep.WaitingForConfirmation && draft.CurrentStep != RegistrationStep.Completed)
+        // Kod buraya kadar 'return' etmeden ulaştıysa, kullanıcının cevaplaması gereken SIFIR soru kalmıştır.
+        if (draft.CurrentStep != RegistrationStep.Completed)
         {
+            // Belki kullanıcı güncellemeyle geldi, belki /continue ile geldi, belki ilk kez soruları bitirdi.
+            // Fark etmez; adım mutlaka WaitingForConfirmation olmalı ve güncel özet ekrana basılmalı!
             draft.SetStep(RegistrationStep.WaitingForConfirmation);
             await _draftRepository.SaveAsync(draft, cancellationToken);
             await SendSummaryConfirmationAsync(draft);

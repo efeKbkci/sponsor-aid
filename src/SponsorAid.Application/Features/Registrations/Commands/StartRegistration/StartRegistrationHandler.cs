@@ -31,12 +31,12 @@ public class StartRegistrationHandler(
         const string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         string generatedKey;
 
-        // PNR Kuralı: Anahtarın sadece rakamlardan oluşmasını engelle (Para miktarlarıyla asla çakışmasın)
+        // PNR Kuralı: Anahtarın sadece rakamlardan VEYA sadece harflerden oluşmasını engelle
         do
         {
             generatedKey = RandomNumberGenerator.GetString(chars, 6);
         }
-        while (generatedKey.All(char.IsDigit));
+        while (generatedKey.All(char.IsDigit) || generatedKey.All(char.IsLetter));
 
         // 2. Sepeti yeni anahtarla oluşturuyoruz
         var newDraft = new RegistrationDraftState
