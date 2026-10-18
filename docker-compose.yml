@@ -69,6 +69,8 @@ services:
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - AZURE_VISION_ENDPOINT=${AZURE_VISION_ENDPOINT}
+      - AZURE_VISION_KEY=${AZURE_VISION_KEY}
     ports:
       - "8000:8000"
     volumes:

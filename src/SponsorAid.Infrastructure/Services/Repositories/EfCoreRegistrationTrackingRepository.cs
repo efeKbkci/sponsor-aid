@@ -24,6 +24,16 @@ public class EfCoreRegistrationTrackingRepository(SponsorAidDbContext context) :
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task RemoveAsync(string registrationKey, CancellationToken cancellationToken = default)
+    {
+        var record = await _context.RegistrationTrackings.FirstOrDefaultAsync(r => r.RegistrationKey == registrationKey, cancellationToken);
+        if (record != null)
+        {
+            _context.RegistrationTrackings.Remove(record);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+    }
+
     public async Task UpdateGuardianNameAsync(string registrationKey, string guardianName, CancellationToken cancellationToken = default)
     {
         var record = await _context.RegistrationTrackings.FirstOrDefaultAsync(r => r.RegistrationKey == registrationKey, cancellationToken);

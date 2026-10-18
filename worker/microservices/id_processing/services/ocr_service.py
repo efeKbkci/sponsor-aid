@@ -1,13 +1,20 @@
+import os
+import asyncio
 import cv2
 import numpy as np
-import easyocr
 import re
+import aiohttp
 
 class OcrService:
-    def __init__(self, reader: easyocr.Reader):
-        self.reader = reader
+    def __init__(self):
+        self.endpoint = os.environ.get("AZURE_VISION_ENDPOINT")
+        self.subscription_key = os.environ.get("AZURE_VISION_KEY")
 
-    def extract_tc_number(self, image_bytes: bytes, document_side: str) -> str:
+        if not self.endpoint or not self.subscription_key:
+            print("⚠️ UYARI: Azure Vision API anahtarları eksik! Lütfen .env dosyasını kontrol edin.")
+
+    # 🚀 DIŞARIYA AÇILAN SENKRON METOT (Handler hiçbir değişiklik yapmadan bunu çağırabilir)
+    def extract_tc_number(self, image_bytes: bytes, document_side: str) -> str | None:
         np_array = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
 
@@ -16,40 +23,75 @@ class OcrService:
 
         h, w = image.shape[:2]
         
-        # 1. ROI (İlgilenilen Bölge) KESİMİ
-        # OCR'ı tüm resimde gezdirip zaman kaybetmek yerine, sadece TC'nin olduğu bölgeleri kesiyoruz.
         if document_side.lower() == "front":
-            # Ön Yüz: TC No en üstte yer alır. Sadece üst %35'lik yatay şeridi kesiyoruz.
-            roi = image[0:int(h * 0.35), 0:w]
+            roi = image[0:int(h * 0.50), 0:w]
         elif document_side.lower() == "back":
-            # Arka Yüz: MRZ kodları en alttadır. Sadece alt %35'lik yatay şeridi kesiyoruz.
-            roi = image[int(h * 0.65):h, 0:w]
+            roi = image[int(h * 0.50):h, 0:w]
         else:
-            roi = image # Yön belli değilse mecbur tamamını okuruz
+            roi = image
 
-        # OCR başarısını artırmak için resmi gri tona çeviriyoruz
-        gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        _, buffer = cv2.imencode('.jpg', roi)
+        roi_bytes = buffer.tobytes()
 
-        # 2. METİN OKUMA
-        # detail=0 komutu bize sadece metinleri net bir liste olarak döndürür (koordinatlarla uğraşmayız)
-        results = self.reader.readtext(gray_roi, detail=0)
-        full_text = " ".join(results)
+        # Asenkron virüsünü sadece burada çalıştırıp içeriye hapsediyoruz!
+        text_lines = asyncio.run(self._call_azure_read_api(roi_bytes))
+        full_text = " ".join(text_lines)
 
-        # 3. REGEX İLE TC KİMLİK AYIKLAMA
-        # Kurallar: 11 haneli rakam olacak, 0 ile başlamayacak.
-        # \b (kelime sınırı) sayesinde "123456789012" (12 haneli) veya başka metne bitişik yazıları atlar.
         tc_pattern = r'\b[1-9][0-9]{10}\b'
         match = re.search(tc_pattern, full_text)
 
         if match:
-            return match.group(0) # Bulunan 11 haneli rakamı döndür
-        return None # Bulunamazsa None dön
+            return match.group(0)
+        return None
+
+    # SADECE İÇERİDE ÇALIŞAN ASENKRON AĞ METODU (Private)
+    async def _call_azure_read_api(self, image_bytes: bytes) -> list[str]:
+        if not self.endpoint or not self.subscription_key:
+            raise ValueError("Sistemde Azure OCR anahtarları bulunamadı.")
+
+        analyze_url = f"{self.endpoint.rstrip('/')}/vision/v3.2/read/analyze"
+        headers = {
+            'Ocp-Apim-Subscription-Key': self.subscription_key,
+            'Content-Type': 'application/octet-stream'
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(analyze_url, headers=headers, data=image_bytes) as response:
+                response.raise_for_status()
+                operation_url = response.headers.get("Operation-Location")
+            
+            if not operation_url:
+                raise ValueError("Azure API'den operasyon doğrulama linki alınamadı.")
+
+            poll_headers = {'Ocp-Apim-Subscription-Key': self.subscription_key}
+            
+            while True:
+                await asyncio.sleep(0.5)
+                async with session.get(operation_url, headers=poll_headers) as poll_response:
+                    poll_response.raise_for_status()
+                    result = await poll_response.json()
+
+                    if result.get("status") == "succeeded":
+                        lines = []
+                        for read_result in result.get("analyzeResult", {}).get("readResults", []):
+                            for line in read_result.get("lines", []):
+                                lines.append(line.get("text", ""))
+                        return lines
+                        
+                    elif result.get("status") == "failed":
+                        raise ValueError("Azure OCR okuma işlemini başaramadı.")
 
 if __name__ == "__main__":
     import argparse
     import mimetypes
     import csv
     from pathlib import Path
+
+# 🚀 .env YÜKLEME KÖPRÜSÜ
+    from dotenv import load_dotenv, find_dotenv
+    
+    # Üst dizinlere çıkarak .env dosyasını otomatik bul ve ortam değişkenlerine yaz
+    load_dotenv(find_dotenv())
 
     ocr_service = OcrService()
     parser = argparse.ArgumentParser()
