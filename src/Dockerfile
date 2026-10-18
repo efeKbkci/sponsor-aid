@@ -20,6 +20,9 @@ RUN dotnet publish src/SponsorAid.Api/SponsorAid.Api.csproj -c Release -o /app/p
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
+# EKSİK OLAN KERBEROS (GSSAPI) KÜTÜPHANESİNİ EKLİYORUZ
+RUN apt-get update && apt-get install -y libgssapi-krb5-2 && rm -rf /var/lib/apt/lists/*
+
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 ENV LC_ALL=tr_TR.UTF-8
 ENV LANG=tr_TR.UTF-8

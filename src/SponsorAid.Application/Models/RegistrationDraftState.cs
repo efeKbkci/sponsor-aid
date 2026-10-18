@@ -1,5 +1,5 @@
-﻿using Microsoft.Win32;
-using Microsoft.Extensions.Localization;
+﻿using Microsoft.Extensions.Localization;
+using Microsoft.Win32;
 using SponsorAid.Application.Resources;
 using SponsorAid.Domain.Enums;
 using SponsorAid.Domain.Exceptions;
@@ -7,7 +7,9 @@ using SponsorAid.Domain.ValueObjects;
 using SponsorAid.Integration.Contracts;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 
 namespace SponsorAid.Application.Models;
@@ -408,6 +410,121 @@ public class RegistrationDraftState
     {
         if (value == null) return "-";
         return localizer[$"Enum_{value.GetType().Name}_{value}"].Value;
+    }
+
+    public (RegistrationMetaDto, RegistrationDto) ExportRegistrationData()
+    {
+        // 1. Meta Verisi (Huntsville, TX Saat Dilimi ile)
+        var meta = new RegistrationMetaDto(
+            RegistrationKey,
+            ChatId,
+            FormatToTexasTime(CreatedAt),
+            FormatToTexasTime(UpdatedAt)
+        );
+
+        // 2. Vasi Ayrıştırması (Tarih ve Enumlar string'e çevriliyor)
+        var guardian = new GuardianDto(
+            Name: Guardian.Name,
+            IdNumber: Guardian.IdNumber?.Value,
+            BirthDate: Guardian.BirthDate.ToString("dd.MM.yyyy"),
+            ApplicantRole: GetEnumDescription(Guardian.ApplicantRole),
+            Gender: GetEnumDescription(Guardian.Gender),
+            MaritalStatus: GetEnumDescription(Guardian.MaritalStatus),
+            EducationLevel: GetEnumDescription(Guardian.EducationLevel),
+            EducationStatus: GetEnumDescription(Guardian.EducationStatus),
+            DegreeOfKinship: GetEnumDescription(Guardian.DegreeOfKinship),
+            Profession: Guardian.Profession,
+            PhoneNumber: Guardian.PhoneNumber?.Value,
+            Iban: Guardian.Iban?.Value
+        );
+
+        // 3. Çocukların Ayrıştırması
+        var children = Children.Select(c => new ChildDto(
+            Name: c.Name,
+            IdNumber: c.IdNumber?.Value,
+            BirthDate: c.BirthDate.ToString("dd.MM.yyyy"),
+            Hobbies: c.Hobbies,
+            FutureDream: c.FutureDream
+        )).ToList();
+
+        // 4. Baba Ayrıştırması
+        var father = new FatherDto(
+            Name: Father.Name,
+            DeathDate: Father.DeathDate?.ToString("dd.MM.yyyy"),
+            Profession: GetEnumDescription(Father.Profession),
+            DeathReason: GetEnumDescription(Father.DeathReason)
+        );
+
+        // 5. Finansal Durum Ayrıştırması
+        var financial = new FamilyFinancialDto(
+            FamilyMemberCount: FamilyFinancial.FamilyMemberCount,
+            HousingStatus: GetEnumDescription(FamilyFinancial.HousingStatus),
+            SocialSecurity: GetEnumDescription(FamilyFinancial.SocialSecurity),
+            IncomeStatus: GetEnumDescription(FamilyFinancial.IncomeStatus),
+            Income: FamilyFinancial.Income,
+            Expense: FamilyFinancial.Expense,
+            OtherIncome: FamilyFinancial.OtherIncome
+        );
+
+        // 6. Engelli Birey Ayrıştırması
+        DisabledMemberDto? disabled = DisabledMember == null ? null : new DisabledMemberDto(
+            Name: DisabledMember.Name,
+            Diagnosis: DisabledMember.Diagnosis,
+            DiseaseStatus: DisabledMember.DiseaseStatus,
+            TreatmentStatus: GetEnumDescription(DisabledMember.TreatmentStatus),
+            Description: DisabledMember.Description
+        );
+
+        // 7. Saf Veri Modeli Birleştirmesi
+        var data = new RegistrationDto(
+            Guardian: guardian,
+            Children: children,
+            Father: father,
+            FamilyFinancial: financial,
+            DisabledMember: disabled,
+            ResidenceAddress: ResidenceAddress,
+            PetitionText: SystemDocuments.Petition?.Content
+        );
+
+        return (meta, data);
+    }
+
+    // =========================================================
+    // YARDIMCI METOTLAR (Sadece Metin Formatlama İçin)
+    // =========================================================
+
+    private static string? GetEnumDescription(Enum? value)
+    {
+        if (value == null) return null;
+
+        var fieldInfo = value.GetType().GetField(value.ToString());
+        var attribute = fieldInfo?.GetCustomAttribute<DescriptionAttribute>();
+
+        // Etiket varsa onu (örn: "Boşanmış"), yoksa varsayılan metni döner
+        return attribute != null ? attribute.Description : value.ToString();
+    }
+
+    private static string FormatToTexasTime(DateTime utcDateTime)
+    {
+        if (utcDateTime.Kind == DateTimeKind.Unspecified)
+        {
+            utcDateTime = DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc);
+        }
+
+        TimeZoneInfo targetTimeZone;
+        try
+        {
+            // Linux ortamları ve Docker için (IANA standardı)
+            targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/Chicago");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            // Windows üzerinde lokal geliştirme yapıyorsan fallback (TX, Central Time bölgesindedir)
+            targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+        }
+
+        var localTime = TimeZoneInfo.ConvertTimeFromUtc(utcDateTime.ToUniversalTime(), targetTimeZone);
+        return localTime.ToString("dd.MM.yyyy HH:mm:ss");
     }
 }
 
