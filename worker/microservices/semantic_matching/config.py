@@ -3,7 +3,7 @@ import os
 
 @dataclass(frozen=True)
 class SemanticMatcherConfig:
-    # MiniLM yerine multilingual-e5-small'a geçtik
-    MODEL_NAME: str = os.getenv("SEMANTIC_MODEL_NAME", "intfloat/multilingual-e5-small")
-    DEFAULT_THRESHOLD: float = 0.65
+    # Multilingual (Çok Dilli) model yerine, NLI verisetiyle eğitilmiş %100 Türkçe modele geçiyoruz    
+    MODEL_NAME: str = os.getenv("SEMANTIC_MODEL_NAME", "emrecan/bert-base-turkish-cased-mean-nli-stsb-tr")
+    DEFAULT_THRESHOLD: float = 0.82
     DEVICE: str = "cpu"
