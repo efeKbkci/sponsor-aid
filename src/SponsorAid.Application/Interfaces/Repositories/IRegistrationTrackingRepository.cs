@@ -6,6 +6,7 @@ public interface IRegistrationTrackingRepository
 {
     // ChatId eklendi
     Task CreateAsync(string registrationKey, long chatId, CancellationToken cancellationToken = default);
+    Task RemoveAsync(string registrationKey, CancellationToken cancellationToken = default);
     Task UpdateGuardianNameAsync(string registrationKey, string guardianName, CancellationToken cancellationToken = default);
     Task MarkAsCompletedAsync(string registrationKey, CancellationToken cancellationToken = default);
 

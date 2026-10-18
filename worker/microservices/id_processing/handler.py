@@ -10,11 +10,11 @@ from .services.ocr_service import OcrService
 from .services.pdf_generator import PdfGenerator
 
 class IdProcessingHandler:
-    def __init__(self, reader):
+    def __init__(self):
         print("[*] [ID Service] Modeller RAM'e yükleniyor...")
         self.image_processor = ImageProcessor(model_path=SEGMENTER_MODEL_PATH)
         self.image_rotator = ImageRotator(model_path=ROTATOR_MODEL_PATH)
-        self.ocr_service = OcrService(reader)
+        self.ocr_service = OcrService() 
         self.pdf_generator = PdfGenerator()
         print("[+] [ID Service] Hazır ve bekliyor!")
 

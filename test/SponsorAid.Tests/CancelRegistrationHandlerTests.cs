@@ -15,6 +15,7 @@ public class CancelRegistrationHandlerTests
     private readonly Mock<IFileStorageService> _fileStorageMock;
     private readonly Mock<IUserNotifier> _notifierMock;
     private readonly Mock<IStringLocalizer<BotMessages>> _localizerMock;
+    private readonly Mock<IRegistrationTrackingRepository> _trackingRepositoryMock;
     private readonly CancelRegistrationHandler _handler;
 
     public CancelRegistrationHandlerTests()
@@ -23,6 +24,7 @@ public class CancelRegistrationHandlerTests
         _fileStorageMock = new Mock<IFileStorageService>();
         _notifierMock = new Mock<IUserNotifier>();
         _localizerMock = new Mock<IStringLocalizer<BotMessages>>();
+        _trackingRepositoryMock = new Mock<IRegistrationTrackingRepository>();
 
         // Localizer'ın sahte dönüş değerini ayarlıyoruz (Resource dosyası kullanıyormuş gibi)
         _localizerMock.Setup(l => l["Success_RegistrationCancelled"])
@@ -30,6 +32,7 @@ public class CancelRegistrationHandlerTests
 
         _handler = new CancelRegistrationHandler(
             _draftRepositoryMock.Object,
+            _trackingRepositoryMock.Object,
             _fileStorageMock.Object,
             _notifierMock.Object,
             _localizerMock.Object);

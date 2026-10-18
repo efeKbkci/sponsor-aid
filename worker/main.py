@@ -3,7 +3,6 @@ import time
 import threading
 import uvicorn
 from fastapi import FastAPI
-from easyocr import Reader
 import events_pb2
 from config import RABBITMQ_HOST, RABBITMQ_PASSWORD, RABBITMQ_USER, QUEUE_RECEIVE, QUEUE_SEND
 from microservices.id_processing.handler import IdProcessingHandler
@@ -18,9 +17,8 @@ app.include_router(semantic_router)
 
 # 2. Servisleri Başlat (Mevcut mantık aynen korunur)
 print("[*] Worker Başlatılıyor. Servisler ayağa kaldırılıyor...")
-reader = Reader(['tr', 'en'], gpu=False, verbose=False)
 
-id_service = IdProcessingHandler(reader)
+id_service = IdProcessingHandler()
 population_registry_service = PopulationRegistryHandler()
 residence_service = ResidenceHandler()
 barcode_service = BarcodeExtractionHandler()

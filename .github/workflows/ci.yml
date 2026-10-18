@@ -142,6 +142,8 @@ jobs:
             SMTP_USER=${{ secrets.SMTP_USER }}
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             SMTP_FROM=${{ secrets.SMTP_FROM }}
+            AZURE_VISION_ENDPOINT=${{ secrets.AZURE_VISION_ENDPOINT }}
+            AZURE_VISION_KEY=${{ secrets.AZURE_VISION_KEY }}
             EOF
 
             # Dosya izinlerini kilitle (Sadece dosya sahibi okuyup yazabilsin)

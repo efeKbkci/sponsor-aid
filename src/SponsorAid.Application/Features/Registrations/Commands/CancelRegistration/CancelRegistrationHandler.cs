@@ -9,11 +9,13 @@ namespace SponsorAid.Application.Features.Registrations.Commands.CancelRegistrat
 
 public class CancelRegistrationHandler(
     IDraftStateRepository draftRepository,
+    IRegistrationTrackingRepository trackingRepository,
     IFileStorageService fileStorage,
     IUserNotifier notifier,
     IStringLocalizer<BotMessages> localizer) : IRequestHandler<CancelRegistrationCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
+    private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository;
     private readonly IFileStorageService _fileStorage = fileStorage;
     private readonly IUserNotifier _notifier = notifier;
     private readonly IStringLocalizer<BotMessages> _localizer = localizer;
@@ -30,6 +32,9 @@ public class CancelRegistrationHandler(
 
             // 3. Veritabanındaki kaydı (JSON verisini) tamamen sil
             await _draftRepository.DeleteAsync(request.RegistrationKey, cancellationToken);
+
+            // 4. Takip edilen kayıtlardan taslağı kaldır
+            await _trackingRepository.RemoveAsync(request.RegistrationKey, cancellationToken);
         }
 
         // 4. Kullanıcıya başarı mesajını gönder
