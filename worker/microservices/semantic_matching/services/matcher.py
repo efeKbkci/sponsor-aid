@@ -17,6 +17,13 @@ class SemanticMatcherService:
         if not user_input or not candidates:
             return None
 
+        # Gelen veriyi burada baştan temizle
+        clean_input = user_input.strip().lower()
+        
+        # Temizlendikten sonra tamamen boş kalıyorsa (örn: "   " gelmişse) yine iptal et
+        if not clean_input:
+            return None
+
         effective_threshold = threshold if threshold is not None else self.config.DEFAULT_THRESHOLD
 
         # 🚀 DÜZELTME: E5 modelindeki "query:" önekini sildik, metni doğrudan ve tertemiz veriyoruz

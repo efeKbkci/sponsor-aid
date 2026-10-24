@@ -23,6 +23,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+        # SUNUCUYU TEMİZLE (Testlerden önce diski boşaltır, bize ~20GB yer açar)
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: false # .NET'i biz kullanıyoruz, bunu silmesin
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: false
+
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
@@ -36,8 +48,26 @@ jobs:
       - name: Build Solution
         run: dotnet build src/SponsorAid.slnx -c Release --no-restore
 
-      - name: Run Unit Tests
-        run: dotnet test src/SponsorAid.slnx -c Release --no-build --verbosity normal --filter "Category!=Integration"
+      - name: Run Tests
+        run: dotnet test src/SponsorAid.slnx -c Release --no-build --verbosity normal
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r worker/requirements.txt pytest httpx --extra-index-url https://download.pytorch.org/whl/cpu
+          
+      - name: Run Python Tests (pytest)
+        env:
+          TRANSFORMERS_VERBOSITY: debug
+        run: |
+          cd worker
+          pytest tests/ -v
     
   # =========================================================================
   # JOB 2: DOCKER IMAGE BUILD AND UPLOAD TO THE REGISTRY (ARTIFACT)
