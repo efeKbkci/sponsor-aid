@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+	  <PreserveCompilationContext>true</PreserveCompilationContext>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,6 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\SponsorAid.Api\SponsorAid.Api.csproj" />
     <ProjectReference Include="..\..\src\SponsorAid.Application\SponsorAid.Application.csproj" />
     <ProjectReference Include="..\..\src\SponsorAid.Infrastructure\SponsorAid.Infrastructure.csproj" />
   </ItemGroup>

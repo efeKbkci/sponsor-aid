@@ -5,27 +5,6 @@ namespace SponsorAid.Application.Features.Registrations.Common;
 
 public static class RegistrationSemanticCatalog
 {
-    // =========================================================================
-    // 1. KÜRESEL VE BAĞLAMSAL KOMUTLAR
-    // =========================================================================
-    public static readonly IReadOnlyList<MatchCandidate> BotCommands = new List<MatchCandidate>
-    {
-        new(nameof(BotCommand.StartBot), "/start",
-            ["başla", "bot başlat", "sistemi aç", "başlayalım mı", "merhaba", "selam"]),
-
-        new(nameof(BotCommand.NewRegistration), "/new",
-            ["yeni kayıt", "yeni başla", "kaydı başlat", "yeni bir form", "ilk kez başvurucu", "henüz kaydım yok"]),
-
-        new(nameof(BotCommand.ContinueRegistration), "/continue",
-            ["devam et", "kaldığı yerden devam", "sonraki adım", "devamını yap", "tamamla"]),
-
-        new(nameof(BotCommand.CancelRegistration), "/cancel",
-            ["iptal et", "vazgeç", "çık", "sıfırla", "baştan başla", "iptal etmek istiyorum"]),
-
-        new(nameof(BotCommand.UpdateRegistration), "/update",
-            ["güncelle", "değiştir", "bilgisini düzelt", "bilgileri güncelleştir", "revize et", "düzeltme yap"])
-    };
-
     public static readonly IReadOnlyList<MatchCandidate> UpdateTargets = new List<MatchCandidate>
     {
         new("applicantrole", "Başvuran Rolü",
