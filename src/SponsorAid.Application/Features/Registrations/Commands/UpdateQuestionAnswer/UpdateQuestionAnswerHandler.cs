@@ -10,6 +10,9 @@ using static System.Net.Mime.MediaTypeNames;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.UpdateQuestionAnswer;
 
+/// <summary>
+/// Handles field updates by resolving target questionnaire items via semantic matching and re-triggering the questionnaire.
+/// </summary>
 public class UpdateQuestionAnswerHandler(
     IDraftStateRepository draftRepository,
     IUserNotifier notifier,
@@ -28,42 +31,34 @@ public class UpdateQuestionAnswerHandler(
     {
         var draft = await _draftRepository.GetAsync(request.RegistrationKey, cancellationToken);
 
-        // -- Güncelleme işlemine izin verilip verilmeyeceğini kontrol et -- //
-
         if (draft == null)
         {
             await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_NoActiveRegistration"]);
             return;
         }
 
-        // 1. Durum Kontrolü: Kullanıcı anket aşamasına gelmiş mi?
         if (draft.CurrentStep < RegistrationStep.WaitingForQuestions)
         {
             await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_RegistrationNotInQuestionnaire"]);
             return;
         }
 
-        // 2. Eğer başvuru önceden tamamlanmışsa (Completed) güncellemeye izin verilmez.
         if (draft.CurrentStep == RegistrationStep.Completed)
         {
             await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_CompletedRegistrationCannotBeUpdated"]);
             return;
         }
 
-        // -- Kullanıcının hangi soruyu güncellemek istediğini öğren -- //
-
-        // Bayrak = 1 olduğu sürece girdiler bu sınıfa yönlendirilir.
+        // Flag routes subsequent free-text chat input directly to target field resolution.
         draft.IsWaitingForUpdateFieldSelection = true; 
         await _draftRepository.SaveAsync(draft, cancellationToken);
 
-        // Kullanıcı güncelle butonuna basmıştır. Şimdi alan bilgisi sorulacak.
         if (string.IsNullOrWhiteSpace(request.UserInput))
         {
             await _notifier.SendMessageAsync(request.ChatId, _localizer["Prompt_WhichInformationToUpdate"]);
             return;
         }
 
-        // -- Kullanıcının hangi soruyu güncellemek istediğini öğrendikten sonra işlemi başlat -- //
         if (!string.IsNullOrWhiteSpace(request.UserInput))
         {
             var userInput = request.UserInput.Trim().Replace('İ', 'i');
@@ -75,6 +70,7 @@ public class UpdateQuestionAnswerHandler(
                 return;
             }
 
+            // Resolves user input to a questionnaire field target using natural language semantic similarity.
             var targetMatch = await _semanticMatcher.FindBestMatchAsync(
                 request.UserInput, 
                 RegistrationSemanticCatalog.UpdateTargets, 
@@ -87,15 +83,12 @@ public class UpdateQuestionAnswerHandler(
                 await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_UpdateFieldNotFound"]);
                 return;
             }
-
-            // Güncellenmek istenen alan tespit edildi. 
             else
             {
                 _targetKey = targetMatch.Key;
                 draft.IsWaitingForUpdateFieldSelection = false;
                 await draftRepository.SaveAsync(draft, cancellationToken);
             }
-            
         }
         else
         {
@@ -103,7 +96,6 @@ public class UpdateQuestionAnswerHandler(
             return;
         }
 
-        // -- Güncelleme işlemi başlatılıyor -- //
         var (success, messageKey, questionLabelKey) = draft.ResetQuestionAnswer(_targetKey);
         var message = success
             ? _localizer[messageKey, _localizer[questionLabelKey].Value].Value
@@ -116,7 +108,6 @@ public class UpdateQuestionAnswerHandler(
             return;
         }
 
-        // 4. Eğer başvuru onay bekliyorsa, tekrar sorulacak sorulara geçiş yap.
         if (draft.CurrentStep == RegistrationStep.WaitingForConfirmation)
         {
             draft.SetStep(RegistrationStep.WaitingForQuestions);
@@ -125,7 +116,7 @@ public class UpdateQuestionAnswerHandler(
         await _draftRepository.SaveAsync(draft, cancellationToken);
         await _notifier.SendMessageAsync(request.ChatId, message);
 
-        // 4. Doğrudan şelaleyi boş metinle tetikle -> Sistem sıfırlanan soruyu butonlu/mesajlı anında tekrar sorar!
+        // Triggers questionnaire handler with empty text to immediately re-prompt for the cleared field.
         await _mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey), cancellationToken);
     }
 }

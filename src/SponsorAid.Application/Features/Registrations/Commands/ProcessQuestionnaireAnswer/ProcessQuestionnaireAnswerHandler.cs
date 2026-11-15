@@ -9,6 +9,9 @@ using SponsorAid.Domain.Enums;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.ProcessQuestionnaireAnswer;
 
+/// <summary>
+/// Executes the questionnaire waterfall flow, validates incoming answers, and prompts for missing applicant details.
+/// </summary>
 public class ProcessQuestionnaireAnswerHandler(
     IDraftStateRepository draftRepository,
     IUserNotifier notifier,
@@ -25,16 +28,13 @@ public class ProcessQuestionnaireAnswerHandler(
         var draft = await _draftRepository.GetAsync(request.RegistrationKey, cancellationToken);
         if (draft == null) throw new KeyNotFoundException($"Draft with key '{request.RegistrationKey}' not found.");
 
-        // 2. TELEGRAM CEVABI İSE ŞELALEYİ ÇALIŞTIR
         string text = request.AnswerText?.Trim() ?? string.Empty;
 
-        // 1. BAŞVURAN ROLÜ
         if (draft.Guardian.ApplicantRole == null)
         {
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<ApplicantRole>(text, out var parsedRole))
             {
                 draft.ApplyUpdates(new() { { "GuardianApplicantRole", text } });
-                // 🚀 YENİ: Başarılı kayıttan sonra butonları silip yeşil tik koy!
                 string label = _localizer[$"Option_ApplicantRole_{parsedRole}"].Value;
                 await MarkAsAnsweredIfCallback(draft.ChatId, request.CallbackMessageId, _localizer["Question_ApplicantRole"], label);
                 text = "";
@@ -47,7 +47,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 2. CİNSİYET
         if (draft.Guardian.Gender == null)
         {
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<Gender>(text, out var parsedGender))
@@ -65,7 +64,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 3. MEDENİ DURUM
         if (draft.Guardian.MaritalStatus == null)
         {
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<MaritalStatus>(text, out var parsedMaritalStatus))
@@ -83,7 +81,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 4. EĞİTİM DÜZEYİ
         if (draft.Guardian.EducationLevel == null)
         {
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<EducationLevel>(text, out var parsedEducation))
@@ -104,7 +101,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 4.5. EĞİTİM DURUMU
         if (draft.Guardian.EducationStatus == null)
         {
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<EducationStatus>(text, out var parsedEducationStatus))
@@ -127,7 +123,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 5. YETİME YAKINLIK DERECESİ
         if (draft.Guardian.DegreeOfKinship == null)
         {
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<DegreeOfKinship>(text, out var parsedKinship))
@@ -149,7 +144,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 6. VASİ MESLEK
         if (string.IsNullOrEmpty(draft.Guardian.Profession))
         {
             if (!string.IsNullOrEmpty(text)) { draft.ApplyUpdates(new() { { "GuardianProfession", text } }); text = ""; }
@@ -161,8 +155,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 7. VASİ TELEFON NUMARASI
-        // 🚀 DİKKAT: Try-Catch YOK! Hata olursa ExceptionHandlingBehavior yakalayıp kullanıcıya fırlatacak.
         if (draft.Guardian.PhoneNumber == null)
         {
             if (!string.IsNullOrEmpty(text)) { draft.ApplyUpdates(new() { { "GuardianPhoneNumber", text } }); text = ""; }
@@ -174,7 +166,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 8. AİLEDE YAŞAYAN KİŞİ SAYISI
         if (draft.FamilyFinancial.FamilyMemberCount == null)
         {
             if (!string.IsNullOrEmpty(text) && int.TryParse(text, out _)) { draft.ApplyUpdates(new() { { "FamilyMemberCount", text } }); text = ""; }
@@ -186,19 +177,18 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 9. BABA MESLEĞİ
         if (draft.Father.Profession == null)
         {
-            bool isSemanticMatch = false; // 🚀 EŞLEŞME BAYRAĞI
+            bool isSemanticMatch = false;
 
-            // Serbest metin geldiyse ve enum ile birebir eşleşmiyorsa Python modeline danış
+            // Consults semantic matcher service to map free text input to standard profession enum keys.
             if (!string.IsNullOrEmpty(text) && !Enum.TryParse<FatherProfession>(text, out _))
             {
                 var match = await _semanticMatcher.FindBestMatchAsync(text, RegistrationSemanticCatalog.FatherProfessions, 0.65f, cancellationToken);
                 if (match != null)
                 {
-                    text = match.Key; // Örn: text "Worker" haline gelir
-                    isSemanticMatch = true; // 🚀 Yapay zeka devrede
+                    text = match.Key;
+                    isSemanticMatch = true;
                 }
             }
 
@@ -208,7 +198,6 @@ public class ProcessQuestionnaireAnswerHandler(
                 string label = _localizer[$"Option_FatherProfession_{parsedProfession}"].Value;
                 await MarkAsAnsweredIfCallback(draft.ChatId, request.CallbackMessageId, _localizer["Question_FatherProfession"], label);
 
-                // 🚀 YENİ: Eşleşme yapıldıysa kullanıcıya bilgi ver
                 if (isSemanticMatch)
                 {
                     await _notifier.SendMessageAsync(draft.ChatId, _localizer["Info_SemanticMatchSaved", label].Value);
@@ -218,7 +207,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
             else
             {
-                // 🚀 YENİ EKLENEN KONTROL: Kullanıcı bir metin gönderdiyse ama hiçbir şeyle eşleşmediyse uyar!
                 if (!string.IsNullOrEmpty(text))
                 {
                     await _notifier.SendMessageAsync(draft.ChatId, _localizer["Error_InvalidAnswer"].Value);
@@ -231,18 +219,18 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 10. BABA ÖLÜM NEDENİ
         if (draft.Father.DeathReason == null)
         {
-            bool isSemanticMatch = false; // 🚀 EŞLEŞME BAYRAĞI
+            bool isSemanticMatch = false;
 
+            // Resolves non-exact natural language phrases to standardized death reason categories.
             if (!string.IsNullOrEmpty(text) && !Enum.TryParse<FatherDeathReason>(text, out _))
             {
                 var match = await _semanticMatcher.FindBestMatchAsync(text, RegistrationSemanticCatalog.FatherDeathReasons, 0.65f, cancellationToken);
                 if (match != null)
                 {
-                    text = match.Key; // Örn: text "NaturalDeath" haline gelir
-                    isSemanticMatch = true; // 🚀 Yapay zeka devrede
+                    text = match.Key;
+                    isSemanticMatch = true;
                 }
             }
 
@@ -252,7 +240,6 @@ public class ProcessQuestionnaireAnswerHandler(
                 string label = _localizer[$"Option_FatherDeathReason_{parsedDeathReason}"].Value;
                 await MarkAsAnsweredIfCallback(draft.ChatId, request.CallbackMessageId, _localizer["Question_FatherDeathReason"], label);
 
-                // 🚀 YENİ: Eşleşme yapıldıysa kullanıcıya bilgi ver
                 if (isSemanticMatch)
                 {
                     await _notifier.SendMessageAsync(draft.ChatId, _localizer["Info_SemanticMatchSaved", label].Value);
@@ -262,7 +249,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
             else
             {
-                // 🚀 YENİ EKLENEN KONTROL: Kullanıcı anlamsız bir metin gönderdiyse uyar!
                 if (!string.IsNullOrEmpty(text))
                 {
                     await _notifier.SendMessageAsync(draft.ChatId, _localizer["Error_InvalidAnswer"].Value);
@@ -275,7 +261,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 11. ENGELLİ/HASTA BİREY SİLSİLESİ
         if (draft.DisabledMember == null || draft.DisabledMember.Name == null)
         {
             if (text == "Yok") { draft.ApplyUpdates(new() { { "DisabledName", "Yok" } }); text = ""; }
@@ -326,7 +311,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 12. KONUT DURUMU
         if (draft.FamilyFinancial.HousingStatus == null)
         {
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<HousingStatus>(text, out var parsedHousingStatus))
@@ -344,7 +328,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 13. SOSYAL GÜVENCE
         if (draft.FamilyFinancial.SocialSecurity == null)
         {
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<SocialSecurity>(text, out var parsedSocialSecurity))
@@ -362,7 +345,6 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 14. GELİR DURUMU
         if (draft.FamilyFinancial.IncomeStatus == null)
         {
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<IncomeStatus>(text, out var parsedIncomeStatus))
@@ -380,21 +362,18 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // 15. AYLIK GELİR
         if (draft.FamilyFinancial.Income == null)
         {
             if (!string.IsNullOrEmpty(text) && int.TryParse(text, out _)) { draft.ApplyUpdates(new() { { "Income", text } }); text = ""; }
             if (draft.FamilyFinancial.Income == null) { await _notifier.SendMessageAsync(draft.ChatId, _localizer["Question_MonthlyIncome"]); await _draftRepository.SaveAsync(draft, cancellationToken); return; }
         }
 
-        // 16. AYLIK GİDER
         if (draft.FamilyFinancial.Expense == null)
         {
             if (!string.IsNullOrEmpty(text) && int.TryParse(text, out _)) { draft.ApplyUpdates(new() { { "Expense", text } }); text = ""; }
             if (draft.FamilyFinancial.Expense == null) { await _notifier.SendMessageAsync(draft.ChatId, _localizer["Question_MonthlyExpense"]); await _draftRepository.SaveAsync(draft, cancellationToken); return; }
         }
 
-        // 17. IBAN - FİNAL
         if (draft.Guardian.Iban == null)
         {
             if (!string.IsNullOrEmpty(text)) { draft.ApplyUpdates(new() { { "GuardianIban", text } }); text = ""; }
@@ -407,7 +386,7 @@ public class ProcessQuestionnaireAnswerHandler(
             }
             else
             {
-                // TÜM SORULAR BİTTİ -> ÖZET VE ONAY AŞAMASINA GEÇİYORUZ
+                // Transitions workflow to confirmation once all questionnaire fields have valid values.
                 draft.GenerateAutomatedDetails(_localizer);
                 draft.SetStep(RegistrationStep.WaitingForConfirmation);
                 await _draftRepository.SaveAsync(draft, cancellationToken);
@@ -417,11 +396,9 @@ public class ProcessQuestionnaireAnswerHandler(
             }
         }
 
-        // Kod buraya kadar 'return' etmeden ulaştıysa, kullanıcının cevaplaması gereken SIFIR soru kalmıştır.
+        // Ensures users reaching the end of the question list are always guided to registration confirmation.
         if (draft.CurrentStep != RegistrationStep.Completed)
         {
-            // Belki kullanıcı güncellemeyle geldi, belki /continue ile geldi, belki ilk kez soruları bitirdi.
-            // Fark etmez; adım mutlaka WaitingForConfirmation olmalı ve güncel özet ekrana basılmalı!
             draft.SetStep(RegistrationStep.WaitingForConfirmation);
             await _draftRepository.SaveAsync(draft, cancellationToken);
             await SendSummaryConfirmationAsync(draft);
@@ -439,7 +416,6 @@ public class ProcessQuestionnaireAnswerHandler(
         await _notifier.SendQuestionWithButtonsAsync(draft.ChatId, summaryText, buttons);
     }
 
-    // Yardımcı Metot: Sadece buton tıklamasıyla geldiyse mesajı günceller
     private async Task MarkAsAnsweredIfCallback(long chatId, int? messageId, string question, string answerLabel)
     {
         if (messageId.HasValue)

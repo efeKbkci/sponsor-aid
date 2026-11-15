@@ -3,5 +3,7 @@ using SponsorAid.Application.Interfaces;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.StartRegistration;
 
-// Bu komut sonucunda geriye bir RegistrationKey döneceği için IRequest<string> kullanıyoruz.
+/// <summary>
+/// Represents a command to initialize a new registration session and generate its tracking key.
+/// </summary>
 public record StartRegistrationCommand(long ChatId) : IRequest<string>, IChatCommand;

@@ -4,12 +4,15 @@ using SponsorAid.Integration.Contracts;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.SaveProcessedDocument;
 
+/// <summary>
+/// Represents a command conveying document processing results received from background workers.
+/// </summary>
 public record SaveProcessedDocumentCommand(
     string RegistrationKey,
-    string DocumentType, // "PopulationRegistry", "Residence", "IdentityFront", "IdentityBack", "MergedIdentity"
-    bool IsSuccess,      // Worker okuyabildi mi?
-    string? ErrorMessage, // Okuyamadıysa neden? (Bulanık, format hatalı vb.)
-    string? SavedFilePath, // Dosyanın sunucudaki konumu
+    string DocumentType,
+    bool IsSuccess,
+    string? ErrorMessage,
+    string? SavedFilePath,
 
     PopulationRegistryData? PopulationData = null,
     ResidenceData? ResidenceData = null,

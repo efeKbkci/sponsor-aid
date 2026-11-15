@@ -11,6 +11,9 @@ using System.Text;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.StartRegistration;
 
+/// <summary>
+/// Handles creation of a new registration draft with a distinct, readable 6-character alphanumeric tracking key.
+/// </summary>
 public class StartRegistrationHandler(
     IDraftStateRepository draftRepository, 
     IRegistrationTrackingRepository trackingRepository,
@@ -25,20 +28,16 @@ public class StartRegistrationHandler(
 
     public async Task<string> Handle(StartRegistrationCommand request, CancellationToken cancellationToken)
     {
-        // 1. Çalışanların aralarında WhatsApp'tan vs. kolayca paylaşabileceği 
-        // 6 haneli okunabilir bir anahtar üretiyoruz (Örn: "7F3B9A")
-        // GUID 16 karakter içerirken chars dizisi 36 karakter içerir. Collision olasılığı çok daha düşecektir. 
         const string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         string generatedKey;
 
-        // PNR Kuralı: Anahtarın sadece rakamlardan VEYA sadece harflerden oluşmasını engelle
+        // Requires a mix of letters and digits to prevent collision with pure numeric identifiers or words.
         do
         {
             generatedKey = RandomNumberGenerator.GetString(chars, 6);
         }
         while (generatedKey.All(char.IsDigit) || generatedKey.All(char.IsLetter));
 
-        // 2. Sepeti yeni anahtarla oluşturuyoruz
         var newDraft = new RegistrationDraftState
         {
             RegistrationKey = generatedKey,
@@ -46,12 +45,9 @@ public class StartRegistrationHandler(
             CreatedAt = DateTime.UtcNow
         };
 
-        // 3. Kaydediyoruz
         await _draftRepository.SaveAsync(newDraft, cancellationToken);
-        // 2. Takip tablosuna 'Devam Ediyor' olarak ekle (request.ChatId eklendi)
         await _trackingRepository.CreateAsync(generatedKey, request.ChatId, cancellationToken);
 
-        // 4. Anahtarı dış dünyaya (Bot'a) döndürüyoruz
         await _notifier.SendMessageAsync(request.ChatId, _localizer["Success_NewRegistrationStarted"]);
         return generatedKey;
     }
