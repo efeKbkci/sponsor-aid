@@ -1,0 +1,26 @@
+# Pull CPU-only PyTorch wheels (~200 MB) to avoid multi-GB CUDA runtime dependencies in worker containers
+--extra-index-url https://download.pytorch.org/whl/cpu 
+
+# --- API and Env Management ---
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+
+# --- Message Queue and Network ---
+pika
+aiohttp
+protobuf            # Runtime required to serialize/deserialize generated events_pb2.py contracts
+
+# --- Image and PDF Processing ---
+opencv-contrib-python-headless==4.10.0.84  # Provides cv2.wechat_qrcode (contrib) without X11 GUI libraries (headless) and pins OpenCV 4.x compatibility
+numpy<2.3.0  # Cap NumPy below 2.3.0 for ABI/wheel compatibility with pinned OpenCV 4.10.x / PyTorch
+Pillow
+pdfplumber
+
+# --- AI Models ---
+ultralytics         # YOLO based id_segmenter and id_orientation
+sentence-transformers # Turkish NLI Semantic Matcher
+
+# --- Test ---
+pytest
