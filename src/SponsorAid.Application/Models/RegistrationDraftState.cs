@@ -14,6 +14,9 @@ using System.Text;
 
 namespace SponsorAid.Application.Models;
 
+/// <summary>
+/// Holds the in-memory draft state of an ongoing registration workflow.
+/// </summary>
 public class RegistrationDraftState
 {
     public string RegistrationKey { get; set; } = string.Empty;
@@ -21,18 +24,12 @@ public class RegistrationDraftState
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    // Aynı chatid altında birden fazla kayıt varsa, sadece 1 tanesi aktif olabilir.
     public bool IsActive { get; set; } = true;
 
-    // Kullanıcı "Bilgi Güncelle" butonuna bastığında 1 olur
-    // Flag 1 ise, kullanıcıdan gelen metin tabanlı girdiler NLI modeline iletilir. 
     public bool IsWaitingForUpdateFieldSelection { get; set; } = false;
 
-    // Kullanıcı "Kayıt Tamamlama" butonuna bastığında 1 olur
-    // Flag 1 ise, kullanıcıdan gelen eski kaydın anahtarları ContinueReg özelliğine iletilir.
     public bool IsWaitingForRegistrationKey { get; set; } = false;
 
-    // --- FOLDERS (Composition) ---
     public GuardianDraft Guardian { get; set; } = new();
     public List<ChildDraft> Children { get; set; } = new();
     public FatherDraft Father { get; set; } = new();
@@ -41,9 +38,7 @@ public class RegistrationDraftState
     public SystemDocumentsDraft SystemDocuments { get; set; } = new();
     public AddressDraft ResidenceAddress { get; set; } = new();
 
-    // --- REGISTRATION STEP TRACKING ---
     public RegistrationStep CurrentStep { get; set; } = RegistrationStep.WaitingForGuardianId;
-    // Şu an kimin kimlik belgesini istiyoruz? (Varsayılan olarak Vasi'den başlıyoruz)
     public string? CurrentDocumentTargetName { get; set; } = "Vasi";
 
     private readonly Dictionary<string, Action<string>> _updateStrategies;
@@ -52,8 +47,7 @@ public class RegistrationDraftState
     {
         _updateStrategies = new Dictionary<string, Action<string>>(StringComparer.OrdinalIgnoreCase)
         {
-            // --- GUARDIAN UPDATES ---
-            { "GuardianIdNumber", value => Guardian.IdNumber = new IdNumber(value) }, // ValueObject otomatik doğrulayacak
+            { "GuardianIdNumber", value => Guardian.IdNumber = new IdNumber(value) },
             { "GuardianApplicantRole", value => Guardian.ApplicantRole = Enum.Parse<ApplicantRole>(value, true) },
             { "GuardianGender", value => Guardian.Gender = Enum.Parse<Gender>(value, true) },
             { "GuardianMaritalStatus", value => Guardian.MaritalStatus = Enum.Parse<MaritalStatus>(value, true) },
@@ -61,14 +55,12 @@ public class RegistrationDraftState
             { "GuardianEducationStatus", value => Guardian.EducationStatus = Enum.Parse<EducationStatus>(value, true) },
             { "GuardianDegreeOfKinship", value => Guardian.DegreeOfKinship = Enum.Parse<DegreeOfKinship>(value, true) },
             { "GuardianProfession", value => Guardian.Profession = value.Trim() },
-            { "GuardianPhoneNumber", value => Guardian.PhoneNumber = new PhoneNumber(value) }, // ValueObject validation
-            { "GuardianIban", value => Guardian.Iban = new Iban(value) }, // ValueObject validation
+            { "GuardianPhoneNumber", value => Guardian.PhoneNumber = new PhoneNumber(value) },
+            { "GuardianIban", value => Guardian.Iban = new Iban(value) },
 
-            // --- FATHER UPDATES ---
             { "FatherProfession", value => Father.Profession = Enum.Parse<FatherProfession>(value, true) },
             { "FatherDeathReason", value => Father.DeathReason = Enum.Parse<FatherDeathReason>(value, true) },
 
-            // --- FAMILY & FINANCIAL UPDATES ---
             { "FamilyMemberCount", value => FamilyFinancial.FamilyMemberCount = int.Parse(value) },
             { "HousingStatus", value => FamilyFinancial.HousingStatus = Enum.Parse<HousingStatus>(value, true) },
             { "SocialSecurity", value => FamilyFinancial.SocialSecurity = Enum.Parse<SocialSecurity>(value, true) },
@@ -76,15 +68,13 @@ public class RegistrationDraftState
             { "Income", value => FamilyFinancial.Income = int.Parse(value) },
             { "Expense", value => FamilyFinancial.Expense = int.Parse(value) },
 
-            // --- DISABLED MEMBER UPDATES ---
             { "DisabledName", value => { EnsureDisabledMemberExists(); DisabledMember!.Name = value; } },
             { "DisabledDiagnosis", value => { EnsureDisabledMemberExists(); DisabledMember!.Diagnosis = value; } },
             { "DisabledDiseaseStatus", value => { EnsureDisabledMemberExists(); DisabledMember!.DiseaseStatus = value; } },
             { "DisabledTreatmentStatus", value => { EnsureDisabledMemberExists(); DisabledMember!.TreatmentStatus = Enum.Parse<TreatmentStatus>(value, true); } },
             { "DisabledDescription", value => { EnsureDisabledMemberExists(); DisabledMember!.Description = value; } },
 
-            // --- AUTOMATION UPDATES ---
-            { "Petition", value => SystemDocuments.Petition = new Petition(value) } // ValueObject validation (min 300 chars)
+            { "Petition", value => SystemDocuments.Petition = new Petition(value) }
         };
     }
 
@@ -98,11 +88,9 @@ public class RegistrationDraftState
             }
         }
     }
-    // Nüfus belgesi verilerini işleyip, Vasi, Baba ve Çocukları eşleştirir ve draft state'i günceller.
+
     public void ApplyPopulationRegistryResult(PopulationRegistryData data)
     {
-        // 1. GUARDIAN (VASİ) TESPİTİ
-        // 🚀 ARTIK KUSURSUZ EŞLEŞTİRME: Elimizdeki kesin TC No ile tablodaki TC'yi arıyoruz
         var guardianPerson = data.People.FirstOrDefault(p => p.IdNumber == Guardian.IdNumber?.Value);
 
         if (guardianPerson == null)
@@ -110,17 +98,15 @@ public class RegistrationDraftState
             throw new DocumentValidationException("Error_GuardianIdMismatch", Guardian.IdNumber?.Value ?? string.Empty);
         }
 
-        // Kural: Nüfus belgesini Vasi KENDİSİ almış olmalıdır.
+        // The guardian must retrieve the document as the primary applicant to prove legal guardianship.
         if (!IsTurkishMatch(guardianPerson.Kinship, "KENDİSİ"))
         {
             throw new DocumentValidationException("Error_GuardianMustAppearAsSelf");
         }
 
-        // 🚀 İSİM ARTIK %100 RESMİ OLARAK BELGEDEN ALINIYOR (Kullanıcının harf hatası yapma ihtimali bitti)
         Guardian.Name = $"{guardianPerson.FirstName} {guardianPerson.LastName}";
         Guardian.BirthDate = DateOnly.Parse(guardianPerson.BirthDate);
 
-        // --- BABA TESPİTİ ---
         var fatherPerson = data.People.FirstOrDefault(p =>
             IsTurkishMatch(p.Kinship, "EŞİ") ||
             IsTurkishMatch(p.Kinship, "BABASI"));
@@ -138,7 +124,6 @@ public class RegistrationDraftState
             }
         }
 
-        // --- ÇOCUK TESPİTİ ---
         var children = data.People.Where(p =>
             IsTurkishMatch(p.Kinship, "OĞLU") ||
             IsTurkishMatch(p.Kinship, "KIZI"));
@@ -146,6 +131,7 @@ public class RegistrationDraftState
         foreach (var child in children)
         {
             var birthDate = DateOnly.Parse(child.BirthDate);
+            // Support programs only accept children under thirteen years of age.
             if (birthDate.Year < DateTime.Now.Year - 13) continue;
 
             Children.Add(new ChildDraft
@@ -164,7 +150,7 @@ public class RegistrationDraftState
 
     public void ApplyResidenceDocumentResult(ResidenceData data)
     {
-        // 🚀 KURAL 4: İkametgahtan gelen Kimlik Numarası, Vasiye ait olmalıdır.
+        // Verifies that the residence certificate belongs to the registered guardian.
         if (Guardian.IdNumber == null || data.IdNumber != Guardian.IdNumber.Value)
         {
             throw new DocumentValidationException("Error_ResidenceIdMismatch", data.IdNumber);
@@ -185,11 +171,11 @@ public class RegistrationDraftState
         DisabledMember ??= new DisabledMemberDraft();
     }
 
-    // Durumu değiştirmek için dışarıya açık kontrollü bir metot
     public void SetStep(RegistrationStep step)
     {
         CurrentStep = step;
     }
+
     public void RevertProcessingState()
     {
         if (CurrentStep == RegistrationStep.ProcessingPopulationRegistry)
@@ -210,20 +196,15 @@ public class RegistrationDraftState
         CurrentDocumentTargetName = targetName;
     }
 
-    // Kimlik bilgisi istenen kişinin ismini döner.
     public string? GetNextPersonNeedingIdentity()
     {
-        // 1. Vasi kimliği eksikse, hedef Vasi'dir.
         if (string.IsNullOrEmpty(Guardian.IdentityDocumentPath))
             return "Vasi";
 
-        // 2. Çocuklardan kimliği eksik olan ilk çocuğu bul. 
-        // (Çocuklar Nüfus belgesi işlendiğinde eklendiği için bu liste dolu olacaktır)
         var pendingChild = Children.FirstOrDefault(c => string.IsNullOrEmpty(c.IdentityDocumentPath));
         if (pendingChild != null && pendingChild.Name != null)
             return pendingChild.Name;
 
-        // Herkesin kimliği tamamsa null döner (Döngü biter)
         return null;
     }
 
@@ -244,12 +225,10 @@ public class RegistrationDraftState
         var trCulture = new CultureInfo("tr-TR");
         return string.Compare(text1.Trim(), text2.Trim(), trCulture, CompareOptions.IgnoreCase) == 0;
     }
-    /// <summary>
-    /// Vasi dilekçesini ve çocukların hobi/hayal bilgilerini otomatik oluşturup atar.
-    // </summary>
+
     public void GenerateAutomatedDetails(IStringLocalizer<BotMessages> localizer)
     {
-        // 1. DİLEKÇE ŞABLONU (300+ Karakter Kuralını Karşılar)
+        // Generates standard petition content and assigns default hobbies to satisfy registration requirements.
         string deathDateStr = Father.DeathDate?.ToString("dd.MM.yyyy") ?? "belirtilen tarihte";
         int childCount = Children.Count;
 
@@ -257,7 +236,6 @@ public class RegistrationDraftState
         
         SystemDocuments.Petition = new Petition(petitionText);
 
-        // 2. ÇOCUKLARIN HOBİ VE GELECEK HAYALLERİ LİSTESİ
         var hobbiesPool = new[]
         {
             localizer["Generated_ChildHobby_ReadingAndDrawing"].Value,
@@ -280,13 +258,11 @@ public class RegistrationDraftState
         for (int i = 0; i < Children.Count; i++)
         {
             var child = Children[i];
-            // Eğer daha önce atanmadıysa havuzdan sırayla ata
             child.Hobbies ??= hobbiesPool[i % hobbiesPool.Length];
             child.FutureDream ??= dreamsPool[i % dreamsPool.Length];
         }
     }
 
-    // Belirtilen soru anahtarının daha önce cevaplanıp cevaplanmadığını denetler ve cevabı sıfırlar.
     public (bool Success, string MessageKey, string QuestionLabelKey) ResetQuestionAnswer(string key)
     {
         var normalizedKey = key.Trim().ToLowerInvariant();
@@ -414,7 +390,6 @@ public class RegistrationDraftState
 
     public (RegistrationMetaDto, RegistrationDto) ExportRegistrationData()
     {
-        // 1. Meta Verisi (Huntsville, TX Saat Dilimi ile)
         var meta = new RegistrationMetaDto(
             RegistrationKey,
             ChatId,
@@ -422,7 +397,6 @@ public class RegistrationDraftState
             FormatToTexasTime(UpdatedAt)
         );
 
-        // 2. Vasi Ayrıştırması (Tarih ve Enumlar string'e çevriliyor)
         var guardian = new GuardianDto(
             Name: Guardian.Name,
             IdNumber: Guardian.IdNumber?.Value,
@@ -438,7 +412,6 @@ public class RegistrationDraftState
             Iban: Guardian.Iban?.Value
         );
 
-        // 3. Çocukların Ayrıştırması
         var children = Children.Select(c => new ChildDto(
             Name: c.Name,
             IdNumber: c.IdNumber?.Value,
@@ -447,7 +420,6 @@ public class RegistrationDraftState
             FutureDream: c.FutureDream
         )).ToList();
 
-        // 4. Baba Ayrıştırması
         var father = new FatherDto(
             Name: Father.Name,
             DeathDate: Father.DeathDate?.ToString("dd.MM.yyyy"),
@@ -455,7 +427,6 @@ public class RegistrationDraftState
             DeathReason: GetEnumDescription(Father.DeathReason)
         );
 
-        // 5. Finansal Durum Ayrıştırması
         var financial = new FamilyFinancialDto(
             FamilyMemberCount: FamilyFinancial.FamilyMemberCount,
             HousingStatus: GetEnumDescription(FamilyFinancial.HousingStatus),
@@ -466,7 +437,6 @@ public class RegistrationDraftState
             OtherIncome: FamilyFinancial.OtherIncome
         );
 
-        // 6. Engelli Birey Ayrıştırması
         DisabledMemberDto? disabled = DisabledMember == null ? null : new DisabledMemberDto(
             Name: DisabledMember.Name,
             Diagnosis: DisabledMember.Diagnosis,
@@ -475,7 +445,6 @@ public class RegistrationDraftState
             Description: DisabledMember.Description
         );
 
-        // 7. Saf Veri Modeli Birleştirmesi
         var data = new RegistrationDto(
             Guardian: guardian,
             Children: children,
@@ -489,10 +458,6 @@ public class RegistrationDraftState
         return (meta, data);
     }
 
-    // =========================================================
-    // YARDIMCI METOTLAR (Sadece Metin Formatlama İçin)
-    // =========================================================
-
     private static string? GetEnumDescription(Enum? value)
     {
         if (value == null) return null;
@@ -500,7 +465,6 @@ public class RegistrationDraftState
         var fieldInfo = value.GetType().GetField(value.ToString());
         var attribute = fieldInfo?.GetCustomAttribute<DescriptionAttribute>();
 
-        // Etiket varsa onu (örn: "Boşanmış"), yoksa varsayılan metni döner
         return attribute != null ? attribute.Description : value.ToString();
     }
 
@@ -514,12 +478,11 @@ public class RegistrationDraftState
         TimeZoneInfo targetTimeZone;
         try
         {
-            // Linux ortamları ve Docker için (IANA standardı)
             targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/Chicago");
         }
         catch (TimeZoneNotFoundException)
         {
-            // Windows üzerinde lokal geliştirme yapıyorsan fallback (TX, Central Time bölgesindedir)
+            // Handles time zone conversion differences between Linux containers and Windows hosts.
             targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
         }
 
@@ -528,65 +491,79 @@ public class RegistrationDraftState
     }
 }
 
-// ====================================================================
-// NESTED DRAFT CLASSES
-// ====================================================================
-
+/// <summary>
+/// Represents temporary guardian details collected during registration.
+/// </summary>
 public class GuardianDraft
 {
     public string? Name { get; set; }
-    public IdNumber? IdNumber { get; set; } // ValueObject
+    public IdNumber? IdNumber { get; set; }
     public DateOnly BirthDate { get; set; }
-    public ApplicantRole? ApplicantRole { get; set; } // Enum
-    public Gender? Gender { get; set; } // Enum
-    public MaritalStatus? MaritalStatus { get; set; } // Enum
-    public EducationLevel? EducationLevel { get; set; } // Enum
-    public EducationStatus? EducationStatus { get; set; } // Enum
-    public DegreeOfKinship? DegreeOfKinship { get; set; } // Enum
+    public ApplicantRole? ApplicantRole { get; set; }
+    public Gender? Gender { get; set; }
+    public MaritalStatus? MaritalStatus { get; set; }
+    public EducationLevel? EducationLevel { get; set; }
+    public EducationStatus? EducationStatus { get; set; }
+    public DegreeOfKinship? DegreeOfKinship { get; set; }
     public string? Profession { get; set; }
-    public PhoneNumber? PhoneNumber { get; set; } // ValueObject
-    public Iban? Iban { get; set; } // ValueObject
+    public PhoneNumber? PhoneNumber { get; set; }
+    public Iban? Iban { get; set; }
     public string? IdentityDocumentPath { get; set; }
 }
 
+/// <summary>
+/// Represents temporary child details collected during registration.
+/// </summary>
 public class ChildDraft
 {
     public string Name { get; set; } = string.Empty;
-    public IdNumber? IdNumber { get; set; } // ValueObject
+    public IdNumber? IdNumber { get; set; }
     public DateOnly BirthDate { get; set; }
     public string? Hobbies { get; set; }
     public string? FutureDream { get; set; }
     public string? IdentityDocumentPath { get; set; }
 }
 
+/// <summary>
+/// Represents temporary deceased father details collected during registration.
+/// </summary>
 public class FatherDraft
 {
     public string? Name { get; set; }
     public DateOnly? DeathDate { get; set; }
-    public FatherProfession? Profession { get; set; } // Enum
-    public FatherDeathReason? DeathReason { get; set; } // Enum
+    public FatherProfession? Profession { get; set; }
+    public FatherDeathReason? DeathReason { get; set; }
 }
 
+/// <summary>
+/// Represents temporary family and financial information for eligibility assessment.
+/// </summary>
 public class FamilyFinancialDraft
 {
     public int? FamilyMemberCount { get; set; }
-    public HousingStatus? HousingStatus { get; set; } // Enum
-    public SocialSecurity? SocialSecurity { get; set; } // Enum
-    public IncomeStatus? IncomeStatus { get; set; } // Enum
+    public HousingStatus? HousingStatus { get; set; }
+    public SocialSecurity? SocialSecurity { get; set; }
+    public IncomeStatus? IncomeStatus { get; set; }
     public int? Income { get; set; }
     public int? Expense { get; set; }
     public int OtherIncome { get; set; } = 0;
 }
 
+/// <summary>
+/// Represents temporary information about a disabled or ill family member.
+/// </summary>
 public class DisabledMemberDraft
 {
     public string? Name { get; set; }
     public string? Diagnosis { get; set; }
     public string? DiseaseStatus { get; set; }
-    public TreatmentStatus? TreatmentStatus { get; set; } // Enum
+    public TreatmentStatus? TreatmentStatus { get; set; }
     public string? Description { get; set; }
 }
 
+/// <summary>
+/// Represents temporary address information collected during registration.
+/// </summary>
 public class AddressDraft
 {
     public string Country { get; set; } = "Türkiye";
@@ -596,6 +573,9 @@ public class AddressDraft
     public string? FullAddress { get; set; }
 }
 
+/// <summary>
+/// Holds file paths and text for uploaded or generated system documents.
+/// </summary>
 public class SystemDocumentsDraft
 {
     public string? PopulationRegistryDocumentPath { get; set; }
@@ -603,5 +583,5 @@ public class SystemDocumentsDraft
     public string? IdentityFrontPath { get; set; }
     public string? IdentityBackPath { get; set; }
     public string? MergedIdentityPath { get; set; }
-    public Petition? Petition { get; set; } // ValueObject
+    public Petition? Petition { get; set; }
 }

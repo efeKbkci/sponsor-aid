@@ -5,6 +5,9 @@ using SponsorAid.Application.Resources;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.GreetUser;
 
+/// <summary>
+/// Handles sending the initial greeting prompt to a user.
+/// </summary>
 public class GreetUserHandler(IUserNotifier notifier, IStringLocalizer<BotMessages> localizer) : IRequestHandler<GreetUserCommand>
 {
     public Task Handle(GreetUserCommand request, CancellationToken cancellationToken)

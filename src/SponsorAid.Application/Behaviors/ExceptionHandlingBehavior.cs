@@ -8,6 +8,9 @@ using SponsorAid.Domain.Exceptions;
 
 namespace SponsorAid.Application.Behaviors;
 
+/// <summary>
+/// Pipeline behavior that catches unhandled exceptions, rolls back draft states, and notifies the user.
+/// </summary>
 public class ExceptionHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
@@ -32,19 +35,17 @@ public class ExceptionHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<
     {
         try
         {
-            // 1. İSTEĞİ HANDLER'A GÖNDER (next metodu Handler'ı çalıştırır)
             return await next();
         }
         catch (Exception ex)
         {
-            // 2. EĞER HANDLER'DA HATA PATLARSA BURAYA DÜŞER
-
             long chatId;
             if (request is IRegistrationCommand registrationCommand)
             {
                 var draft = await _draftRepository.GetAsync(registrationCommand.RegistrationKey, cancellationToken);
                 if (draft == null) throw;
 
+                // Rolls back processing steps to allow the user to retry document submission.
                 draft.RevertProcessingState();
                 await _draftRepository.SaveAsync(draft, cancellationToken);
                 chatId = draft.ChatId;
@@ -54,6 +55,7 @@ public class ExceptionHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<
                 var draft = await _draftRepository.GetActiveByChatIdAsync(chatCommand.ChatId, cancellationToken);
                 if (draft != null)
                 {
+                    // Rolls back processing steps to allow the user to retry document submission.
                     draft.RevertProcessingState();
                     await _draftRepository.SaveAsync(draft, cancellationToken);
                 }
@@ -65,10 +67,9 @@ public class ExceptionHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<
                 throw;
             }
 
-            // 3. HATAYI KİMLİKLE VE KULLANICIYA BİLDİR
+            // User-facing business errors display localized messages, while system errors are masked.
             if (ex is SponsorAidException businessException)
             {
-                // BİZİM FIRLATTIĞIMIZ İŞ KURALI HATALARI: Kullanıcıya kibarca ilet.
                 var localizedMessage = businessException.Arguments.Count == 0
                     ? _localizer[businessException.Message]
                     : _localizer[businessException.Message, businessException.Arguments.ToArray()];
@@ -76,16 +77,12 @@ public class ExceptionHandlingBehavior<TRequest, TResponse> : IPipelineBehavior<
             }
             else
             {
-                // BEKLENMEYEN SİSTEM HATALARI (Örn: NullReference, Veritabanı kopması)
-                // Hatayı kullanıcıya GÖSTERME. Sadece logla ve genel bir mesaj at.
                 _logger.LogError(ex, "Sistem hatası oluştu. ChatId: {ChatId}", chatId);
 
                 await _notifier.SendMessageAsync(chatId, _localizer["Error_UnexpectedSystemError"].Value);
             }
 
-            // 4. İŞLEMİ SESSİZCE BİTİR 
-            // Hatayı en tepeye (API Controller'a) fırlatmıyoruz ki Controller Telegram'a "200 OK" dönebilsin 
-            // ve Telegram aynı mesajı/belgeyi sürekli tekrar tekrar göndermesin.
+            // Swallows the error so the webhook returns a success status code and stops webhook retries.
             return default!;
         }
     }

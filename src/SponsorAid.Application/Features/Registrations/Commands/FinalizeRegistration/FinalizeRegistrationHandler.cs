@@ -10,6 +10,9 @@ using SponsorAid.Domain.ValueObjects;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.FinalizeRegistration;
 
+/// <summary>
+/// Validates registration drafts, builds encrypted packages, dispatches them, and removes temporary data.
+/// </summary>
 public class FinalizeRegistrationHandler(
     IDraftStateRepository draftRepository,
     IRegistrationTrackingRepository trackingRepository,
@@ -33,37 +36,31 @@ public class FinalizeRegistrationHandler(
         if (draft == null)
             throw new SponsorAid.Domain.Exceptions.BusinessRuleException("Error_RegistrationNotFound", request.RegistrationKey);
 
-        // 1. ZORUNLU ALAN KONTROLLERİ VE DOMAIN DOĞRULAMASI
         EnsureRequiredFieldsAreFilled(draft);
         ValidateDomainRules(draft);
 
-        // 2. AES-256 ŞİFRELİ ZIP PAKETİ OLUŞTURULMASI
         var (archiveBytes, password) = await _archiveService.CreateEncryptedPackageAsync(draft, cancellationToken);
 
-        // 3. E-POSTA İLE DOSYA GÖNDERİMİ (A KİŞİSİNE)
+        // The archive and password are sent through separate channels to maintain security.
         await _dispatchService.SendEncryptedPackageAsync(
             draft.RegistrationKey,
             draft.Guardian.Name!,
             archiveBytes,
             cancellationToken);
 
-        // 4. AYRIK KANAL ÜZERİNDEN ŞİFRENİN GÖNDERİLMESİ
         await _dispatchService.SendPasswordAsync(
             draft.RegistrationKey,
             draft.Guardian.Name!,
             password,
             cancellationToken);
 
-        // 5. TAKİP TABLOSUNU "Tamamlandı" OLARAK GÜNCELLE
         await _trackingRepository.MarkAsCompletedAsync(request.RegistrationKey, cancellationToken);
 
-        // 6. GÜVENLİK TEMİZLİĞİ: GEÇİCİ DOSYALARI DİSKTEN KALICI OLARAK SİL (HARD DELETE)
+        // Deletes temporary files and draft records immediately after dispatch to protect personal data.
         DeleteUploadedFiles(draft);
 
-        // 7. TASLAĞI (DRAFT) VERİTABANINDAN SİL (HARD DELETE)
         await _draftRepository.DeleteAsync(request.RegistrationKey, cancellationToken);
 
-        // 8. KULLANICIYA BAŞARI BİLDİRİMİ
         await _notifier.SendMessageAsync(draft.ChatId,
             _localizer["Success_RegistrationFinalized", draft.RegistrationKey].Value);
     }
@@ -72,17 +69,14 @@ public class FinalizeRegistrationHandler(
     {
         var filesToDelete = new HashSet<string?>();
 
-        // Resmi Belgeler
         filesToDelete.Add(draft.SystemDocuments.PopulationRegistryDocumentPath);
         filesToDelete.Add(draft.SystemDocuments.ResidenceDocumentPath);
         filesToDelete.Add(draft.SystemDocuments.IdentityFrontPath);
         filesToDelete.Add(draft.SystemDocuments.IdentityBackPath);
         filesToDelete.Add(draft.SystemDocuments.MergedIdentityPath);
 
-        // Vasi Kimliği
         filesToDelete.Add(draft.Guardian.IdentityDocumentPath);
 
-        // Çocukların Kimlikleri
         foreach (var child in draft.Children)
         {
             filesToDelete.Add(child.IdentityDocumentPath);
@@ -149,7 +143,7 @@ public class FinalizeRegistrationHandler(
             guardian.AddChild(child);
         }
 
-        // 🚀 ÇÖZÜM 2: "Yok" kontrolü eklenerek sadece gerçekten hasta/engelli birey tanımlanmışsa eklenir.
+        // Adds a disabled member only when valid medical records were provided instead of placeholder values.
         if (draft.DisabledMember != null &&
             !string.IsNullOrWhiteSpace(draft.DisabledMember.Name) &&
             draft.DisabledMember.Name != "Yok" &&

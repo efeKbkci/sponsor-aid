@@ -3,5 +3,7 @@ using SponsorAid.Application.Interfaces;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.FinalizeRegistration;
 
-// Command to finalize an existing registration. Fill properties as needed.
+/// <summary>
+/// Command to validate, package, and finalize a completed registration draft.
+/// </summary>
 public record FinalizeRegistrationCommand(string RegistrationKey) : IRequest, IRegistrationCommand;
