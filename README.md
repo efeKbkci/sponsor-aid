@@ -6,7 +6,7 @@
 
 > **🔒 Security & Live Instance Policy:**
 >
-> Because this system processes sensitive Personally Identifiable Information (PII)—including national identity cards, family registry records, and financial data—and interfaces directly with official government verification portals, **the live Telegram bot is restricted to authorized personnel**, and custom-trained YOLO/Caffe model weights (`.pt`, `.caffemodel`) are excluded from public version control.
+> Because this system processes sensitive Personally Identifiable Information (PII)—including national identity cards, family registry records, and financial data—and interfaces directly with official government verification portals, **the live Telegram bot is restricted to authorized personnel**, and custom-trained YOLO model weights are excluded from public version control.
 >
 > **✅ Zero-Setup Local Verification:**
 >
