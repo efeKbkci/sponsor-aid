@@ -6,6 +6,9 @@ using System.Text;
 
 namespace SponsorAid.Domain.ValueObjects;
 
+/// <summary>
+/// Stores background information about the deceased father for orphan aid evaluation.
+/// </summary>
 public record FatherDetails
 {
     public string Name { get; init; }
@@ -18,6 +21,7 @@ public record FatherDetails
         if (string.IsNullOrWhiteSpace(name))
             throw new BusinessRuleException("Error_FatherNameRequired");
 
+        // The death date cannot be in the future because official death registration documents must already exist.
         if (deathDate > DateTime.Now)
             throw new BusinessRuleException("Error_FatherDeathDateCannotBeFuture");
 
