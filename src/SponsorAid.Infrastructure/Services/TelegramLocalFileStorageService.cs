@@ -4,6 +4,9 @@ using SponsorAid.Application.Interfaces;
 
 namespace SponsorAid.Infrastructure.Services;
 
+/// <summary>
+/// Downloads and stores media files received from Telegram bot chats on the local file system.
+/// </summary>
 public class TelegramLocalFileStorageService : IFileStorageService
 {
     private readonly HttpClient _httpClient;
@@ -14,7 +17,7 @@ public class TelegramLocalFileStorageService : IFileStorageService
     {
         _httpClient = httpClient;
 
-        // Önce Configuration'dan, bulamazsa doğrudan Sistem Çevre Değişkenlerinden okumayı dener.
+        // Reads the Telegram bot token from configuration with environment variable fallback.
         _botToken = configuration["TELEGRAM_TOKEN"]
             ?? Environment.GetEnvironmentVariable("TELEGRAM_TOKEN")
             ?? throw new ArgumentNullException("TELEGRAM_TOKEN eksik! Lütfen .env dosyasını kontrol edin.");
@@ -29,8 +32,7 @@ public class TelegramLocalFileStorageService : IFileStorageService
 
     public async Task<string> DownloadAndSaveAsync(string fileId, string extension)
     {
-        // 1. TELEGRAM'DAN DOSYA YOLUNU (file_path) İSTE
-        // Telegram sadece FileId vererek doğrudan indirmeye izin vermez. Önce o FileId'nin tam yolunu sormalıyız.
+        // Requests file path metadata from Telegram API before downloading the actual binary.
         var getFileUrl = $"https://api.telegram.org/bot{_botToken}/getFile?file_id={fileId}";
 
         var getFileResponse = await _httpClient.GetAsync(getFileUrl);
@@ -49,18 +51,17 @@ public class TelegramLocalFileStorageService : IFileStorageService
             throw new Exception("Telegram'dan dosya indirme yolu (file_path) alınamadı.");
         }
 
-        // 2. DOSYAYI FİZİKSEL OLARAK İNDİR
+        // Downloads binary file contents from Telegram file endpoint.
         var downloadUrl = $"https://api.telegram.org/file/bot{_botToken}/{filePath}";
         var fileBytes = await _httpClient.GetByteArrayAsync(downloadUrl);
 
-        // 3. SUNUCU DİSKİNE KAYDET
-        // Çakışmaları önlemek için dosyaya benzersiz bir Guid isim veriyoruz.
+        // Generates unique filename to prevent overwriting files with identical original names.
         var fileName = $"{Guid.NewGuid():N}.{extension.TrimStart('.')}";
         var fullPath = Path.Combine(_storagePath, fileName);
 
         await File.WriteAllBytesAsync(fullPath, fileBytes);
 
-        // 4. TAM YOLU DÖN (Worker bu yolu alıp diski okuyacak)
+        // Returns absolute file path so background workers can read the stored file.
         return fullPath;
     }
 
@@ -77,7 +78,7 @@ public class TelegramLocalFileStorageService : IFileStorageService
         }
         catch (Exception ex)
         {
-            // Dosya silinemezse loglanabilir, ana akışı bozmamalı
+            // Swallows file deletion failure to avoid disrupting primary application workflows.
             Console.WriteLine($"[Uyarı] Dosya silinemedi: {filePath}. Hata: {ex.Message}");
         }
     }

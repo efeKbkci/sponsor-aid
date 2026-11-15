@@ -8,6 +8,9 @@ using System.Text.Json;
 
 namespace SponsorAid.Infrastructure.Services;
 
+/// <summary>
+/// Parses raw Telegram webhook payloads and routes them to appropriate application commands.
+/// </summary>
 public class TelegramDialogRouter(
     IDraftStateRepository draftRepository, IMediator mediator, 
     IUserNotifier userNotifier, ILogger<TelegramDialogRouter> logger) : IDialogRouter
@@ -22,7 +25,7 @@ public class TelegramDialogRouter(
         using var jsonData = JsonDocument.Parse(payload);
         var root = jsonData.RootElement;
 
-        // 1. BUTON TIKLAMASI (Callback): Dosya olamaz, sadece metin/komut üretir
+        // Processes callback button clicks as text commands associated with the source message.
         if (root.TryGetProperty("callback_query", out var cb))
         {
             var chatId = cb.GetProperty("message").GetProperty("chat").GetProperty("id").GetInt64();
@@ -36,12 +39,12 @@ public class TelegramDialogRouter(
             return;
         }
 
-        // 2. NORMAL MESAJ: Ya dosyadır ya da metindir
+        // Processes standard message updates containing text or attached documents.
         if (root.TryGetProperty("message", out var msg))
         {
             var chatId = msg.GetProperty("chat").GetProperty("id").GetInt64();
 
-            // 2a. Dosya / Fotoğraf Kontrolü
+            // Routes document or photo uploads to binary input handler.
             var (fileId, fileSize, extension) = ExtractFileMetadata(msg);
             if (!string.IsNullOrEmpty(fileId))
             {
@@ -49,7 +52,7 @@ public class TelegramDialogRouter(
                 return;
             }
 
-            // 2b. Düz Metin veya Fotoğraf Altı Yazısı (Caption)
+            // Extracts text from either direct message body or photo caption.
             var text = msg.TryGetProperty("text", out var t) ? t.GetString()
                      : msg.TryGetProperty("caption", out var c) ? c.GetString() : null;
 
@@ -67,12 +70,12 @@ public class TelegramDialogRouter(
 
     private (string? FileId, long FileSize, string Extension) ExtractFileMetadata(JsonElement messageElement)
     {
-        // 1. Döküman (Document) Kontrolü
+        // Extracts document file identifier and extracts extension from filename.
         if (messageElement.TryGetProperty("document", out var documentElement))
         {
             var id = documentElement.GetProperty("file_id").GetString();
             var size = documentElement.GetProperty("file_size").GetInt64();
-            var ext = "pdf"; // Varsayılan
+            var ext = "pdf";
 
             if (documentElement.TryGetProperty("file_name", out var fileNameElement))
             {
@@ -81,7 +84,7 @@ public class TelegramDialogRouter(
             return (id, size, ext);
         }
 
-        // 2. Fotoğraf (Photo) Kontrolü
+        // Extracts largest photo entry, which Telegram positions at the end of the array.
         if (messageElement.TryGetProperty("photo", out var photoArray) && photoArray.GetArrayLength() > 0)
         {
             var largestPhoto = photoArray[photoArray.GetArrayLength() - 1];
@@ -90,7 +93,6 @@ public class TelegramDialogRouter(
             return (id, size, "jpg");
         }
 
-        // Hiçbiri değilse boş dön
         return (null, 0, string.Empty);
     }
 }

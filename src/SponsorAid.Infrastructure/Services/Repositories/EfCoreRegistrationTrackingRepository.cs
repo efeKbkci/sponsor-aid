@@ -5,6 +5,9 @@ using SponsorAid.Infrastructure.Persistence;
 
 namespace SponsorAid.Infrastructure.Services.Repositories;
 
+/// <summary>
+/// Manages persistence and querying for registration progress and status records.
+/// </summary>
 public class EfCoreRegistrationTrackingRepository(SponsorAidDbContext context) : IRegistrationTrackingRepository
 {
     private readonly SponsorAidDbContext _context = context;
@@ -14,7 +17,8 @@ public class EfCoreRegistrationTrackingRepository(SponsorAidDbContext context) :
         var record = new RegistrationTrackingRecord
         {
             RegistrationKey = registrationKey,
-            ChatId = chatId, // ChatId eklendi
+            // Links the tracking record directly to the user's chat session.
+            ChatId = chatId,
             Status = RegistrationStatus.InProgress,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -56,7 +60,7 @@ public class EfCoreRegistrationTrackingRepository(SponsorAidDbContext context) :
         }
     }
 
-    // 🚀 YENİ: ChatId'ye göre listeleme
+    // Fetches all registrations for a chat ordered by most recent update. AsNoTracking reduces memory overhead.
     public async Task<IEnumerable<(string RegistrationKey, string? GuardianName, RegistrationStatus Status)>> ListByChatIdAsync(long chatId, CancellationToken cancellationToken = default)
     {
         return await _context.RegistrationTrackings
@@ -67,7 +71,7 @@ public class EfCoreRegistrationTrackingRepository(SponsorAidDbContext context) :
             .ToListAsync(cancellationToken);
     }
 
-    // 🚀 YENİ: Sadece durumu getirme
+    // Reads only the status column without tracking the entity in the change tracker.
     public async Task<RegistrationStatus?> GetStatusAsync(string registrationKey, CancellationToken cancellationToken = default)
     {
         var record = await _context.RegistrationTrackings

@@ -8,6 +8,9 @@ using System.Text.Json.Serialization;
 
 namespace SponsorAid.Infrastructure.Services;
 
+/// <summary>
+/// Creates AES-256 encrypted zip archive packages containing application documents and metadata.
+/// </summary>
 public class SharpZipLibSecureArchiveService : ISecureArchiveService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -26,13 +29,13 @@ public class SharpZipLibSecureArchiveService : ISecureArchiveService
         using var memoryStream = new MemoryStream();
         using (var zipStream = new ZipOutputStream(memoryStream))
         {
-            // 🚀 DÜZELTME 1: ZipStream kapandığında ana MemoryStream'i öldürmesini yasakla
+            // Keeps the underlying memory stream open when the zip stream finishes writing.
             zipStream.IsStreamOwner = false;
 
             zipStream.SetLevel(6);
             zipStream.Password = password;
 
-            // Senin Extension metodun (ToExportModels'in yeni adı sanırım)
+            // Extracts metadata and application payload representations from the draft.
             var (metaModel, dataModel) = draft.ExportRegistrationData();
 
             var metaJson = JsonSerializer.SerializeToUtf8Bytes(metaModel, JsonOptions);
@@ -51,7 +54,7 @@ public class SharpZipLibSecureArchiveService : ISecureArchiveService
                 }
             }
 
-            // Finish() zaten ZIP yapısını tamamlar, sonrasında using bloğu zipStream'i temizler.
+            // Finalizes central directory records before reading memory buffer.
             zipStream.Finish();
         }
 
@@ -68,6 +71,7 @@ public class SharpZipLibSecureArchiveService : ISecureArchiveService
         {
             DateTime = DateTime.UtcNow,
             Size = data.Length,
+            // Applies AES-256 bit encryption to satisfy data protection standards.
             AESKeySize = 256
         };
 
@@ -88,7 +92,7 @@ public class SharpZipLibSecureArchiveService : ISecureArchiveService
         int childIndex = 1;
         foreach (var child in draft.Children)
         {
-            // 🚀 DÜZELTME 2: child.Name null gelme ihtimaline karşı Fallback ("Isimsiz") eklendi
+            // Provides fallback name and sanitizes illegal characters for file path safety.
             string safeNameBase = child.Name ?? "Isimsiz";
             string childSafeName = string.Join("_", safeNameBase.Split(Path.GetInvalidFileNameChars()));
 
