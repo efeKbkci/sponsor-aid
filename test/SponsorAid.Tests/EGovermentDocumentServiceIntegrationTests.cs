@@ -7,16 +7,20 @@ using SponsorAid.Infrastructure.Services;
 
 namespace SponsorAid.Tests;
 
+/// <summary>
+/// Integration test suite for <see cref="EGovermentDocumentService"/>.
+/// Verifies live HTTP communication, document download, and file persistence against the external e-Devlet portal.
+/// </summary>
 public class EGovermentDocumentServiceIntegrationTests
 {
     private readonly ServiceProvider _serviceProvider;
 
     public EGovermentDocumentServiceIntegrationTests()
     {
-        // 1. Gerçek uygulamanın Dependency Injection (DI) konteynerini simüle ediyoruz
+        // Replicate application dependency injection setup for isolated HTTP client testing
         var services = new ServiceCollection();
 
-        // Uygulamanın Program.cs dosyasındaki ayarların birebir aynısı:
+        // Match the exact client headers configured in the production API host to avoid bot filtering
         services.AddHttpClient("EDevletClient", client =>
         {
             client.BaseAddress = new Uri("https://www.turkiye.gov.tr/");
@@ -33,42 +37,44 @@ public class EGovermentDocumentServiceIntegrationTests
         })
         .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
         {
-            UseCookies = false, // Çerezlerin manuel yönetimi için kapalı
+            // Disable automatic cookies because session cookies are managed manually during document retrieval
+            UseCookies = false,
             PooledConnectionLifetime = TimeSpan.FromMinutes(5)
         });
 
-        // Gerçek servisimizi DI konteynerine ekliyoruz
+        // Register the production service implementation to test real HTTP communication
         services.AddTransient<IEGovermentDocumentService, EGovermentDocumentService>();
 
         _serviceProvider = services.BuildServiceProvider();
     }
 
+    // Categorized as integration test because it connects to an external government web service
     [Fact]
-    [Trait("Category", "Integration")] // Bu testi kategorize ettik
+    [Trait("Category", "Integration")]
     public async Task DownloadDocumentAsync_WithRealData_ShouldDownloadAndSavePdfFile()
     {
-        // Arrange (Hazırlık) - BURAYI GERÇEK VERİLERLE DOLDURUN
-        string realBarcode = "Barcode"; // Örn: NV02-NOLP-3N0Y-N8O8
+        // Arrange - Test inputs for manual verification against live e-Devlet service
+        // Example barcode format: NV02-NOLP-3N0Y-N8O8
+        string realBarcode = "Barcode";
         string realTcNumber = "Id";
 
         var service = _serviceProvider.GetRequiredService<IEGovermentDocumentService>();
 
-        // Act (Eylem) - Gerçek e-Devlet sunucularına bağlanılıyor
+        // Act - Send live request to e-Devlet document validation endpoint
         string savedFilePath = await service.DownloadDocumentAsync(realBarcode, realTcNumber);
 
-        // Assert (Doğrulama)
-
-        // 1. Dosya yolu boş dönmemeli
+        // Assert
+        // Verify that the service returns a non-empty file path
         Assert.False(string.IsNullOrWhiteSpace(savedFilePath), "Servis dosya yolu döndürmedi.");
 
-        // 2. Fiziksel dosya diskte gerçekten oluşmuş olmalı
+        // Verify that the file was written to disk
         Assert.True(File.Exists(savedFilePath), $"Dosya belirtilen yolda bulunamadı: {savedFilePath}");
 
-        // 3. İndirilen PDF dosyasının boyutu (Beklenen: Hata sayfası değilse > 5000 byte olmalı)
+        // Verify document size is above 5 KB to distinguish valid PDFs from HTML error pages or captchas
         var fileInfo = new FileInfo(savedFilePath);
         Assert.True(fileInfo.Length > 5000, $"İndirilen dosya boyutu çok küçük ({fileInfo.Length} bytes). e-Devlet hata sayfası (403/Captcha) dönmüş olabilir.");
 
-        // TearDown (Temizlik) - Test başarılı olduysa diski çöpe boğmamak için indirilen PDF'i sil
+        // Cleanup temporary downloaded file from disk after test execution
         if (File.Exists(savedFilePath))
         {
             File.Delete(savedFilePath);

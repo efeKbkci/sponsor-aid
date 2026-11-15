@@ -10,6 +10,11 @@ from .services.ocr_service import OcrService
 from .services.pdf_generator import PdfGenerator
 
 class IdProcessingHandler:
+    """Coordinates ID card cropping, rotation alignment, OCR extraction, and PDF merging.
+
+    Loads computer vision models once during initialization to serve image pipeline requests.
+    """
+
     def __init__(self):
         print("[*] [ID Service] Modeller RAM'e yükleniyor...")
         self.image_processor = ImageProcessor(model_path=SEGMENTER_MODEL_PATH)
@@ -18,12 +23,15 @@ class IdProcessingHandler:
         self.pdf_generator = PdfGenerator()
         print("[+] [ID Service] Hazır ve bekliyor!")
 
-    # Artık task nesnesini doğrudan parametre alıyor
     def process_image(self, task) -> events_pb2.WorkerResultMessage:
+        """Process an ID card side by cropping, orienting, and extracting the citizen ID.
+
+        Overwrites the target file with the normalized image and reports extraction status.
+        """
         reg_key = task.registration_key
         file_path = task.file_path
         
-        # Protobuf Enum değerini OCR için string'e çeviriyoruz
+        # Convert protobuf enum to string to select the correct region of interest for OCR.
         side_str = "front" if task.image_side == events_pb2.ImageSide.IMAGE_SIDE_FRONT else "back"
 
         print(f"\n[ID Service] 📥 Görev: ProcessImage | Yüz: {side_str} | Anahtar: {reg_key}")
@@ -51,6 +59,7 @@ class IdProcessingHandler:
 
             print(f"TC bulundu : {extracted_tc}")
             
+            # Overwrite original image with cropped and aligned version for archiving and PDF creation.
             with open(file_path, "wb") as f:
                 f.write(rotated_bytes)
 
@@ -70,11 +79,15 @@ class IdProcessingHandler:
             document_type=doc_type_enum,
             is_success=is_success,
             error_message=error_message if not is_success else None,
-            extracted_tc_number=extracted_tc if is_success and extracted_tc else None, # JSON YERİNE BURASI GELDİ
+            extracted_tc_number=extracted_tc if is_success and extracted_tc else None,  # Direct field provides type safety for downstream consumers.
             saved_file_path=file_path
         )
 
     def merge_to_pdf(self, task) -> events_pb2.WorkerResultMessage:
+        """Combine normalized front and back card images into a unified A4 PDF.
+
+        Saves the resulting PDF with a unique suffix to prevent file name collisions.
+        """
         reg_key = task.registration_key
         print(f"\n[ID Service] 📥 Görev: MergeToPdf | Anahtar: {reg_key}")
 

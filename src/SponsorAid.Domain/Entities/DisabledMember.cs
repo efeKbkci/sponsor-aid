@@ -6,6 +6,9 @@ using System.Text;
 
 namespace SponsorAid.Domain.Entities;
 
+/// <summary>
+/// Represents a family member with a disability or long-term illness requiring care.
+/// </summary>
 public class DisabledMember
 {
     public Guid Id { get; private set; }
@@ -15,6 +18,14 @@ public class DisabledMember
     public TreatmentStatus TreatmentStatus { get; private set; }
     public string Description { get; private set; }
 
+    /// <summary>
+    /// Initializes a new disabled family member record with health and treatment details.
+    /// </summary>
+    /// <param name="name">Full name of the disabled member.</param>
+    /// <param name="diagnosis">Medical diagnosis of the disability or illness.</param>
+    /// <param name="status">General health or mobility condition.</param>
+    /// <param name="treatmentStatus">Current medical care and treatment status.</param>
+    /// <param name="description">Additional context or special care requirements.</param>
     public DisabledMember(string name, string diagnosis, string status, TreatmentStatus treatmentStatus, string description)
     {
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(diagnosis) || string.IsNullOrWhiteSpace(status))

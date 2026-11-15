@@ -5,6 +5,9 @@ using System.Text;
 
 namespace SponsorAid.Domain.ValueObjects;
 
+/// <summary>
+/// Represents a normalized Turkish mobile phone number used for SMS updates and verification.
+/// </summary>
 public record PhoneNumber
 {
     public string Value { get; }
@@ -14,10 +17,9 @@ public record PhoneNumber
         if (string.IsNullOrWhiteSpace(value))
             throw new BusinessRuleException("Error_PhoneNumberRequired");
 
-        // Sadece rakamları al
         var digitsOnly = new string(value.Where(char.IsDigit).ToArray());
 
-        // Desene uygunluk kontrolü[cite: 1]
+        // Normalizes Turkish mobile numbers with or without leading zero for SMS gateway delivery.
         if (digitsOnly.StartsWith("0") && digitsOnly.Length == 11)
             Value = digitsOnly;
         else if (digitsOnly.StartsWith("5") && digitsOnly.Length == 10)

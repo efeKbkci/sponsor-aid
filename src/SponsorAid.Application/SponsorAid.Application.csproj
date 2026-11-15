@@ -1,5 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Core application dependencies for messaging, CQRS, and localization -->
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" Version="3.36.2" />
     <PackageReference Include="Grpc.Tools" Version="2.84.0">
@@ -10,6 +11,7 @@
     <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" Version="10.0.12" />
   </ItemGroup>
 
+  <!-- Clean architecture dependency: Application layer depends directly on Domain entities and rules -->
   <ItemGroup>
     <ProjectReference Include="..\SponsorAid.Domain\SponsorAid.Domain.csproj" />
   </ItemGroup>
@@ -20,10 +22,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 	
+  <!-- Shared Protobuf event schemas compiled to C# message classes without gRPC client stubs -->
   <ItemGroup>
     <Protobuf Include="..\..\contracts\events.proto" GrpcServices="None" />
   </ItemGroup>
 	
+  <!-- Embedded message resources for localized chatbot dialog text -->
   <ItemGroup>
     <EmbeddedResource Update="Resources\BotMessages.resx">
       <Generator></Generator>

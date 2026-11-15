@@ -1,3 +1,9 @@
+"""Unit test suite for the SemanticMatcherService in-memory matrix caching.
+
+Verifies cold vs warm query performance and LRU cache eviction behavior
+when candidate list limit is exceeded.
+"""
+
 import time
 import pytest
 from microservices.semantic_matching.services.matcher import SemanticMatcherService
@@ -12,15 +18,15 @@ def test_match_repeated_candidate_list_uses_cache_and_executes_significantly_fas
     second_query = "babam fabrikada ameleydi"
     expected_cache_key = f"{len(father_professions_catalog)}_{father_professions_catalog[0]['key']}"
 
-    # Ensure clean state for this candidate set
+    # Ensure clean state by evicting any previous cache entry for this candidate catalog
     real_semantic_service._matrix_cache.pop(expected_cache_key, None)
 
-    # Act: Cold execution (calculates candidate matrix and caches it)
+    # Cold execution: Encodes candidate embeddings and caches matrix in memory
     start_cold = time.perf_counter()
     cold_result = real_semantic_service.match(first_query, father_professions_catalog, threshold=0.65)
     cold_duration = time.perf_counter() - start_cold
 
-    # Act: Warm execution (hits memory cache for candidate matrix)
+    # Warm execution: Reuses cached embeddings matrix to speed up similarity lookup
     start_warm = time.perf_counter()
     warm_result = real_semantic_service.match(second_query, father_professions_catalog, threshold=0.65)
     warm_duration = time.perf_counter() - start_warm
@@ -41,7 +47,7 @@ def test_match_repeated_candidate_list_uses_cache_and_executes_significantly_fas
 def test_match_cache_evicts_oldest_entry_when_capacity_exceeds_max_limit(
     real_semantic_service: SemanticMatcherService,
 ) -> None:
-    # Arrange: Build 11 distinct candidate lists
+    # Arrange: Build 11 distinct candidate lists to test cache capacity limit of 10
     candidate_lists = [
         [{"key": f"Category_{i}", "description": f"Tanım {i}", "examples": [f"Örnek {i}"]}]
         for i in range(1, 12)
@@ -49,11 +55,11 @@ def test_match_cache_evicts_oldest_entry_when_capacity_exceeds_max_limit(
     first_cache_key = f"1_{candidate_lists[0][0]['key']}"
     last_cache_key = f"1_{candidate_lists[-1][0]['key']}"
 
-    # Act: Sequentially trigger queries for all 11 categories
+    # Act: Sequentially query all 11 candidate lists to trigger cache eviction
     for i, candidates in enumerate(candidate_lists, start=1):
         real_semantic_service.match(f"test sorgusu {i}", candidates, threshold=0.50)
 
-    # Assert: State-based verification on cache container
+    # Assert: Verify oldest entry was evicted and cache size remains capped at 10
     current_cache_size = len(real_semantic_service._matrix_cache)
     assert current_cache_size == 10, f"Cache size must stay at maximum limit of 10, got {current_cache_size}"
     assert first_cache_key not in real_semantic_service._matrix_cache, (

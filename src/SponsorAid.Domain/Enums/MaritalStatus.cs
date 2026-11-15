@@ -2,6 +2,9 @@ using System.ComponentModel;
 
 namespace SponsorAid.Domain.Enums;
 
+/// <summary>
+/// Marital status of the applicant or guardian.
+/// </summary>
 public enum MaritalStatus
 {
     [Description("Bekar")] Single = 1,

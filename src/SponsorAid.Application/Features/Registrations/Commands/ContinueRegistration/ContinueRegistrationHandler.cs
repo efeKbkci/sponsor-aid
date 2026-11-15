@@ -10,9 +10,12 @@ using System.Text.RegularExpressions;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.ContinueRegistration;
 
+/// <summary>
+/// Handles resuming an incomplete registration or prompting the user to select one.
+/// </summary>
 public class ContinueRegistrationHandler(
     IDraftStateRepository draftRepository,
-    IRegistrationTrackingRepository trackingRepository, // YENİ EKLENDİ
+    IRegistrationTrackingRepository trackingRepository,
     IUserNotifier notifier,
     IMediator mediator,
     IStringLocalizer<BotMessages> localizer) : IRequestHandler<ContinueRegistrationCommand>
@@ -25,10 +28,9 @@ public class ContinueRegistrationHandler(
 
     public async Task Handle(ContinueRegistrationCommand request, CancellationToken cancellationToken)
     {
-        // 1. Kod Gönderilmediyse (Menüden Tıklandıysa) -> Kayıtları Listele
+        // Displays interactive selection buttons when the user initiates continuation without specifying a key.
         if (string.IsNullOrWhiteSpace(request.RegistrationKey))
         {
-            // Veriyi Draft yerine Tracking tablosundan alıyoruz
             var trackings = await _trackingRepository.ListByChatIdAsync(request.ChatId, cancellationToken);
             var options = new Dictionary<string, string>();
 
@@ -40,7 +42,6 @@ public class ContinueRegistrationHandler(
 
                 var statusLabel = _localizer[$"Enum_RegistrationStatus_{track.Status}"].Value;
 
-                // Buton arkasında (Callback) RegistrationKey dönecek, ama ekranda "Vasi Adı - Durum" yazacak
                 options[ContinueRegistrationCommand.SelectionCallbackPrefix + track.RegistrationKey] = $"{guardianName} - {statusLabel}";
             }
 
@@ -54,13 +55,12 @@ public class ContinueRegistrationHandler(
             return;
         }
 
-        // 2. Kod Gönderildiyse (Veya Butona Tıklandıysa) -> Doğrudan Kaydı Yükle
         var registrationKey = request.RegistrationKey.Trim().ToUpperInvariant();
         var draft = await _draftRepository.GetAsync(registrationKey, cancellationToken);
 
         if (draft == null)
         {
-            // Taslak veritabanında yoksa silinmiş demektir. Takip tablosundan tamamlanıp tamamlanmadığına bakalım.
+            // Checks tracking history to inform the user if the registration was already submitted.
             var trackingStatus = await _trackingRepository.GetStatusAsync(registrationKey, cancellationToken);
             if (trackingStatus == RegistrationStatus.Completed)
             {
@@ -68,7 +68,6 @@ public class ContinueRegistrationHandler(
                 return;
             }
 
-            // Takipte de yoksa hiç bulunamamıştır.
             await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_RegistrationNotFound", registrationKey].Value);
             return;
         }
@@ -86,6 +85,7 @@ public class ContinueRegistrationHandler(
 
         await SendResumePromptAsync(draft);
     }
+
     private async Task SendResumePromptAsync(RegistrationDraftState draft)
     {
         switch (draft.CurrentStep)

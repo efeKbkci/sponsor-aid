@@ -6,6 +6,9 @@ using SponsorAid.Application.Interfaces;
 
 namespace SponsorAid.Infrastructure.Services;
 
+/// <summary>
+/// Dispatches completed registration packages to reviewing authorities via email and out-of-band channels.
+/// </summary>
 public class RegistrationDispatchService(
     IConfiguration configuration,
     IUserNotifier notifier) : IRegistrationDispatchService
@@ -28,7 +31,7 @@ public class RegistrationDispatchService(
         var smtpUser = _configuration["SMTP_USER"] ?? Environment.GetEnvironmentVariable("SMTP_USER");
         var smtpPass = _configuration["SMTP_PASS"] ?? Environment.GetEnvironmentVariable("SMTP_PASS");
 
-        // Gönderici adresi (Örn: no-reply@sponsoraid.live). Yoksa smtpUser'a geri döner:
+        // Resolves sender address, defaulting to SMTP username when not configured explicitly.
         var smtpFrom = _configuration["SMTP_FROM"]
             ?? Environment.GetEnvironmentVariable("SMTP_FROM")
             ?? smtpUser;
@@ -51,7 +54,8 @@ public class RegistrationDispatchService(
         message.Body = bodyBuilder.ToMessageBody();
 
         using var client = new SmtpClient();
-        client.Timeout = 10000; // 10 saniye
+        // Sets a short timeout to prevent blocking during mail relay connection delays.
+        client.Timeout = 10000;
         await client.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls, cancellationToken);
         if (!string.IsNullOrEmpty(smtpUser))
         {
@@ -67,7 +71,7 @@ public class RegistrationDispatchService(
         string password,
         CancellationToken cancellationToken = default)
     {
-        // Şifre ayrık kanal üzerinden (Örn: Yönetici Telegram Chat ID) iletilir
+        // Sends archive decryption password through an out-of-band channel to prevent single-channel interception.
         var adminChatIdStr = _configuration["TELEGRAM_ADMIN_CHAT_ID"]
             ?? Environment.GetEnvironmentVariable("TELEGRAM_ADMIN_CHAT_ID");
 

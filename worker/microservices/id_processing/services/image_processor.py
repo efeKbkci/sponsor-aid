@@ -4,50 +4,60 @@ import os
 from ultralytics import YOLO
 
 class ImageProcessor:
+    """Detects and isolates identity cards from raw photos using YOLO segmentation.
+
+    Extracts an axis-aligned bounding box around the segmented card to prevent text distortion.
+    """
+
     def __init__(self, model_path: str):
+        """Load the YOLO segmentation model from the specified file path.
+
+        Raises FileNotFoundError if the model weights cannot be located on disk.
+        """
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"HATA: YOLO modeli bulunamadı -> {model_path}")
         
         self.model = YOLO(model_path)
 
     def extract_id_card(self, image_bytes: bytes) -> bytes:
+        """Locate the ID card in image bytes and crop the target area.
+
+        Applies a confidence threshold of 0.5 to balance detection accuracy and noise rejection.
+        """
         np_array = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
         
         if image is None:
             raise ValueError("Görsel okunamadı veya format desteklenmiyor.")
 
-        # YOLO tahminini yap
+        # Confidence threshold of 0.5 balances detecting clear card edges while discarding background noise.
         results = self.model.predict(source=image, conf=0.5, save=False, verbose=False)
         result = results[0]
 
-        # Güvenlik Kontrolü: Maske veya Bounding Box var mı?
+        # Absence of segmentation mask confirms no recognizable ID card outline was detected.
         if result.masks is None or len(result.masks.xy) == 0:
             raise ValueError("Yapay zeka bu fotoğrafta bir kimlik kartı bulamadı.")
 
-        # 1. Maskenin sınırlarını (poligonu) al
+        # Extract polygon coordinates of the highest confidence card segmentation mask.
         polygon = result.masks.xy[0]
         cnt = np.array(polygon, dtype=np.float32)
         
-        # 2. Riskli perspektif (eğip bükme) KULLANMIYORUZ!
-        # Bunun yerine maskeyi tam kapsayan düz ve güvenli bir dikdörtgen alıyoruz
+        # Use an axis-aligned bounding box rather than perspective warping to avoid text distortion for OCR.
         x, y, w, h = cv2.boundingRect(cnt)
 
-        # 3. Sınır dışına çıkma ihtimaline karşı güvenlik payı
+        # Clamp bounding coordinates to image dimensions to prevent out-of-bound slices.
         h_img, w_img = image.shape[:2]
         x = max(0, x)
         y = max(0, y)
         w = min(w_img - x, w)
         h = min(h_img - y, h)
 
-        # 4. Resmi piksel kalitesini %100 koruyarak düz bir şekilde kes (Crop)
+        # Crop the detected region directly to preserve original pixel clarity.
         cropped = image[y:y+h, x:x+w]
 
-        # Sonucu byte formatına çevir ve yolla
+        # Encode the cropped array to JPEG bytes for downstream pipeline steps.
         _, buffer = cv2.imencode('.jpg', cropped)
         return buffer.tobytes()
-
-    # NOT: _order_points ve _four_point_transform metotlarını resmi bozduğu için tamamen sildik.
 
 if __name__ == "__main__":
     import argparse

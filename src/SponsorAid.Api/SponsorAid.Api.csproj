@@ -4,26 +4,41 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-	  <!-- Bu satırı ekleyin: Derleyiciye çeviri klasörlerini kopyalamasını emreder -->
-	  <SupportedCultures>tr-TR;tr</SupportedCultures>
+    <!-- Instructs the build system to generate and copy satellite assemblies for Turkish localization -->
+    <SupportedCultures>tr-TR;tr</SupportedCultures>
   </PropertyGroup>
 
+  <!-- External package dependencies required for API hosting, documentation, and mediation -->
   <ItemGroup>
+    <!-- Loads environment variables from local .env files during application initialization -->
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
+
+    <!-- Dispatches incoming HTTP requests into the mediator pipeline -->
     <PackageReference Include="MediatR" Version="14.2.0" />
+
+    <!-- Exposes OpenAPI schema generation endpoints -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+
+    <!-- Design-time package required by Entity Framework Core CLI tools -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+
+    <!-- Development tools for running database migrations -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+
+    <!-- Client library for message queue operations -->
     <PackageReference Include="RabbitMQ.Client" Version="7.2.2" />
+
+    <!-- Generates interactive Swagger UI documentation for REST endpoints -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.0" />
   </ItemGroup>
 
+  <!-- Project references linking API entry point to core application layers -->
   <ItemGroup>
     <ProjectReference Include="..\SponsorAid.Application\SponsorAid.Application.csproj" />
     <ProjectReference Include="..\SponsorAid.Infrastructure\SponsorAid.Infrastructure.csproj" />

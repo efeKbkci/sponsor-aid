@@ -16,6 +16,12 @@ using Xunit;
 
 namespace SponsorAid.Tests;
 
+/// <summary>
+/// End-to-end integration test suite for the complete user registration journey.
+/// Simulates incoming Telegram webhook updates through each state machine phase:
+/// registration initiation, guardian verification, document upload and worker dispatch,
+/// family question flow, semantic profession matching, and final package dispatch.
+/// </summary>
 [Collection("IntegrationTests")]
 public class RegistrationJourneyTests
 {
@@ -116,11 +122,13 @@ public class RegistrationJourneyTests
     public async Task Registration_EndToEndJourney_ShouldCompleteSuccessfully_FromStartToFinish()
     {
         // ====================================================================
-        // GENEL ARRANGE (Hazırlık)
+        // Overall Arrange: Set up identifiers, test inputs, and default file download mock
         // ====================================================================
         const long chatId = 123456789L;
-        const string validGuardianTc = "10000000146"; // Mod10/11 algoritmik olarak geçerli Vasi TC
-        const string validChildTc = "20000000114";    // Mod10/11 algoritmik olarak geçerli Çocuk TC
+        // Algorithmically valid Turkish ID number for guardian (passes Mod10/11 validation)
+        const string validGuardianTc = "10000000146";
+        // Algorithmically valid Turkish ID number for child (passes Mod10/11 validation)
+        const string validChildTc = "20000000114";
         const string validIban = "TR330006100519786457841326";
 
         _fixture.FileStorageMock
@@ -128,13 +136,13 @@ public class RegistrationJourneyTests
             .ReturnsAsync("fake/path/file.pdf");
 
         // ====================================================================
-        // AŞAMA 1: Kayıt Başlatma (/new)
+        // STAGE 1: Registration Initiation (/new)
         // ====================================================================
 
-        // --- Act 1: Kayıt yokken metin gönderme ---
+        // --- Act 1: Send arbitrary text before starting a registration ---
         var responseAct1 = await SendTelegramMessageAsync(chatId, "Merhaba");
 
-        // --- Assert 1 ---
+        // --- Assert 1: Verify no draft state was created for uninitiated interaction ---
         responseAct1.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -144,10 +152,10 @@ public class RegistrationJourneyTests
             draftRecord.Should().BeNull("Aktif kayıt yokken gönderilen mesaj taslak oluşturmamalıdır.");
         }
 
-        // --- Act 2: Yeni kayıt başlatma ---
+        // --- Act 2: Send /new command to initiate registration ---
         var responseAct2 = await SendTelegramMessageAsync(chatId, "/new");
 
-        // --- Assert 2 ---
+        // --- Assert 2: Verify draft and tracking records are created in Initializing/WaitingForGuardianId state ---
         responseAct2.StatusCode.Should().Be(HttpStatusCode.OK);
 
         string registrationKey;
@@ -164,7 +172,7 @@ public class RegistrationJourneyTests
             draftRecord!.RegistrationKey.Should().Be(trackingRecord!.RegistrationKey);
             registrationKey = draftRecord.RegistrationKey;
 
-            // RegistrationKey format kontrolü
+            // Verify registration key format matches alphanumeric 6-character requirement
             registrationKey.Length.Should().Be(6);
             Regex.IsMatch(registrationKey, @"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{6}$").Should().BeTrue();
 
@@ -178,14 +186,14 @@ public class RegistrationJourneyTests
         }
 
         // ====================================================================
-        // AŞAMA 2: Vasi TC Kimlik Numarası Girişi
+        // STAGE 2: Guardian Identity Number Validation
         // ====================================================================
 
-        // --- Act 3: Hatalı TC Girişleri ---
+        // --- Act 3: Send invalid Turkish identity numbers (incorrect length and checksum) ---
         var responseAct3Part1 = await SendTelegramMessageAsync(chatId, "12345");
         var responseAct3Part2 = await SendTelegramMessageAsync(chatId, "11111111111");
 
-        // --- Assert 3 ---
+        // --- Assert 3: Ensure invalid IDs are rejected and step remains WaitingForGuardianId ---
         responseAct3Part1.StatusCode.Should().Be(HttpStatusCode.OK);
         responseAct3Part2.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -201,10 +209,10 @@ public class RegistrationJourneyTests
 
         _fixture.UserNotifierMock.Verify(x => x.SendMessageAsync(chatId, It.IsAny<string>()), Times.AtLeast(2));
 
-        // --- Act 4: Geçerli Vasi TC Girişi ---
+        // --- Act 4: Send valid guardian Turkish identity number ---
         var responseAct4 = await SendTelegramMessageAsync(chatId, validGuardianTc);
 
-        // --- Assert 4 ---
+        // --- Assert 4: Verify identity is stored and step advances to WaitingForPopulationRegistry ---
         responseAct4.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -219,13 +227,13 @@ public class RegistrationJourneyTests
         }
 
         // ====================================================================
-        // AŞAMA 3: Nüfus Kayıt Örneği Yükleme ve İşleme
+        // STAGE 3: Population Registry Document Processing
         // ====================================================================
 
-        // --- Act 5: Hatalı Girdi - Metin Gönderme ---
+        // --- Act 5: Send plain text instead of expected document ---
         var responseAct5 = await SendTelegramMessageAsync(chatId, "belgem yok");
 
-        // --- Assert 5 ---
+        // --- Assert 5: State remains WaitingForPopulationRegistry ---
         responseAct5.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -237,11 +245,11 @@ public class RegistrationJourneyTests
             state!.CurrentStep.Should().Be(RegistrationStep.WaitingForPopulationRegistry);
         }
 
-        // --- Act 6: Hatalı Girdi - Boyut ve Uzantı İhlali ---
+        // --- Act 6: Send documents violating size and extension restrictions ---
         var responseAct6Large = await SendTelegramDocumentAsync(chatId, "large_doc", 6 * 1024 * 1024, "nufus.pdf");
         var responseAct6Ext = await SendTelegramDocumentAsync(chatId, "exe_doc", 1024 * 100, "nufus.exe");
 
-        // --- Assert 6 ---
+        // --- Assert 6: Verify file rejection and step remains WaitingForPopulationRegistry ---
         responseAct6Large.StatusCode.Should().Be(HttpStatusCode.OK);
         responseAct6Ext.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -254,10 +262,10 @@ public class RegistrationJourneyTests
             state!.CurrentStep.Should().Be(RegistrationStep.WaitingForPopulationRegistry);
         }
 
-        // --- Act 7: Geçerli PDF Yükleme ---
+        // --- Act 7: Upload valid population registry PDF document ---
         var responseAct7 = await SendTelegramDocumentAsync(chatId, "pop_1", 102400, "nufus.pdf");
 
-        // --- Assert 7 ---
+        // --- Assert 7: Step advances to ProcessingPopulationRegistry and worker task is published ---
         responseAct7.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -275,10 +283,10 @@ public class RegistrationJourneyTests
                                            e.OfficialDocTask.DocumentType == DocumentType.PopulationRegistry)),
             Times.AtLeastOnce());
 
-        // --- Act 8: Mükerrer Belge Gönderimi Engeli ---
+        // --- Act 8: Attempt duplicate document submission while processing is underway ---
         var responseAct8 = await SendTelegramDocumentAsync(chatId, "pop_duplicate", 102400, "nufus2.pdf");
 
-        // --- Assert 8 ---
+        // --- Assert 8: Verify duplicate upload is ignored while worker processing is active ---
         responseAct8.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -290,7 +298,7 @@ public class RegistrationJourneyTests
             state!.CurrentStep.Should().Be(RegistrationStep.ProcessingPopulationRegistry);
         }
 
-        // --- Act 9: Hatalı Worker Sonucu (Babanın Ölüm Tarihi Yok) ---
+        // --- Act 9: Simulate worker result where father has no death date (eligibility failure) ---
         var invalidPopulationData = new PopulationRegistryData();
         invalidPopulationData.People.Add(new Person { Kinship = "KENDİSİ", IdNumber = validGuardianTc, FirstName = "AYŞE", LastName = "YILMAZ", BirthDate = "1985-05-10" });
         invalidPopulationData.People.Add(new Person { Kinship = "EŞİ", IdNumber = "30000000010", FirstName = "MEHMET", LastName = "YILMAZ", BirthDate = "1982-04-12" });
@@ -308,7 +316,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // --- Assert 9 ---
+        // --- Assert 9: Revert state to WaitingForPopulationRegistry due to eligibility failure ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -318,14 +326,15 @@ public class RegistrationJourneyTests
             state!.CurrentStep.Should().Be(RegistrationStep.WaitingForPopulationRegistry);
         }
 
-        // --- Act 10: Başarılı Belge ve Çocuk Yaş Filtreleme ---
+        // --- Act 10: Simulate successful worker result and verify child age filtering (under 13 years) ---
         await SendTelegramDocumentAsync(chatId, "pop_valid_file", 102400, "nufus_gecerli.pdf");
 
         var validPopulationData = new PopulationRegistryData();
         validPopulationData.People.Add(new Person { Kinship = "KENDİSİ", IdNumber = validGuardianTc, FirstName = "AYŞE", LastName = "YILMAZ", BirthDate = "1985-05-10" });
         validPopulationData.People.Add(new Person { Kinship = "EŞİ", IdNumber = "40000000018", FirstName = "MEHMET", LastName = "YILMAZ", BirthDate = "1982-04-12", DeathDate = "2023-02-06" });
         validPopulationData.People.Add(new Person { Kinship = "OĞLU", IdNumber = validChildTc, FirstName = "ALİ", LastName = "YILMAZ", BirthDate = "2018-01-01" });
-        validPopulationData.People.Add(new Person { Kinship = "KIZI", IdNumber = "50000000016", FirstName = "ZEYNEP", LastName = "YILMAZ", BirthDate = "2005-01-01" }); // 13 yaş üstü
+        // Child over 13 years old; should be excluded based on aid eligibility rules
+        validPopulationData.People.Add(new Person { Kinship = "KIZI", IdNumber = "50000000016", FirstName = "ZEYNEP", LastName = "YILMAZ", BirthDate = "2005-01-01" });
 
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
@@ -340,7 +349,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // --- Assert 10 ---
+        // --- Assert 10: Verify state advances to WaitingForResidence and only eligible child is retained ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -363,13 +372,13 @@ public class RegistrationJourneyTests
         }
 
         // ====================================================================
-        // AŞAMA 4: İkametgah Belgesi (Fotoğraf -> Barkod -> e-Devlet Akışı)
+        // STAGE 4: Residence Certificate (Photo -> Barcode -> e-Devlet Flow)
         // ====================================================================
 
-        // --- Act 11: Fotoğraf Olarak İkametgah Yükleme ---
+        // --- Act 11: Upload residence certificate as a photo ---
         var responseAct11 = await SendTelegramPhotoAsync(chatId, "residence_photo_1", 200000);
 
-        // --- Assert 11 ---
+        // --- Assert 11: Step advances to ProcessingResidence and barcode extraction task is published ---
         responseAct11.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -387,7 +396,7 @@ public class RegistrationJourneyTests
                                            e.OfficialDocTask.DocumentType == DocumentType.Residence)),
             Times.AtLeastOnce());
 
-        // --- Act 12: Worker Barkod Çıkarma Sonucu & e-Devlet İndirme ---
+        // --- Act 12: Handle barcode extraction result and trigger official document download from e-Devlet ---
         const string extractedBarcode = "ARKD-1122-3344-5566";
         const string downloadedPdfPath = "uploads/edevlet_residence.pdf";
 
@@ -408,7 +417,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // --- Assert 12 ---
+        // --- Assert 12: Verify e-Devlet download call and subsequent document processing queue task ---
         _fixture.EGovernmentServiceMock.Verify(x => x.DownloadDocumentAsync(extractedBarcode, validGuardianTc, It.IsAny<CancellationToken>()), Times.Once());
         _fixture.EventPublisherMock.Verify(x => x.PublishAsync(
             "document-processing-queue",
@@ -425,7 +434,7 @@ public class RegistrationJourneyTests
             state!.CurrentStep.Should().Be(RegistrationStep.ProcessingResidence);
         }
 
-        // --- Act 13: Hatalı Worker Sonucu (TC Uyuşmazlığı) ---
+        // --- Act 13: Simulate worker response with mismatched identity number in residence certificate ---
         var invalidResidenceData = new ResidenceData
         {
             IdNumber = "99999999990",
@@ -448,7 +457,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // --- Assert 13 ---
+        // --- Assert 13: Step returns to WaitingForResidence due to identity mismatch ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -458,7 +467,7 @@ public class RegistrationJourneyTests
             state!.CurrentStep.Should().Be(RegistrationStep.WaitingForResidence);
         }
 
-        // --- Act 14: Doğru İkametgah Sonucu ---
+        // --- Act 14: Process valid residence certificate matching guardian identity ---
         await SendTelegramPhotoAsync(chatId, "residence_photo_correct", 200000);
 
         var validResidenceData = new ResidenceData
@@ -483,7 +492,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // --- Assert 14 ---
+        // --- Assert 14: Verify residence details stored and step advances to WaitingForIdentityFront ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -502,13 +511,13 @@ public class RegistrationJourneyTests
         }
 
         // ====================================================================
-        // AŞAMA 5: Vasi ve Çocuk Kimlik Fotoğrafları (Ön, Arka ve Birleştirme)
+        // STAGE 5: Guardian and Child Identity Cards (Front, Back, and PDF Merge)
         // ====================================================================
 
-        // --- Act 15: Hatalı Girdi - Kimlik İçin PDF Gönderme ---
+        // --- Act 15: Send PDF document when photo is required for identity capture ---
         var responseAct15 = await SendTelegramDocumentAsync(chatId, "id_pdf", 10240, "vasi_kimlik.pdf");
 
-        // --- Assert 15 ---
+        // --- Assert 15: File rejected, step remains WaitingForIdentityFront ---
         responseAct15.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -520,7 +529,7 @@ public class RegistrationJourneyTests
             state!.CurrentStep.Should().Be(RegistrationStep.WaitingForIdentityFront);
         }
 
-        // --- Act 16: Vasi Kimlik Ön Yüz - Yanlış TC Okuma Hatası ---
+        // --- Act 16: Simulate front identity OCR result with mismatched identity number ---
         await SendTelegramPhotoAsync(chatId, "vasi_front_err", 150000);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -536,7 +545,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // --- Assert 16 ---
+        // --- Assert 16: Step remains WaitingForIdentityFront due to OCR identity mismatch ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -546,7 +555,7 @@ public class RegistrationJourneyTests
             state!.CurrentStep.Should().Be(RegistrationStep.WaitingForIdentityFront);
         }
 
-        // --- Act 17: Vasi Kimlik Ön Yüz - Doğru TC ---
+        // --- Act 17: Process valid guardian front identity photo ---
         await SendTelegramPhotoAsync(chatId, "vasi_front_ok", 150000);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -562,7 +571,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // --- Assert 17 ---
+        // --- Assert 17: Front path saved and step advances to WaitingForIdentityBack ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -573,7 +582,7 @@ public class RegistrationJourneyTests
             state.SystemDocuments.IdentityFrontPath.Should().Be("uploads/vasi_front.jpg");
         }
 
-        // --- Act 18: Vasi Kimlik Arka Yüz ---
+        // --- Act 18: Process valid guardian back identity photo ---
         await SendTelegramPhotoAsync(chatId, "vasi_back_ok", 150000);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -589,7 +598,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // --- Assert 18 ---
+        // --- Assert 18: Step advances to MergingDocuments and merge task is published to queue ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -608,7 +617,7 @@ public class RegistrationJourneyTests
                                            e.MergeTask.BackFilePath == "uploads/vasi_back.jpg")),
             Times.AtLeastOnce());
 
-        // --- Act 19: Vasi Kimlik PDF Birleştirme Sonucu ---
+        // --- Act 19: Handle merged guardian identity PDF result from worker ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var mediator = scope.ServiceProvider.GetRequiredService<MediatR.IMediator>();
@@ -621,7 +630,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // --- Assert 19 ---
+        // --- Assert 19: Save merged PDF and advance target to child identity capture ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -633,8 +642,8 @@ public class RegistrationJourneyTests
             state.CurrentStep.Should().Be(RegistrationStep.WaitingForIdentityFront);
         }
 
-        // --- Act 20: Çocuk Kimlik Akışı (Ön, Arka ve Birleştirme) ---
-        // 1. Ön Yüz
+        // --- Act 20: Process child identity photos (front, back, and PDF merge) ---
+        // 1. Child front identity photo
         await SendTelegramPhotoAsync(chatId, "child_front_ok", 150000);
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
@@ -649,7 +658,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // 2. Arka Yüz
+        // 2. Child back identity photo
         await SendTelegramPhotoAsync(chatId, "child_back_ok", 150000);
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
@@ -664,7 +673,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // 3. Birleştirme
+        // 3. Child identity merge completion
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var mediator = scope.ServiceProvider.GetRequiredService<MediatR.IMediator>();
@@ -677,7 +686,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // --- Assert 20 ---
+        // --- Assert 20: Child identity saved and step advances to WaitingForQuestions ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -690,10 +699,10 @@ public class RegistrationJourneyTests
         }
 
         // ====================================================================
-        // AŞAMA 6: Soru-Cevap (Anket) Akışı
+        // STAGE 6: Survey and Questionnaire Flow
         // ====================================================================
 
-        // --- Act 21: Başvuru Rolü ---
+        // --- Act 21: Submit guardian applicant role ---
         await SendTelegramMessageAsync(chatId, "Komşusu");
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
@@ -705,7 +714,7 @@ public class RegistrationJourneyTests
 
         await SendTelegramCallbackAsync(chatId, "Mother", messageId: 101);
 
-        // --- Assert 21 ---
+        // --- Assert 21: Applicant role updated to Mother ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -714,7 +723,7 @@ public class RegistrationJourneyTests
             state!.Guardian.ApplicantRole.Should().Be(ApplicantRole.Mother);
         }
 
-        // --- Act 22: Cinsiyet, Medeni Hal, Eğitim Seviyesi, Eğitim Durumu, Yakınlık Derecesi ve Meslek ---
+        // --- Act 22: Submit guardian personal background (gender, marital status, education, kinship, profession) ---
         await SendTelegramCallbackAsync(chatId, "Female", messageId: 102);
         await SendTelegramCallbackAsync(chatId, "Widowed", messageId: 103);
         await SendTelegramCallbackAsync(chatId, "HighSchool", messageId: 104);
@@ -722,7 +731,7 @@ public class RegistrationJourneyTests
         await SendTelegramCallbackAsync(chatId, "Mother", messageId: 106);
         await SendTelegramMessageAsync(chatId, "Ev Hanımı");
 
-        // --- Assert 22 ---
+        // --- Assert 22: Verify guardian profile fields are properly persisted ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -737,7 +746,7 @@ public class RegistrationJourneyTests
             state.Guardian.Profession.Should().Be("Ev Hanımı");
         }
 
-        // --- Act 23: Telefon Numarası ---
+        // --- Act 23: Submit phone number with invalid attempt followed by valid input ---
         await SendTelegramMessageAsync(chatId, "12345");
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
@@ -749,7 +758,7 @@ public class RegistrationJourneyTests
 
         await SendTelegramMessageAsync(chatId, "05551234567");
 
-        // --- Assert 23 ---
+        // --- Assert 23: Valid phone number is parsed and saved ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -760,7 +769,7 @@ public class RegistrationJourneyTests
             state.Guardian.PhoneNumber!.Value.Should().Be("05551234567");
         }
 
-        // --- Act 24: Hane Kişi Sayısı ---
+        // --- Act 24: Submit family member count with non-numeric attempt followed by valid number ---
         await SendTelegramMessageAsync(chatId, "üç");
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
@@ -772,7 +781,7 @@ public class RegistrationJourneyTests
 
         await SendTelegramMessageAsync(chatId, "3");
 
-        // --- Assert 24 ---
+        // --- Assert 24: Verify family member count is parsed as integer ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -782,7 +791,7 @@ public class RegistrationJourneyTests
             state!.FamilyFinancial.FamilyMemberCount.Should().Be(3);
         }
 
-        // --- Act 25: Baba Mesleği (Semantic Matcher) ---
+        // --- Act 25: Submit father profession using semantic matcher mock for ambiguous text ---
         _fixture.SemanticMatcherMock
             .Setup(x => x.FindBestMatchAsync("anlamsız metin", It.IsAny<IEnumerable<MatchCandidate>>(), It.IsAny<float>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((SemanticMatchResult?)null);
@@ -802,7 +811,7 @@ public class RegistrationJourneyTests
 
         await SendTelegramMessageAsync(chatId, "inşaatta çalışıyordu");
 
-        // --- Assert 25 ---
+        // --- Assert 25: Father profession mapped to Worker via semantic matching ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -811,10 +820,10 @@ public class RegistrationJourneyTests
             state!.Father.Profession.Should().Be(FatherProfession.Worker);
         }
 
-        // --- Act 26: Baba Vefat Nedeni ---
+        // --- Act 26: Select father cause of death ---
         await SendTelegramCallbackAsync(chatId, "Earthquake", messageId: 107);
 
-        // --- Assert 26 ---
+        // --- Assert 26: Verify cause of death set to Earthquake ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -823,7 +832,7 @@ public class RegistrationJourneyTests
             state!.Father.DeathReason.Should().Be(FatherDeathReason.Earthquake);
         }
 
-        // --- Act 27: Engelli Birey Alt Akışı ---
+        // --- Act 27: Complete disabled household member sub-flow ---
         await SendTelegramCallbackAsync(chatId, "Var", messageId: 108);
         await SendTelegramMessageAsync(chatId, "Mehmet Yılmaz");
         await SendTelegramMessageAsync(chatId, "Astım");
@@ -831,7 +840,7 @@ public class RegistrationJourneyTests
         await SendTelegramCallbackAsync(chatId, "BeingTreated", messageId: 109);
         await SendTelegramMessageAsync(chatId, "Geç");
 
-        // --- Assert 27 ---
+        // --- Assert 27: Verify disabled member diagnosis, chronic condition, and treatment status ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -846,14 +855,14 @@ public class RegistrationJourneyTests
             state.DisabledMember.Description.Should().Be("Belirtilmedi");
         }
 
-        // --- Act 28: Finansal Bilgiler ---
+        // --- Act 28: Submit financial profile (housing status, social security, income, and expenses) ---
         await SendTelegramCallbackAsync(chatId, "Rent", messageId: 110);
         await SendTelegramCallbackAsync(chatId, "Sgk", messageId: 111);
         await SendTelegramCallbackAsync(chatId, "FixedSalary", messageId: 112);
         await SendTelegramMessageAsync(chatId, "15000");
         await SendTelegramMessageAsync(chatId, "12000");
 
-        // --- Assert 28 ---
+        // --- Assert 28: Verify financial figures and categories are stored ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -867,7 +876,7 @@ public class RegistrationJourneyTests
             state.FamilyFinancial.Expense.Should().Be(12000);
         }
 
-        // --- Act 29: IBAN Girişi ---
+        // --- Act 29: Submit guardian IBAN with invalid format followed by valid IBAN ---
         await SendTelegramMessageAsync(chatId, "TR0000");
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
@@ -880,7 +889,7 @@ public class RegistrationJourneyTests
 
         await SendTelegramMessageAsync(chatId, validIban);
 
-        // --- Assert 29 ---
+        // --- Assert 29: Verify IBAN stored, petition generated, and step advances to WaitingForConfirmation ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -900,13 +909,13 @@ public class RegistrationJourneyTests
         }
 
         // ====================================================================
-        // AŞAMA 7: Onaylama ve Kaydı Tamamlama (FinalizeRegistration)
+        // STAGE 7: Confirmation and Registration Finalization
         // ====================================================================
 
-        // --- Act 30: Onay Butonu Yerine Metin Yazma ---
+        // --- Act 30: Send text message instead of confirmation callback button ---
         await SendTelegramMessageAsync(chatId, "onaylıyorum");
 
-        // --- Assert 30 ---
+        // --- Assert 30: Step remains WaitingForConfirmation until explicit callback action ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -917,12 +926,12 @@ public class RegistrationJourneyTests
             state!.CurrentStep.Should().Be(RegistrationStep.WaitingForConfirmation);
         }
 
-        // --- Act 31: Kaydı Onaylama (confirm_registration Callback) ---
+        // --- Act 31: Confirm registration via callback query ---
         var responseAct31 = await SendTelegramCallbackAsync(chatId, "confirm_registration", messageId: 99);
         responseAct31.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // --- Assert 31 ---
-        // 1. Şifreli ZIP Paketi ve Parola Gönderimi Doğrulaması
+        // --- Assert 31: Finalize registration deliverables and clean up temporary storage ---
+        // Verify encrypted ZIP package and generated 16-character password delivery
         _fixture.RegistrationDispatchMock.Verify(x => x.SendEncryptedPackageAsync(
             registrationKey,
             "AYŞE YILMAZ",
@@ -937,10 +946,10 @@ public class RegistrationJourneyTests
             It.IsAny<CancellationToken>()),
             Times.Once());
 
-        // 2. Yüklenen Belgelerin Temizlenme Doğrulaması
+        // Verify temporary document files are cleaned from storage
         _fixture.FileStorageMock.Verify(x => x.DeleteFile(It.IsAny<string>()), Times.AtLeastOnce());
 
-        // 3. Veritabanı Nihai Durum Doğrulaması
+        // Verify draft is removed and tracking record status transitions to Completed
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();

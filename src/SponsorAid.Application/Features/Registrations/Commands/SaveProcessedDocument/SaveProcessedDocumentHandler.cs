@@ -11,6 +11,9 @@ using System.Text;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.SaveProcessedDocument;
 
+/// <summary>
+/// Applies parsed document data, manages state rollbacks on extraction failures, and advances identity verification.
+/// </summary>
 public class SaveProcessedDocumentCommandHandler(
     IDraftStateRepository draftRepository,
     IUserNotifier notifier,
@@ -22,10 +25,10 @@ public class SaveProcessedDocumentCommandHandler(
     ) : IRequestHandler<SaveProcessedDocumentCommand>
 {
     private readonly IDraftStateRepository _draftRepository = draftRepository;
-    private readonly IUserNotifier _notifier = notifier; // Telegram/WhatsApp fark etmeksizin mesaj atan servis
-    private readonly IEventPublisher _eventPublisher = eventPublisher; // Event yayıncısı
-    private readonly IEGovermentDocumentService _eGoverment = eGovernment; // e-Devlet belge indirme servisi
-    private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository; // Takip tablosu servisi
+    private readonly IUserNotifier _notifier = notifier;
+    private readonly IEventPublisher _eventPublisher = eventPublisher;
+    private readonly IEGovermentDocumentService _eGoverment = eGovernment;
+    private readonly IRegistrationTrackingRepository _trackingRepository = trackingRepository;
     private readonly IStringLocalizer<BotMessages> _localizer = localizer;
     private readonly IMediator _mediator = mediator;
 
@@ -34,7 +37,7 @@ public class SaveProcessedDocumentCommandHandler(
         var draft = await _draftRepository.GetAsync(request.RegistrationKey, cancellationToken);
         if (draft == null) throw new NullReferenceException($"Draft with key {request.RegistrationKey} not found.");
 
-        // 1. KİLİTLENMEYİ (DEADLOCK) ÇÖZMEK İÇİN STATE REVERT (GERİ ALMA) MANTIĞI
+        // Reverts processing state back to waiting state so the user can re-upload after an extraction failure.
         if (!request.IsSuccess)
         {
             if (draft.CurrentStep == RegistrationStep.ProcessingPopulationRegistry)
@@ -50,7 +53,8 @@ public class SaveProcessedDocumentCommandHandler(
             await _notifier.SendMessageAsync(draft.ChatId, _localizer["Error_DocumentProcessingFailed", request.ErrorMessage ?? string.Empty].Value);
             return;
         }
-        // GERİ BESLEME DÖNGÜSÜ: WORKER BİZE BARKOD GÖNDERDİYSE
+
+        // Fetches verified PDF directly from e-Government portal when an image barcode is detected.
         if (!string.IsNullOrEmpty(request.ExtractedBarcode))
         {
             await _notifier.SendMessageAsync(draft.ChatId, _localizer["Info_EGovernmentBarcodeDetected", request.ExtractedBarcode].Value);
@@ -64,7 +68,7 @@ public class SaveProcessedDocumentCommandHandler(
                 var task = new ProcessOfficialDocTask
                 {
                     RegistrationKey = draft.RegistrationKey,
-                    FilePath = downloadedPdfPath, // 🚀 Yeni indirdiğimiz TERTEMİZ PDF'in yolu
+                    FilePath = downloadedPdfPath,
                     DocumentType = request.DocumentType == "PopulationRegistry"
                                     ? DocumentType.PopulationRegistry
                                     : DocumentType.Residence
@@ -76,35 +80,32 @@ public class SaveProcessedDocumentCommandHandler(
                     OfficialDocTask = task
                 };
 
-                // Orijinal belgeyi RabbitMQ'ya tekrar atıyoruz! 
-                // State'i (Processing) değiştirmemize gerek yok, zaten "İşleniyor" durumunda.
+                // Re-enqueues official document task with downloaded PDF without changing draft state.
                 await _eventPublisher.PublishAsync("document-processing-queue", envelope);
-                return; // 🚀 Metodu burada kesiyoruz. Worker temiz PDF'i okuyup döndüğünde alttaki kodlar çalışacak.
+                return;
             }
             catch (Exception ex)
             {
-                // İndirme başarısız olursa durumu "Bekliyor"a çek ve hata fırlat
+                // Resets draft state to allow manual re-upload when external e-Government download fails.
                 draft.RevertProcessingState();
                 await _draftRepository.SaveAsync(draft, cancellationToken);
                 throw new BusinessRuleException("Error_EGovernmentDocumentDownloadFailed");
             }
         }
-        // 2. BAŞARILI SONUÇLARIN DAĞITILMASI
+
         if (request.DocumentType == "PopulationRegistry")
         {
             var data = request.PopulationData!;
             draft.ApplyPopulationRegistryResult(data);
             draft.SystemDocuments.PopulationRegistryDocumentPath = request.SavedFilePath;
            
-            // Vasi adı belgeden okunduğu an takip tablosunda ismi güncelliyoruz:
             if (!string.IsNullOrEmpty(draft.Guardian.Name))
             {
                 await _trackingRepository.UpdateGuardianNameAsync(draft.RegistrationKey, draft.Guardian.Name, cancellationToken);
             }
-            // Nüfus bitti, İkametgaha geçiyoruz
+
             draft.SetStep(RegistrationStep.WaitingForResidence);
 
-            // Kullanıcıya özet mesajı gönderiyoruz
             string fatherDeathStr = draft.Father.DeathDate.HasValue
                 ? draft.Father.DeathDate.Value.ToString("dd.MM.yyyy")
                 : _localizer["Summary_NotSpecified"].Value;
@@ -128,12 +129,10 @@ public class SaveProcessedDocumentCommandHandler(
             draft.ApplyResidenceDocumentResult(data);
             draft.SystemDocuments.ResidenceDocumentPath = request.SavedFilePath;
 
-            // İkametgah bitti, ilk Kimlik hedefini belirliyoruz
             var targetName = draft.GetNextPersonNeedingIdentity();
             draft.SetDocumentTarget(targetName);
             draft.SetStep(RegistrationStep.WaitingForIdentityFront);
 
-            // Kullanıcıya özet mesajı gönderiyoruz
             var residenceSummary = new StringBuilder();
             residenceSummary.AppendLine(_localizer["Summary_Residence_Title"].Value);
             string fullAddress = !string.IsNullOrWhiteSpace(draft.ResidenceAddress?.FullAddress)
@@ -149,7 +148,7 @@ public class SaveProcessedDocumentCommandHandler(
             var extractedTc = request.ExtractedTcNumber!;
             var expectedTc = draft.GetExpectedIdNumberForCurrentTarget();
 
-            // 🚀 KURAL 1 & KURAL 2: Hem Ön hem Arka yüzdeki TC, Nüfustan gelen beklenen TC ile aynı olmak zorundadır.
+            // Validates that extracted identity number strictly matches the individual identified in population registry.
             if (expectedTc == null || extractedTc != expectedTc)
             {
                 throw new DocumentValidationException("Error_IdentityNumberMismatch", extractedTc, draft.CurrentDocumentTargetName ?? string.Empty);
@@ -161,7 +160,7 @@ public class SaveProcessedDocumentCommandHandler(
                 draft.SetStep(RegistrationStep.WaitingForIdentityBack);
                 await _notifier.SendMessageAsync(draft.ChatId, _localizer["Success_IdentityFrontProcessed"]);
             }
-            else // IdentityBack
+            else
             {
                 draft.SystemDocuments.IdentityBackPath = request.SavedFilePath;
                 draft.SetStep(RegistrationStep.MergingDocuments);
@@ -183,10 +182,8 @@ public class SaveProcessedDocumentCommandHandler(
                 await _eventPublisher.PublishAsync("document-processing-queue", envelope);
             }
         }
-
         else if (request.DocumentType == "MergedIdentity")
         {
-            // A) BİRLEŞTİRİLEN KİMLİĞİ DOĞRU KİŞİYE KAYDET (Çoklu Kimlik Algoritması)
             if (draft.CurrentDocumentTargetName == "Vasi")
             {
                 draft.Guardian.IdentityDocumentPath = request.SavedFilePath;
@@ -197,7 +194,7 @@ public class SaveProcessedDocumentCommandHandler(
                 if (child != null) child.IdentityDocumentPath = request.SavedFilePath;
             }
 
-            // B) SIRADA BAŞKA KİMLİK VAR MI DİYE KONTROL ET (Döngü)
+            // Checks whether any eligible children still require identity card verification before proceeding.
             var nextTarget = draft.GetNextPersonNeedingIdentity();
             if (nextTarget != null)
             {
@@ -209,10 +206,8 @@ public class SaveProcessedDocumentCommandHandler(
             }
             else
             {
-                // Döngü bitti! Soru aşamasına geç.
                 draft.SetStep(RegistrationStep.WaitingForQuestions);
                 await _notifier.SendMessageAsync(draft.ChatId, _localizer["Success_AllIdentityDocumentsCollected"]);
-                // Kullanıcıdan metin gelmesini beklemeden anket döngüsünü doğrudan tetikliyoruz
                 await _mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey), cancellationToken);
             }
         }

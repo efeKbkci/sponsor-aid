@@ -2,6 +2,9 @@ using System.ComponentModel;
 
 namespace SponsorAid.Domain.Enums;
 
+/// <summary>
+/// Profession of the deceased father used for social background records.
+/// </summary>
 public enum FatherProfession
 {
     [Description("Asker / Polis")] MilitaryOrPolice = 1,

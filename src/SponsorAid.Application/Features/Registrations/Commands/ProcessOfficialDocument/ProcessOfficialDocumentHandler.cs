@@ -5,6 +5,9 @@ using SponsorAid.Domain.Exceptions;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.ProcessBinaryDocument;
 
+/// <summary>
+/// Validates official registration documents, stores them locally, and dispatches extraction tasks to the queue.
+/// </summary>
 public class ProcessBinaryDocumentCommandHandler : IRequestHandler<ProcessOfficialDocumentCommand>
 {
     private readonly IFileStorageService _fileStorage;
@@ -45,15 +48,16 @@ public class ProcessBinaryDocumentCommandHandler : IRequestHandler<ProcessOffici
                                     : DocumentType.Residence
         };
 
+        // Scanned image documents require barcode extraction first, whereas PDF files contain full structured text.
         var envelope = new WorkerTaskEnvelope
         {
             CommandType = extension == "pdf" 
                                 ? CommandType.ProcessOfficialDoc
                                 : CommandType.ExtractBarcode,
-            OfficialDocTask = task // Zarfın içine görevi koyuyoruz
+            OfficialDocTask = task
         };
 
-        // Handler sadece "Bu mesajı fırlat" der. Arka planda RabbitMQ mu var, Kafka mı var bilmez.
+        // Offloads heavy document parsing and OCR tasks to background workers through the message queue.
         await _eventPublisher.PublishAsync("document-processing-queue", envelope);
     }
 }

@@ -6,6 +6,11 @@ import re
 import aiohttp
 
 class OcrService:
+    """Extracts citizen identity numbers from ID card images using Azure Computer Vision.
+
+    Provides synchronous extraction by scoping OCR to targeted regions of interest.
+    """
+
     def __init__(self):
         self.endpoint = os.environ.get("AZURE_VISION_ENDPOINT")
         self.subscription_key = os.environ.get("AZURE_VISION_KEY")
@@ -13,8 +18,11 @@ class OcrService:
         if not self.endpoint or not self.subscription_key:
             print("⚠️ UYARI: Azure Vision API anahtarları eksik! Lütfen .env dosyasını kontrol edin.")
 
-    # 🚀 DIŞARIYA AÇILAN SENKRON METOT (Handler hiçbir değişiklik yapmadan bunu çağırabilir)
     def extract_tc_number(self, image_bytes: bytes, document_side: str) -> str | None:
+        """Extract the 11-digit Turkish citizen ID number from the specified card side.
+
+        Restricts OCR to the upper half for front sides and lower half for back sides.
+        """
         np_array = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
 
@@ -23,6 +31,8 @@ class OcrService:
 
         h, w = image.shape[:2]
         
+        # Front cards place the citizen ID in the upper half; back cards place it in the lower MRZ zone.
+        # Slicing to the relevant half reduces payload size and eliminates false positive number matches.
         if document_side.lower() == "front":
             roi = image[0:int(h * 0.50), 0:w]
         elif document_side.lower() == "back":
@@ -33,10 +43,11 @@ class OcrService:
         _, buffer = cv2.imencode('.jpg', roi)
         roi_bytes = buffer.tobytes()
 
-        # Asenkron virüsünü sadece burada çalıştırıp içeriye hapsediyoruz!
+        # Executes the asynchronous HTTP request inside a synchronous wrapper for caller compatibility.
         text_lines = asyncio.run(self._call_azure_read_api(roi_bytes))
         full_text = " ".join(text_lines)
 
+        # Turkish citizen ID numbers consist of 11 digits and never start with zero.
         tc_pattern = r'\b[1-9][0-9]{10}\b'
         match = re.search(tc_pattern, full_text)
 
@@ -44,8 +55,11 @@ class OcrService:
             return match.group(0)
         return None
 
-    # SADECE İÇERİDE ÇALIŞAN ASENKRON AĞ METODU (Private)
     async def _call_azure_read_api(self, image_bytes: bytes) -> list[str]:
+        """Submit the image to Azure Read API and poll until text extraction completes.
+
+        Returns all detected text lines from the document analysis result.
+        """
         if not self.endpoint or not self.subscription_key:
             raise ValueError("Sistemde Azure OCR anahtarları bulunamadı.")
 
@@ -55,6 +69,7 @@ class OcrService:
             'Content-Type': 'application/octet-stream'
         }
 
+        # Azure Read API is asynchronous: first request initiates the OCR operation and returns a status URL.
         async with aiohttp.ClientSession() as session:
             async with session.post(analyze_url, headers=headers, data=image_bytes) as response:
                 response.raise_for_status()
@@ -65,6 +80,7 @@ class OcrService:
 
             poll_headers = {'Ocp-Apim-Subscription-Key': self.subscription_key}
             
+            # Poll operation URL with 0.5s intervals until Azure completes document recognition.
             while True:
                 await asyncio.sleep(0.5)
                 async with session.get(operation_url, headers=poll_headers) as poll_response:
@@ -87,22 +103,22 @@ if __name__ == "__main__":
     import csv
     from pathlib import Path
 
-# 🚀 .env YÜKLEME KÖPRÜSÜ
+    # Load environment variables from .env file for local testing.
     from dotenv import load_dotenv, find_dotenv
     
-    # Üst dizinlere çıkarak .env dosyasını otomatik bul ve ortam değişkenlerine yaz
+    # Traverse directories to locate the closest .env file.
     load_dotenv(find_dotenv())
 
     ocr_service = OcrService()
     parser = argparse.ArgumentParser()
 
-    # Hem tekli kullanım hem de CSV kullanımı için parametreler
+    # Support single-file execution and bulk processing via CSV.
     parser.add_argument("-p", help="İşlenecek kimlik fotoğrafının yolu")
     parser.add_argument("-s", help="İşlenecek kimlik fotoğrafının yönü (front, back)")
     parser.add_argument("-c", "--csv", help="Toplu işlem için CSV dosyasının yolu")
     args = parser.parse_args()
 
-    # 1. SENARYO: CSV DOSYASI VERİLMİŞSE
+    # Scenario 1: Batch execution using a CSV manifest.
     if args.csv:
         csv_file = Path(args.csv)
         if not csv_file.is_file() or not csv_file.name.endswith('.csv'):
@@ -112,12 +128,12 @@ if __name__ == "__main__":
         
         with open(csv_file, mode="r", encoding="utf-8") as f:
             reader = csv.reader(f)
-            # Eğer CSV'nin ilk satırı başlık ise (örn: path,side) alttaki satırın yorumunu kaldır:
+            # Skip header line if present in CSV file.
             # next(reader, None) 
             
             for satir_no, row in enumerate(reader, start=1):
                 if len(row) < 2:
-                    continue # Boş veya hatalı satırları atla
+                    continue  # Skip empty or incomplete rows.
                     
                 dosya_yolu = row[0].strip()
                 yon = row[1].strip()
@@ -136,7 +152,7 @@ if __name__ == "__main__":
                 except Exception as e:
                     print(f"[Satır {satir_no}] HATA: {img_path.name} okunamadı. Detay: {e}")
                     
-    # 2. SENARYO: TEK BİR DOSYA VERİLMİŞSE (-p ve -s ile)
+    # Scenario 2: Single file execution with path and side options.
     elif args.p and args.s:
         file = Path(args.p)
 
@@ -156,6 +172,6 @@ if __name__ == "__main__":
         result = ocr_service.extract_tc_number(image_bytes=image_bytes, document_side=args.s)
         print(f"OCR Sonucu : {result}")
         
-    # 3. SENARYO: HİÇBİR PARAMETRE GİRİLMEMİŞSE
+    # Scenario 3: No required CLI arguments provided.
     else:
         parser.error("Lütfen tekli işlem için '-p' ve '-s' veya toplu işlem için '-c' parametresini kullanın.")

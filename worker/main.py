@@ -11,11 +11,11 @@ from microservices.residence_parsing.handler import ResidenceHandler
 from microservices.barcode_extraction.handler import BarcodeExtractionHandler
 from microservices.semantic_matching.handler import router as semantic_router
 
-# 1. FastAPI Uygulaması
+# HTTP application for synchronous microservice endpoints such as semantic matching.
 app = FastAPI(title="SponsorAid Worker Internal API")
 app.include_router(semantic_router)
 
-# 2. Servisleri Başlat (Mevcut mantık aynen korunur)
+# Pre-initialize handlers at startup to keep machine learning models loaded in memory.
 print("[*] Worker Başlatılıyor. Servisler ayağa kaldırılıyor...")
 
 id_service = IdProcessingHandler()
@@ -24,11 +24,16 @@ residence_service = ResidenceHandler()
 barcode_service = BarcodeExtractionHandler()
 
 def route_event(ch, method, properties, body):
+    """Deserialize incoming tasks from RabbitMQ and dispatch them to service handlers.
+
+    Routes protobuf tasks by command type and publishes the result back to the send queue.
+    """
     envelope = events_pb2.WorkerTaskEnvelope()
     try:
         envelope.ParseFromString(body)
     except Exception as e:
         print(f"[❌] Protobuf okuma hatası: {e}")
+        # Acknowledge unreadable messages immediately to avoid poison pills blocking the queue.
         ch.basic_ack(delivery_tag=method.delivery_tag)
         return
 
@@ -58,6 +63,7 @@ def route_event(ch, method, properties, body):
         print(f"[⚠️] Bilinmeyen komut tipi!")
 
     if result_msg:
+        # Delivery mode 2 persists the message to disk so messages survive broker restarts.
         ch.basic_publish(
             exchange='',
             routing_key=QUEUE_SEND,
@@ -65,15 +71,21 @@ def route_event(ch, method, properties, body):
             properties=pika.BasicProperties(delivery_mode=2)
         )
 
+    # Acknowledge the message only after processing completes to prevent task loss.
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
 def start_router():
+    """Establish connection to RabbitMQ broker and listen for incoming tasks.
+
+    Applies retry logic to handle startup races and limits prefetch to balance load.
+    """
     print(f"[*] RabbitMQ'ya bağlanılıyor ({RABBITMQ_HOST})...")
     credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
     parameters = pika.ConnectionParameters(host=RABBITMQ_HOST, credentials=credentials)
 
     connection = None
     retries = 10
+    # Retry loop handles container startup delays when RabbitMQ is not ready yet.
     while retries > 0:
         try:
             connection = pika.BlockingConnection(parameters)
@@ -90,6 +102,7 @@ def start_router():
     channel.queue_declare(queue=QUEUE_RECEIVE, durable=True)
     channel.queue_declare(queue=QUEUE_SEND, durable=True)
 
+    # Limit unacknowledged messages to one to avoid overloading worker memory with heavy tasks.
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(queue=QUEUE_RECEIVE, on_message_callback=route_event)
 
@@ -97,10 +110,10 @@ def start_router():
     channel.start_consuming()
 
 if __name__ == '__main__':
-    # RabbitMQ dinleyicisini arka planda thread olarak koştur
+    # Run the RabbitMQ consumer in a background thread so the main thread can host the API.
     mq_thread = threading.Thread(target=start_router, daemon=True)
     mq_thread.start()
 
-    # FastAPI Uvicorn sunucusunu ana thread'de ayağa kaldır (Port: 8000)
+    # Run the HTTP server on the main thread to serve synchronous requests.
     print("[*] 🌐 FastAPI HTTP Servisi 8000 portunda başlatılıyor...")
     uvicorn.run(app, host="0.0.0.0", port=8000)

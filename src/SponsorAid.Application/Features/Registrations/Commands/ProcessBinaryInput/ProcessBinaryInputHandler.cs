@@ -12,6 +12,9 @@ using System.Text;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.ProcessBinaryInput;
 
+/// <summary>
+/// Routes uploaded binary files to the appropriate document processor based on the active registration step.
+/// </summary>
 public class ProcessBinaryInputHandler(
     IDraftStateRepository draftRepository, 
     IMediator mediator, IUserNotifier notifier,
@@ -70,7 +73,7 @@ public class ProcessBinaryInputHandler(
                     activeDraft.RegistrationKey, request.FileId, request.FileSize, request.Extension, "back"), cancellationToken);
                 break;
 
-            // Kilit Altındaki Asenkron Durumlar
+            // Prevents duplicate processing requests while an asynchronous job is currently running.
             case RegistrationStep.ProcessingPopulationRegistry:
             case RegistrationStep.ProcessingResidence:
             case RegistrationStep.ProcessingIdentityFront:
@@ -79,7 +82,7 @@ public class ProcessBinaryInputHandler(
                 await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_PreviousDocumentStillProcessing"]);
                 break;
 
-            // Belge Beklenmeyen Durumlar (Anket, Onay vb.)
+            // Rejects file uploads when the registration workflow is currently expecting text answers or confirmation.
             default:
                 await _notifier.SendMessageAsync(request.ChatId, _localizer["Error_DocumentUploadNotExpected"]);
                 break;

@@ -5,6 +5,9 @@ using SponsorAid.Domain.Exceptions;
 
 namespace SponsorAid.Infrastructure.Services;
 
+/// <summary>
+/// Downloads verified official documents from the e-Government portal by handling multi-step verification.
+/// </summary>
 public class EGovermentDocumentService : IEGovermentDocumentService
 {
     private readonly string _storagePath;
@@ -23,25 +26,21 @@ public class EGovermentDocumentService : IEGovermentDocumentService
 
     public async Task<string> DownloadDocumentAsync(string barcode, string idNumber, CancellationToken cancellationToken = default)
     {
-        // Havuzdan (pool) bağlantı al. (Performans dostu)
+        // Reuses named HTTP client instance to prevent TCP socket exhaustion.
         var client = _httpClientFactory.CreateClient("EDevletClient");
 
-        // Bu işlem (session) için İZOLE çerez kutusu (Session karışmasını önler)
+        // Uses an isolated cookie container per request to prevent cross-session contamination.
         var cookieContainer = new CookieContainer();
         var baseUri = new Uri("https://www.turkiye.gov.tr/");
 
-        // ---------------------------------------------------------
-        // ADIM 1: İlk GET isteği - Çerezleri ve ilk token'ı al
-        // ---------------------------------------------------------
+        // Step 1: Initial GET request to acquire initial session cookies and anti-forgery token.
         var response1 = await SendRequestAsync(client, HttpMethod.Get, "belge-dogrulama", null, cookieContainer, baseUri, cancellationToken);
         var html1 = await response1.Content.ReadAsStringAsync(cancellationToken);
         string token1 = ExtractToken(html1, "1. Adım");
 
-        await HumanizeDelayAsync(cancellationToken); // Bot korumasına takılmamak için bekle
+        await HumanizeDelayAsync(cancellationToken);
 
-        // ---------------------------------------------------------
-        // ADIM 2: İlk POST isteği - Barkod Numarasını Gönder
-        // ---------------------------------------------------------
+        // Step 2: Posts document barcode to start verification sequence.
         var payload1 = new Dictionary<string, string> { { "sorgulananBarkod", barcode }, { "token", token1 }, { "btn", "Devam Et" } };
         var response2 = await SendRequestAsync(client, HttpMethod.Post, "belge-dogrulama?submit", payload1, cookieContainer, baseUri, cancellationToken);
         var html2 = await response2.Content.ReadAsStringAsync(cancellationToken);
@@ -49,9 +48,7 @@ public class EGovermentDocumentService : IEGovermentDocumentService
 
         await HumanizeDelayAsync(cancellationToken);
 
-        // ---------------------------------------------------------
-        // ADIM 3: İkinci POST isteği - T.C. Kimlik Gönder
-        // ---------------------------------------------------------
+        // Step 3: Posts identity number associated with the document.
         var payload2 = new Dictionary<string, string> { { "ikinciAlan", idNumber }, { "token", token2 }, { "btn", "Devam Et" } };
         var response3 = await SendRequestAsync(client, HttpMethod.Post, "belge-dogrulama?islem=dogrulama&submit", payload2, cookieContainer, baseUri, cancellationToken);
         var html3 = await response3.Content.ReadAsStringAsync(cancellationToken);
@@ -59,25 +56,21 @@ public class EGovermentDocumentService : IEGovermentDocumentService
 
         await HumanizeDelayAsync(cancellationToken);
 
-        // ---------------------------------------------------------
-        // ADIM 4: Üçüncü POST isteği - Onay Kutusu Gönder
-        // ---------------------------------------------------------
+        // Step 4: Confirms consent to view and download document.
         var payload3 = new Dictionary<string, string> { { "chkOnay", "1" }, { "token", token3 }, { "btn", "Devam Et" } };
         await SendRequestAsync(client, HttpMethod.Post, "belge-dogrulama?islem=onay&submit", payload3, cookieContainer, baseUri, cancellationToken);
 
         await HumanizeDelayAsync(cancellationToken);
 
-        // ---------------------------------------------------------
-        // ADIM 5: Son GET İsteği - Belgeyi İndir
-        // ---------------------------------------------------------
+        // Step 5: Downloads the final generated PDF binary.
         var response5 = await SendRequestAsync(client, HttpMethod.Get, "belge-dogrulama?belge=goster&goster=1&display=display", null, cookieContainer, baseUri, cancellationToken);
 
         if (response5.IsSuccessStatusCode)
         {
             var fileBytes = await response5.Content.ReadAsByteArrayAsync(cancellationToken);
 
-            // PDF boyutu makul mü? (Örn. e-Devlet 403 dönmüşse HTML sayfası gelir ve boyutu küçüktür)
-            if (fileBytes.Length > 5000) // 1000 byte'tan 5000'e çektik, HTML sayfaları genelde 3-4 kb olur.
+            // Validates that payload size exceeds error HTML responses (usually under 5 KB).
+            if (fileBytes.Length > 5000)
             {
                 var fileName = $"edevlet_{barcode}_{Guid.NewGuid():N}.pdf";
                 var fullPath = Path.Combine(_storagePath, fileName);
@@ -90,7 +83,7 @@ public class EGovermentDocumentService : IEGovermentDocumentService
         throw new BusinessRuleException("Error_EGovernmentDocumentDownloadFailed");
     }
 
-    // 🚀 Çerezleri elden geçirerek yollayan özel istek fırlatıcı
+    // Handles request dispatch while maintaining isolated cookies for the active verification flow.
     private async Task<HttpResponseMessage> SendRequestAsync(
         HttpClient client,
         HttpMethod method,
@@ -102,14 +95,13 @@ public class EGovermentDocumentService : IEGovermentDocumentService
     {
         using var request = new HttpRequestMessage(method, url);
 
-        // 1. O anki kullanıcının çerezlerini isteğe ekle (İzolasyon)
+        // Injects current session cookies into the request header.
         var cookieHeader = cookieContainer.GetCookieHeader(baseUri);
         if (!string.IsNullOrEmpty(cookieHeader))
         {
             request.Headers.Add("Cookie", cookieHeader);
         }
 
-        // 2. Post işlemi ise form datayı ekle
         if (payload != null)
         {
             request.Content = new FormUrlEncodedContent(payload);
@@ -117,12 +109,11 @@ public class EGovermentDocumentService : IEGovermentDocumentService
 
         var response = await client.SendAsync(request, cancellationToken);
 
-        // 3. Sunucudan dönen YENİ çerezleri yakala ve kutuya koy
+        // Extracts response cookies and stores them in the isolated session container.
         if (response.Headers.TryGetValues("Set-Cookie", out var setCookies))
         {
             foreach (var cookieStr in setCookies)
             {
-                // Domain uyuşmazlığı hatalarını önlemek için doğrudan URI'ye ekliyoruz
                 cookieContainer.SetCookies(baseUri, cookieStr);
             }
         }
@@ -139,14 +130,13 @@ public class EGovermentDocumentService : IEGovermentDocumentService
             return match.Groups[1].Value;
         }
 
-        // Eğer e-Devlet'ten token gelmemişse WAF/Cloudflare tarafından engellenmişizdir.
+        // Fails when anti-forgery token is absent, indicating request rejection or rate limit.
         throw new BusinessRuleException("Error_EGovernmentSecurityTokenNotFound", step);
     }
 
-    // 🚀 Bot koruması atlatıcı: Makine gibi saniyede 10 istek atmasını engeller.
+    // Adds a randomized delay between requests to avoid automated rate limiting.
     private static async Task HumanizeDelayAsync(CancellationToken cancellationToken)
     {
-        // 400ms ile 1200ms arası rastgele bir bekleme süresi oluşturur
         int delay = Random.Shared.Next(400, 1200);
         await Task.Delay(delay, cancellationToken);
     }

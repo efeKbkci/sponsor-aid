@@ -1,23 +1,47 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- External package dependencies required for data access, communication, and security -->
   <ItemGroup>
+    <!-- Used to send encrypted application packages over SMTP email -->
     <PackageReference Include="MailKit" Version="4.18.1" />
+
+    <!-- Dispatches background consumer commands into the application layer -->
     <PackageReference Include="MediatR" Version="14.2.0" />
+
+    <!-- Object-relational mapping framework for relational data access -->
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+
+    <!-- Design-time tools required to manage database migrations -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+
+    <!-- Reads environment variables and application settings -->
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
+
+    <!-- Provides base classes for long-running background workers -->
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+
+    <!-- Manages resilient HTTP client life cycles and connection pooling -->
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
+
+    <!-- PostgreSQL database provider for Entity Framework Core -->
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+
+    <!-- Message broker client for event publication and worker queue consumption -->
     <PackageReference Include="RabbitMQ.Client" Version="7.2.2" />
+
+    <!-- Creates password-protected AES-256 zip archives for completed submissions -->
     <PackageReference Include="SharpZipLib" Version="1.4.2" />
+
+    <!-- Cryptographic services for secure data operations -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 
+  <!-- Project references -->
   <ItemGroup>
+    <!-- Infrastructure implements repositories and external services defined in Application -->
     <ProjectReference Include="..\SponsorAid.Application\SponsorAid.Application.csproj" />
   </ItemGroup>
 

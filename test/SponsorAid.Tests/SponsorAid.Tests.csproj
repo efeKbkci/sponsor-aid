@@ -1,24 +1,38 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<!--
+  Integration and unit test project for the SponsorAid solution.
+  Contains end-to-end integration tests, handler tests, and behavioral test suites.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Prevent publishing test assemblies as distributable packages -->
     <IsPackable>false</IsPackable>
+    <!-- Required by WebApplicationFactory to locate application dependencies at runtime -->
 	  <PreserveCompilationContext>true</PreserveCompilationContext>
   </PropertyGroup>
 
+  <!-- Testing frameworks, container harnesses, and mocking libraries -->
   <ItemGroup>
+    <!-- Code coverage collector for automated build pipelines -->
     <PackageReference Include="coverlet.collector" Version="10.1.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <!-- Loads environment variables from local .env files during test runs -->
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
+    <!-- Assertion library for clear and readable test verifications -->
     <PackageReference Include="FluentAssertions" Version="8.11.0" />
+    <!-- In-memory test server host for full HTTP request pipeline testing -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <!-- Mocking library for isolating external services and boundaries -->
     <PackageReference Include="Moq" Version="4.21.0" />
+    <!-- Archive manipulation library for inspecting generated zip packages in tests -->
     <PackageReference Include="SharpZipLib" Version="1.4.2" />
+    <!-- Manages real PostgreSQL container lifecycles in Docker for database integration tests -->
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.16.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
@@ -31,6 +45,7 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Application project references tested by this suite -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\SponsorAid.Api\SponsorAid.Api.csproj" />
     <ProjectReference Include="..\..\src\SponsorAid.Application\SponsorAid.Application.csproj" />

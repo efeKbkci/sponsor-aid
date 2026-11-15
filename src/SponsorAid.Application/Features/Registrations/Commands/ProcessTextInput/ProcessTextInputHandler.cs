@@ -18,6 +18,9 @@ using System.Text.RegularExpressions;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.ProcessTextInput;
 
+/// <summary>
+/// Directs incoming text inputs and interactive button callbacks to their corresponding registration commands.
+/// </summary>
 public class ProcessTextInputHandler(
     IDraftStateRepository draftRepository,
     IUserNotifier notifier,
@@ -31,7 +34,7 @@ public class ProcessTextInputHandler(
         "komut", "komutlar", "menu", "menü", "/komut", "/menu", "/yardim", "/help"
     };
 
-    // Slash komutlarını Description ile eşleyen önbellek
+    // Caches enum descriptions at startup to avoid repeated reflection overhead on command lookups.
     private static readonly Dictionary<string, BotCommand> SlashCommandMap =
         Enum.GetValues<BotCommand>().ToDictionary(
             cmd => typeof(BotCommand).GetField(cmd.ToString())?
@@ -44,50 +47,43 @@ public class ProcessTextInputHandler(
         var text = request.Text.Trim();
         var draft = await draftRepository.GetActiveByChatIdAsync(request.ChatId, cancellationToken);
 
-        // 1. BUTON TIKLAMALARI (Callback)
         if (request.CallbackMessageId.HasValue)
         {
             await HandleCallbackAsync(request.ChatId, request.CallbackMessageId.Value, text, draft?.RegistrationKey, cancellationToken);
             return;
         }
 
-        // 2. MENÜ TETİKLEYİCİSİ ("menü", "komut" vb.)
         if (MenuTriggers.Contains(text))
         {
             await notifier.SendQuestionWithButtonsAsync(request.ChatId, _localizer["Prompt_AvailableCommands"], GetCommandMenuOptions());
             return;
         }
 
-        // 3. AÇIK SLASH KOMUTLARI (/start, /new, /continue, /cancel)
         if (text.StartsWith('/'))
         {
             await ExecuteSlashCommandAsync(request.ChatId, draft?.RegistrationKey, text, cancellationToken);
             return;
         }
 
-        // 4. GÜNCELLEME ALANI SEÇİM MODU (NLI İLE HİBRİT YAKALAMA)
         if (draft != null && draft.IsWaitingForUpdateFieldSelection)
         {
             await mediator.Send(new UpdateQuestionAnswerCommand(draft.RegistrationKey, text, request.ChatId), cancellationToken);
             return;
         }
 
-        // 5. YALNIZCA TAM METİN 6 KARAKTERLİ, EN AZ BİR HARF VE EN AZ BİR RAKAM İÇERİYORSA TAKİP KODUDUR
-        // (Cümle içi "Doktor", "Garson" gibi kelimelerin yanlışlıkla kod sanılmasını engeller)
+        // Identifies 6-character registration keys while preventing common vocabulary words from being misidentified.
         if (Regex.IsMatch(text, @"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{6}$"))
         {
             await mediator.Send(new ContinueRegistrationCommand(text.ToUpperInvariant(), request.ChatId), cancellationToken);
             return;
         }
 
-        // 6. AKTİF TASLAK YOKSA
         if (draft == null)
         {
             await notifier.SendMessageAsync(request.ChatId, _localizer["Error_NoActiveRegistration_StartFromMenu"]);
             return;
         }
 
-        // 7. MEVCUT ADIMDAKİ ANKET / GİRDİ İŞLEMLERİ
         switch (draft.CurrentStep)
         {
             case RegistrationStep.WaitingForGuardianId:
@@ -156,7 +152,6 @@ public class ProcessTextInputHandler(
 
     private async Task HandleCallbackAsync(long chatId, int callBackMessageId, string callBackMessage, string? regKey, CancellationToken cancellation)
     {
-        // 1. Kayıt Listesinden Seçim Yapıldıysa
         if (callBackMessage.StartsWith(ContinueRegistrationCommand.SelectionCallbackPrefix, StringComparison.OrdinalIgnoreCase))
         {
             var selectedKey = callBackMessage[ContinueRegistrationCommand.SelectionCallbackPrefix.Length..];
@@ -165,7 +160,6 @@ public class ProcessTextInputHandler(
             return;
         }
 
-        // Başvuru Onay Butonuna Basıldıysa (Finalize)
         if (callBackMessage.Equals("confirm_registration", StringComparison.OrdinalIgnoreCase))
         {
             if (string.IsNullOrWhiteSpace(regKey))
@@ -174,15 +168,13 @@ public class ProcessTextInputHandler(
                 return;
             }
 
-            // Özet metnini KORU, sadece altındaki butonu kaldır:
+            // Removes confirmation buttons after click to prevent duplicate submission triggers.
             await notifier.RemoveButtonsAsync(chatId, callBackMessageId);
 
-            // Finalize akışını başlat (ZIP + E-posta + Telegram Şifre + Hard Delete)
             await mediator.Send(new FinalizeRegistrationCommand(regKey), cancellation);
             return;
         }
 
-        // 2. Ana Menü Komut Butonuna Basıldıysa
         if (SlashCommandMap.TryGetValue(callBackMessage, out var command) &&
             GetCommandMenuOptions().TryGetValue(callBackMessage, out var buttonLabel))
         {
@@ -191,7 +183,6 @@ public class ProcessTextInputHandler(
             return;
         }
 
-        // 3. Normal Anket Butonları
         await mediator.Send(new ProcessQuestionnaireAnswerCommand(regKey!, callBackMessage, callBackMessageId), cancellation);
     }
 

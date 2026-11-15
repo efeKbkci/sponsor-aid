@@ -1,10 +1,10 @@
 syntax = "proto3";
 
+// Defines the generated C# namespace to match the integration layer contracts.
 option csharp_namespace = "SponsorAid.Integration.Contracts";
 
-// ====================================================================
-// ORTAK ENUM'LAR (Sihirli Stringleri Yok Eden Yapı)
-// ====================================================================
+// Identifies the classification of uploaded documents.
+// Used instead of raw strings to avoid typing errors between C# and Python services.
 enum DocumentType {
   DOCUMENT_TYPE_UNKNOWN = 0;
   DOCUMENT_TYPE_POPULATION_REGISTRY = 1;
@@ -14,12 +14,15 @@ enum DocumentType {
   DOCUMENT_TYPE_MERGED_IDENTITY = 5;
 }
 
+// Specifies the physical side of an identity card image.
+// Allows the OCR worker to apply side-specific field detection models.
 enum ImageSide {
   IMAGE_SIDE_UNKNOWN = 0;
   IMAGE_SIDE_FRONT = 1;
   IMAGE_SIDE_BACK = 2;
 }
 
+// Discriminator for background commands sent from the API to the worker.
 enum CommandType {
   COMMAND_TYPE_UNKNOWN = 0;
   COMMAND_TYPE_PROCESS_IMAGE = 1;
@@ -28,24 +31,23 @@ enum CommandType {
   COMMAND_TYPE_EXTRACT_BARCODE = 4;
 }
 
-// ====================================================================
-// DTO (Veri Taşıma) MODELLERİMİZ
-// ====================================================================
-
+// Represents an individual record extracted from a population registry document.
+// Date fields are strings in YYYY-MM-DD format to keep date formatting portable across languages.
 message Person {
   string id_number = 1;
   string first_name = 2;
   string last_name = 3;
-  string birth_date = 4; // Protobuf'ta tarih genelde "YYYY-MM-DD" string olarak taşınır
+  string birth_date = 4;
   optional string death_date = 5;
-  string kinship = 6;    // Yakınlık Derecesi (Kendisi, Oğlu, Babası vs.)
+  string kinship = 6;
 }
 
+// Holds the collection of family members found in a population registry document.
 message PopulationRegistryData {
-  // 'repeated' kelimesi Protobuf'ta List<PersonDto> anlamına gelir
-  repeated Person people = 1; 
+  repeated Person people = 1;
 }
 
+// Holds structured residential address information extracted from official documents.
 message ResidenceData {
   string id_number = 1;
   string city = 2;
@@ -54,12 +56,11 @@ message ResidenceData {
   string full_address = 5;
 }
 
-// ====================================================================
-// PYTHON'DAN C#'A DÖNECEK SONUÇ SÖZLEŞMESİ 
-// ====================================================================
+// Result envelope returned by the Python worker to the API through RabbitMQ.
+// Uses oneof so the same message schema can carry different extraction payloads.
 message WorkerResultMessage {
   string registration_key = 1;
-  DocumentType document_type = 2; // String yerine Enum kullandık!
+  DocumentType document_type = 2;
   bool is_success = 3;
   
   optional string error_message = 4;
@@ -68,39 +69,38 @@ message WorkerResultMessage {
   oneof extracted_data {
     PopulationRegistryData population_data = 6;
     ResidenceData residence_data = 7;
-    string extracted_tc_number = 8; // Kimlik okumasından sadece TC döneceği için string yeterli
-    string extracted_barcode = 9; // Belgeden çıkarılan barkod 
+    string extracted_tc_number = 8;
+    string extracted_barcode = 9;
   }
 }
 
-// ====================================================================
-// C#'TAN PYTHON'A GİDECEK GÖREV SÖZLEŞMELERİ
-// ====================================================================
+// Command payload to run OCR and data extraction on a single identity image.
 message ProcessImageTask {
   string registration_key = 1;
   string file_path = 2;
-  ImageSide image_side = 3; // String yerine Enum kullandık!
+  ImageSide image_side = 3;
 }
 
-message ProcessOfficialDocTask { // Hem PDF hem Fotoğraf tabanlı belgeler için kullanılacak
+// Command payload to process official documents such as PDF files or document scans.
+message ProcessOfficialDocTask {
   string registration_key = 1;
   string file_path = 2;
-  DocumentType document_type = 3; // String yerine Enum kullandık!
+  DocumentType document_type = 3;
 }
 
+// Command payload to merge front and back identity card images into a single PDF.
 message MergePdfTask {
   string registration_key = 1;
   string front_file_path = 2;
   string back_file_path = 3;
 }
 
-// ====================================================================
-// ANA ZARF (ENVELOPE)
-// ====================================================================
-message WorkerTaskEnvelope { // Python, bir task geldiği zaman onun hangi sınıfa ait olduğunu anlamak için command_type değerine bakar.
-  CommandType command_type = 1; // String yerine Enum kullandık!
+// Top-level envelope received by the Python worker from the task queue.
+// The command_type indicates which specific task payload is present in the oneof field.
+message WorkerTaskEnvelope {
+  CommandType command_type = 1;
   
-  oneof task_payload { // Envelop bir kargo gibidir. command_type kargonun etiketidir. oneof sayesinde aşağı task sınıflarından 1 tanesi taşınabilir.
+  oneof task_payload {
     ProcessImageTask image_task = 2;
     ProcessOfficialDocTask official_doc_task = 3;
     MergePdfTask merge_task = 4;

@@ -8,10 +8,13 @@ using System.Text;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.ProcessIdentityImage;
 
+/// <summary>
+/// Validates identity image constraints, stores the physical file, and enqueues an asynchronous OCR task.
+/// </summary>
 public class ProcessIdentityImageCommandHandler(IFileStorageService fileStorage, IEventPublisher eventPublisher)
     : IRequestHandler<ProcessIdentityImageCommand>
 {
-    private const long MaxFileSizeInBytes = 5 * 1024 * 1024; // 5 MB
+    private const long MaxFileSizeInBytes = 5 * 1024 * 1024;
     public async Task Handle(ProcessIdentityImageCommand request, CancellationToken cancellationToken)
     {
         if (request.FileSize > MaxFileSizeInBytes)
@@ -24,7 +27,6 @@ public class ProcessIdentityImageCommandHandler(IFileStorageService fileStorage,
             throw new BusinessRuleException("Error_UnsupportedIdentityImageType");
         }
 
-        // 1. Fotoğrafı indir
         string savedFilePath = await fileStorage.DownloadAndSaveAsync(request.FileId, request.Extension);
 
         var task = new ProcessImageTask
@@ -37,9 +39,10 @@ public class ProcessIdentityImageCommandHandler(IFileStorageService fileStorage,
         var envelope = new WorkerTaskEnvelope
         {
             CommandType = CommandType.ProcessImage,
-            ImageTask = task // Zarfın içine görevi koyuyoruz
+            ImageTask = task
         };
 
+        // Publishes task envelope to message queue so background workers handle OCR without blocking chat requests.
         await eventPublisher.PublishAsync("document-processing-queue", envelope);
     }
 }

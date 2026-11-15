@@ -5,6 +5,11 @@ using SponsorAid.Application.Interfaces;
 
 namespace SponsorAid.Application.Tests.Behaviors;
 
+/// <summary>
+/// Unit tests for <see cref="RequestSerializationBehavior{TRequest, TResponse}"/>.
+/// Verifies that concurrent requests sharing the same registration key are queued and processed sequentially
+/// to prevent race conditions during state transitions.
+/// </summary>
 public class RequestSerializationBehaviorTests
 {
     private record TestRegistrationCommand(string RegistrationKey) : IRequest<string>, IRegistrationCommand;
@@ -20,10 +25,10 @@ public class RequestSerializationBehaviorTests
         int maxConcurrentExecutions = 0;
         int activeExecutions = 0;
 
-        // Handler yerine geçecek sahte bir delegate (sonraki adım)
+        // Pipeline delegate simulating the next request handler in the MediatR pipeline
         RequestHandlerDelegate<string> next = async (_) =>
         {
-            // Aynı anda kaç tane isteğin içeride olduğunu takip ediyoruz
+            // Track concurrent execution count to detect overlapping handlers
             Interlocked.Increment(ref activeExecutions);
             lock (typeof(RequestSerializationBehaviorTests))
             {
@@ -33,7 +38,7 @@ public class RequestSerializationBehaviorTests
                 }
             }
 
-            // İşlemin sürdüğünü simüle etmek için kısa bir gecikme
+            // Introduce an artificial delay to allow overlapping concurrent calls if locking fails
             await Task.Delay(50);
 
             Interlocked.Decrement(ref activeExecutions);
@@ -42,7 +47,7 @@ public class RequestSerializationBehaviorTests
         };
 
         // Act
-        // Aynı anda 5 tane isteği aynı kayıt anahtarıyla fırlatıyoruz (Concurrency simülasyonu)
+        // Dispatch 5 concurrent requests with identical registration keys to test synchronization lock
         var task1 = behavior.Handle(command, next, CancellationToken.None);
         var task2 = behavior.Handle(command, next, CancellationToken.None);
         var task3 = behavior.Handle(command, next, CancellationToken.None);
@@ -52,11 +57,10 @@ public class RequestSerializationBehaviorTests
         await Task.WhenAll(task1, task2, task3, task4, task5);
 
         // Assert
-        // 1. Tüm istekler başarıyla tamamlanmış olmalı
+        // Verify all 5 requests completed successfully
         Assert.Equal(5, executionCount);
 
-        // 2. KRİTİK DOĞRULAMA: Aynı anda içeride çalışan maksimum istek sayısı KESİNLİKLE 1 olmalı.
-        // Eğer kilit mekanizması çalışmasaydı bu sayı 5 olacaktı.
+        // Verify peak concurrency remained at 1, ensuring sequential execution without race conditions
         Assert.Equal(1, maxConcurrentExecutions);
     }
 }

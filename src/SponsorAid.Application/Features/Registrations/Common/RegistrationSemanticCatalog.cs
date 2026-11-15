@@ -3,6 +3,9 @@ using SponsorAid.Domain.Enums;
 
 namespace SponsorAid.Application.Features.Registrations.Common;
 
+/// <summary>
+/// Provides semantic training phrases and target mappings for natural language understanding.
+/// </summary>
 public static class RegistrationSemanticCatalog
 {
     public static readonly IReadOnlyList<MatchCandidate> UpdateTargets = new List<MatchCandidate>
@@ -43,9 +46,6 @@ public static class RegistrationSemanticCatalog
             ["iban numaramı güncelle", "ibanımı değiştirmek istiyorum", "banka hesap numaramı düzelt"])
     };
 
-    // =========================================================================
-    // 2. BABA ÖLÜM NEDENLERİ (FatherDeathReason)
-    // =========================================================================
     public static readonly IReadOnlyList<MatchCandidate> FatherDeathReasons = new List<MatchCandidate>
     {
         new(nameof(FatherDeathReason.Fever), "Ateş (Humma)",
@@ -139,9 +139,6 @@ public static class RegistrationSemanticCatalog
             ["başka bir nedenle öldü", "belirtilmeyen neden", "tanı konulamadı"])
     };
 
-    // =========================================================================
-    // 3. BABA MESLEKLERİ (FatherProfession)
-    // =========================================================================
     public static readonly IReadOnlyList<MatchCandidate> FatherProfessions = new List<MatchCandidate>
     {
         new(nameof(FatherProfession.MilitaryOrPolice), "Asker / Polis",

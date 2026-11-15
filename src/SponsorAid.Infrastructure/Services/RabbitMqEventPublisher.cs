@@ -6,7 +6,10 @@ using System.Text.Json;
 
 namespace SponsorAid.Infrastructure.Services;
 
-// v7 ile birlikte IDisposable yerine IAsyncDisposable kullanıyoruz
+/// <summary>
+/// Publishes application events and processing commands to RabbitMQ message queues.
+/// Implements asynchronous disposal compatible with RabbitMQ Client v7.
+/// </summary>
 public class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
 {
     private readonly ConnectionFactory _factory;
@@ -14,11 +17,11 @@ public class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
 
     public RabbitMqEventPublisher()
     {
-        // 1. .env dosyasından senin belirlediğin şifreleri okuyoruz (Bulamazsa "guest" kullanır)
+        // Reads broker credentials from environment variables, defaulting to guest access for development.
         var user = Environment.GetEnvironmentVariable("RABBITMQ_USER") ?? "guest";
         var pass = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? "guest";
 
-        // 2. Kendi bilgisayarındaysan "localhost", Docker'a geçtiğinde "rabbitmq" adını alır
+        // Resolves host name dynamically to accommodate both container networks and local development.
         var host = Environment.GetEnvironmentVariable("RABBITMQ_HOST")
             ?? Environment.GetEnvironmentVariable("RabbitMQ__HostName")
             ?? "localhost";
@@ -26,12 +29,12 @@ public class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
         _factory = new ConnectionFactory
         {
             HostName = host,
-            UserName = user, // 🚀 Eksik olan şifreler eklendi!
+            UserName = user,
             Password = pass
         };
     }
 
-    // Bağlantıyı (Connection) asenkron olarak ilk ihtiyaç anında güvenlice açıyoruz
+    // Opens broker connection on first use with retry logic to tolerate temporary startup delays.
     private async Task<IConnection> GetConnectionAsync()
     {
         if (_connection != null && _connection.IsOpen)
@@ -62,20 +65,23 @@ public class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
         var connection = await GetConnectionAsync();
         await using var channel = await connection.CreateChannelAsync();
 
+        // Declares durable queue to prevent message loss during broker restarts.
         await channel.QueueDeclareAsync(queue: queueName, durable: true, exclusive: false, autoDelete: false, arguments: null);
 
-        // 🚀 YENİ MANTIK BURADA
         byte[] body;
-        if (@event is IMessage protoMessage) // Gelen nesne Protobuf nesnesi mi?
+        if (@event is IMessage protoMessage)
         {
-            body = protoMessage.ToByteArray(); // Evetse inanılmaz hızlı bir şekilde Binary'e çevir
+            // Serializes Protocol Buffers contracts directly to binary bytes for low latency.
+            body = protoMessage.ToByteArray();
         }
         else
         {
-            var message = JsonSerializer.Serialize(@event); // Hayırsa eski usül JSON'a çevir
+            // Fallback serialization to UTF-8 JSON for standard object payloads.
+            var message = JsonSerializer.Serialize(@event);
             body = Encoding.UTF8.GetBytes(message);
         }
 
+        // Marks message as persistent so the broker writes it to disk.
         var properties = new BasicProperties { Persistent = true };
 
         await channel.BasicPublishAsync(exchange: string.Empty, routingKey: queueName, mandatory: false, basicProperties: properties, body: body);
@@ -83,7 +89,7 @@ public class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        // Uygulama kapandığında bağlantıyı asenkron olarak temizle
+        // Gracefully closes active connection on application shutdown.
         if (_connection != null)
         {
             await _connection.CloseAsync();

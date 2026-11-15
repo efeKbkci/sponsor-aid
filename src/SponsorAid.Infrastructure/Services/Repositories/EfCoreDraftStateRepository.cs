@@ -6,6 +6,9 @@ using SponsorAid.Infrastructure.Persistence;
 
 namespace SponsorAid.Infrastructure.Services.Repositories;
 
+/// <summary>
+/// Manages draft state persistence and lifecycle using Entity Framework Core.
+/// </summary>
 public class EfCoreDraftStateRepository : IDraftStateRepository
 {
     private readonly SponsorAidDbContext _context;
@@ -21,7 +24,7 @@ public class EfCoreDraftStateRepository : IDraftStateRepository
 
         if (record == null) return null;
 
-        // Veritabanındaki JSON'ı al ve bizim zengin C# nesnemize çevir
+        // Deserializes the database JSON string into the draft state domain model.
         return JsonSerializer.Deserialize<RegistrationDraftState>(record.JsonData);
     }
 
@@ -46,7 +49,7 @@ public class EfCoreDraftStateRepository : IDraftStateRepository
         state.UpdatedAt = DateTime.UtcNow;
         var json = JsonSerializer.Serialize(state);
 
-        // 🚀 Eğer bu taslak aktifse, kullanıcının o sohbetteki diğer tüm taslaklarını pasife al
+        // Deactivates other drafts for this chat so only one draft remains active at a time.
         if (state.IsActive)
         {
             var otherActiveRecords = await _context.Drafts
@@ -74,7 +77,8 @@ public class EfCoreDraftStateRepository : IDraftStateRepository
         }
         else
         {
-            record.ChatId = state.ChatId; // Sohbet transferi durumunda yeni ChatId atanır
+            // Updates chat ID to support scenarios where a registration continues in a new chat.
+            record.ChatId = state.ChatId;
             record.UpdatedAt = state.UpdatedAt;
             record.IsActive = state.IsActive;
             record.JsonData = json;

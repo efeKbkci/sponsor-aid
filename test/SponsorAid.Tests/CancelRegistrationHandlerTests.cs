@@ -9,6 +9,11 @@ using SponsorAid.Application.Resources;
 
 namespace SponsorAid.Tests;
 
+/// <summary>
+/// Unit tests for <see cref="CancelRegistrationHandler"/>.
+/// Verifies draft removal from repository, physical file cleanup from storage,
+/// and user notifications when canceling active or missing registrations.
+/// </summary>
 public class CancelRegistrationHandlerTests
 {
     private readonly Mock<IDraftStateRepository> _draftRepositoryMock;
@@ -26,7 +31,7 @@ public class CancelRegistrationHandlerTests
         _localizerMock = new Mock<IStringLocalizer<BotMessages>>();
         _trackingRepositoryMock = new Mock<IRegistrationTrackingRepository>();
 
-        // Localizer'ın sahte dönüş değerini ayarlıyoruz (Resource dosyası kullanıyormuş gibi)
+        // Mock string localizer response to simulate localized message resource lookup
         _localizerMock.Setup(l => l["Success_RegistrationCancelled"])
             .Returns(new LocalizedString("Success_RegistrationCancelled", "Kayıt başarıyla iptal edildi."));
 
@@ -41,11 +46,10 @@ public class CancelRegistrationHandlerTests
     [Fact]
     public async Task Handle_WhenDraftExists_ShouldDeleteFilesAndDraftAndNotifyUser()
     {
-        // Arrange (Hazırlık)
+        // Arrange
         var command = new CancelRegistrationCommand("TEST_KEY_123", 987654321);
 
-        // Test için içi dosya yollarıyla doldurulmuş sahte bir taslak oluşturuyoruz
-        // Projendeki constructor yapılarına göre nesne başlatma (init) kısımlarını kendi domain'ine uydurabilirsin.
+        // Populate a draft with multiple document paths to test physical cleanup logic
         var fakeDraft = new RegistrationDraftState
         {
             RegistrationKey = "TEST_KEY_123",
@@ -73,12 +77,11 @@ public class CancelRegistrationHandlerTests
             .Setup(repo => repo.GetAsync(command.RegistrationKey, It.IsAny<CancellationToken>()))
             .ReturnsAsync(fakeDraft);
 
-        // Act (Eylem)
+        // Act
         await _handler.Handle(command, CancellationToken.None);
 
-        // Assert (Doğrulama)
-
-        // 1. Fiziksel dosyaların hepsi için DeleteFile metodunun tetiklendiğini doğrula
+        // Assert
+        // Verify file deletion was requested for each uploaded document path
         _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/nufus.pdf"), Times.Once);
         _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/ikametgah.pdf"), Times.Once);
         _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/on.jpg"), Times.Once);
@@ -88,39 +91,38 @@ public class CancelRegistrationHandlerTests
         _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/cocuk1_kimlik.pdf"), Times.Once);
         _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/cocuk2_kimlik.pdf"), Times.Once);
 
-        // Toplamda tam olarak 8 dosya silme isteği atılmış olmalı
+        // Verify total file deletion count matches all 8 paths
         _fileStorageMock.Verify(fs => fs.DeleteFile(It.IsAny<string>()), Times.Exactly(8));
 
-        // 2. Veritabanından taslağın tamamen silindiğini doğrula
+        // Verify draft record was removed from repository
         _draftRepositoryMock.Verify(repo => repo.DeleteAsync(command.RegistrationKey, It.IsAny<CancellationToken>()), Times.Once);
 
-        // 3. Kullanıcıya başarı mesajının gönderildiğini doğrula
+        // Verify user received the cancellation confirmation notification
         _notifierMock.Verify(n => n.SendMessageAsync(command.ChatId, "Kayıt başarıyla iptal edildi."), Times.Once);
     }
 
     [Fact]
     public async Task Handle_WhenDraftDoesNotExist_ShouldNotDeleteAnythingButNotifyUser()
     {
-        // Arrange (Hazırlık)
+        // Arrange
         var command = new CancelRegistrationCommand("NON_EXISTING_KEY", 987654321);
 
-        // Taslak veritabanında bulunamadığı için Null dönecek
+        // Simulate scenario where no active draft exists in repository
         _draftRepositoryMock
             .Setup(repo => repo.GetAsync(command.RegistrationKey, It.IsAny<CancellationToken>()))
             .ReturnsAsync((RegistrationDraftState?)null);
 
-        // Act (Eylem)
+        // Act
         await _handler.Handle(command, CancellationToken.None);
 
-        // Assert (Doğrulama)
-
-        // 1. Taslak olmadığı için fiziksel dosya silme operasyonu HİÇ çalışmamalı
+        // Assert
+        // No storage deletion calls should occur when no draft exists
         _fileStorageMock.Verify(fs => fs.DeleteFile(It.IsAny<string>()), Times.Never);
 
-        // 2. Veritabanından silme işlemi (DeleteAsync) HİÇ çalışmamalı
+        // No repository deletion call should occur when draft was not found
         _draftRepositoryMock.Verify(repo => repo.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
 
-        // 3. Sistemde zaten taslak yoksa bile, kullanıcının komutu askıda kalmasın diye yine de "İptal edildi" mesajı atılmalı
+        // User should still receive notification to acknowledge cancellation request
         _notifierMock.Verify(n => n.SendMessageAsync(command.ChatId, "Kayıt başarıyla iptal edildi."), Times.Once);
     }
 }

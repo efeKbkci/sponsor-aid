@@ -2,6 +2,9 @@ using System.ComponentModel;
 
 namespace SponsorAid.Domain.Enums;
 
+/// <summary>
+/// Current status of educational involvement.
+/// </summary>
 public enum EducationStatus
 {
     [Description("Hiç Okula Gitmedi")] NeverAttended = 1,
