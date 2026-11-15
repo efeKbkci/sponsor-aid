@@ -1,27 +1,34 @@
+# Production Docker Compose configuration for SponsorAid.
+# Manages database, message broker, backend API, and worker services.
 services:
-  # 1. Veritabanı
+  # Relational database for application data.
   db:
     image: postgres:16-alpine
     container_name: sponsoraid_db
+    # Environment variables are loaded from the production .env file.
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+    # No ports are exposed to the host for database security.
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
-  # 2. Mesaj Kuyruğu
+  # Message broker for asynchronous task distribution between API and Worker.
   rabbitmq:
-    image: rabbitmq:3-alpine # management versiyonu 160, arayüz içermeyen bu versiyonu 60 mb bellek işgal ediyor
+    # Uses standard Alpine image to reduce memory usage on production servers.
+    image: rabbitmq:3-alpine
     container_name: sponsoraid_rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    # Exposes management port only on localhost for secure SSH tunnel access.
     ports:
-      - "127.0.0.1:15672:15672" # localhost üzerinden arayüz erişimi
+      - "127.0.0.1:15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    # Verifies broker socket readiness before dependent services connect.
     healthcheck:
       test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity"]
       interval: 5s
@@ -30,7 +37,7 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # 3. ASP.NET Backend (Tamamen İzole ve Temiz)
+  # ASP.NET Core backend API.
   api:
     image: ghcr.io/${GITHUB_REPOSITORY_LOWER}/api:latest
     container_name: sponsoraid_api
@@ -42,11 +49,13 @@ services:
       - RABBITMQ_HOST=rabbitmq
       - ASPNETCORE_URLS=http://+:5000
       - WORKER_API_URL=http://worker:8000
+    # Binds port 5000 to localhost so a reverse proxy can manage SSL termination.
     ports:
       - "127.0.0.1:5000:5000"
     volumes:
-      # Sadece Worker ile paylaşılan dosya alanı
+      # Shared disk volume to allow direct document access with worker.
       - uploads_data:/app/wwwroot/uploads
+    # Ensures database and broker are available before API initialization.
     depends_on:
       db:
         condition: service_started
@@ -54,7 +63,7 @@ services:
         condition: service_healthy
     restart: on-failure
 
-  # 4. Python Worker
+  # Python background worker for document analysis, OCR, and PDF processing.
   worker:
     image: ghcr.io/${GITHUB_REPOSITORY_LOWER}/worker:latest
     container_name: sponsoraid_worker
@@ -65,12 +74,15 @@ services:
       - AZURE_VISION_ENDPOINT=${AZURE_VISION_ENDPOINT}
       - AZURE_VISION_KEY=${AZURE_VISION_KEY}
     volumes:
+      # Shared disk volume to read documents saved by API without network transfers.
       - uploads_data:/app/wwwroot/uploads
+    # Waits for message broker readiness before starting consumer loops.
     depends_on:
       rabbitmq:
         condition: service_healthy
     restart: on-failure
 
+# Named volumes for data persistence across container recreations.
 volumes:
   postgres_data:
   rabbitmq_data:

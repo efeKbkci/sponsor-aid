@@ -1,26 +1,32 @@
-# Pull CPU-only PyTorch wheels (~200 MB) to avoid multi-GB CUDA runtime dependencies in worker containers
+# Python package requirements for the SponsorAid worker service.
+# Uses pip-tools to compile reproducible requirements.txt dependencies.
+
+# Downloads CPU-only PyTorch wheels to avoid multi-gigabyte CUDA runtime packages.
 --extra-index-url https://download.pytorch.org/whl/cpu 
 
-# --- API and Env Management ---
+# Web server for container health checks and diagnostics.
 fastapi
 uvicorn[standard]
 pydantic
 python-dotenv
 
-# --- Message Queue and Network ---
+# Message broker and contract serialization.
 pika
 aiohttp
-protobuf            # Runtime required to serialize/deserialize generated events_pb2.py contracts
+# Runtime library for encoding and decoding shared Protocol Buffer contracts.
+protobuf
 
-# --- Image and PDF Processing ---
-opencv-contrib-python-headless==4.10.0.84  # Provides cv2.wechat_qrcode (contrib) without X11 GUI libraries (headless) and pins OpenCV 4.x compatibility
-numpy<2.3.0  # Cap NumPy below 2.3.0 for ABI/wheel compatibility with pinned OpenCV 4.10.x / PyTorch
+# Computer vision and document extraction.
+# Headless build includes WeChat QR code scanner without desktop X11 dependencies.
+opencv-contrib-python-headless==4.10.0.84
+# Pins NumPy below 2.3.0 to keep binary compatibility with OpenCV and PyTorch.
+numpy<2.3.0
 Pillow
 pdfplumber
 
-# --- AI Models ---
-ultralytics         # YOLO based id_segmenter and id_orientation
-sentence-transformers # Turkish NLI Semantic Matcher
+# Machine learning models for identity document orientation and text validation.
+ultralytics
+sentence-transformers
 
-# --- Test ---
+# Test runner for worker unit and integration tests.
 pytest
