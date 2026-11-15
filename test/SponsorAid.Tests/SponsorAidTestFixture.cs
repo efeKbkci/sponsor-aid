@@ -15,12 +15,17 @@ using Xunit;
 
 namespace SponsorAid.Tests;
 
+/// <summary>
+/// Shared test fixture for integration tests.
+/// Starts an isolated PostgreSQL container via Testcontainers, configures an in-memory
+/// WebApplicationFactory, applies database migrations, and replaces external services with mocks.
+/// </summary>
 public class SponsorAidTestFixture : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _postgreSqlContainer;
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
 
-    // Global Mock Nesneleri
+    // Shared mock instances for external services and message queues
     public Mock<IUserNotifier> UserNotifierMock { get; } = new();
     public Mock<IFileStorageService> FileStorageMock { get; } = new();
     public Mock<IEventPublisher> EventPublisherMock { get; } = new();
@@ -55,6 +60,8 @@ public class SponsorAidTestFixture : IAsyncLifetime
                     options.UseNpgsql(_postgreSqlContainer.GetConnectionString());
                 });
 
+                // Remove the background consumer hosted service to prevent background tasks
+                // from consuming test messages or requiring a running RabbitMQ broker
                 var hostedService = services.FirstOrDefault(d =>
                     d.ServiceType == typeof(IHostedService) &&
                     d.ImplementationType == typeof(WorkerResultConsumerService));
@@ -102,8 +109,12 @@ public class SponsorAidTestFixture : IAsyncLifetime
     }
 }
 
+/// <summary>
+/// xUnit collection fixture definition.
+/// Shares the test fixture and database container across tests in the integration test collection.
+/// </summary>
 [CollectionDefinition("IntegrationTests")]
 public class IntegrationTestCollection : ICollectionFixture<SponsorAidTestFixture>
 {
-    // xUnit'in Collection tanımlaması için içi boş bırakılır.
+    // Left empty intentionally. Serves only as a marker class for the xUnit collection definition.
 }

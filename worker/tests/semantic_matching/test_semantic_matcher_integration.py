@@ -1,5 +1,12 @@
+"""Integration test suite for the semantic matching HTTP endpoint.
+
+Tests candidate matching, confidence thresholds, irrelevant input filtering,
+and whitespace rejection via FastAPI TestClient.
+"""
+
 import pytest
 from fastapi.testclient import TestClient
+
 
 def test_match_endpoint_accurate_phrase_returns_brain_hemorrhage_with_high_confidence(
     test_client: TestClient,

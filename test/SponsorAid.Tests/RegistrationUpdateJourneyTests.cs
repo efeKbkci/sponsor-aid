@@ -14,6 +14,11 @@ using Xunit;
 
 namespace SponsorAid.Tests;
 
+/// <summary>
+/// Integration test suite for the registration field update flow.
+/// Verifies updating existing questionnaire responses via natural language matching,
+/// including early attempt rejections, cancellation handling, field reset, and step resumption.
+/// </summary>
 [Collection("IntegrationTests")]
 public class RegistrationUpdateJourneyTests
 {
@@ -49,20 +54,20 @@ public class RegistrationUpdateJourneyTests
     public async Task UpdateRegistration_Journey_ShouldManageStateCorrectly()
     {
         // ====================================================================
-        // ARRANGE (Hazırlık)
+        // Arrange: Reset mock state and define test identifiers
         // ====================================================================
         _fixture.ResetMocks();
 
         const long chatId = 987654321L;
         const string registrationKey = "UPD123";
 
-        //Act 4 adımında sistem zaten mevcut IBAN'ı hedef alan olduğu için veritabanında null yapıyor.
-        //Act 5 adımında ise yeni değeri atıyor.
-        //Bu yüzden iki değişkenin aynı olması testin state (durum) değişim mantığını bozmaz
+        // In Act 4, the target IBAN is cleared to null in the database.
+        // In Act 5, the new value is stored.
+        // Using equal strings here still validates the state machine transition correctly.
         const string initialIban = "TR330006100519786457841326";
         const string updatedIban = "TR330006100519786457841326";
 
-        // 1. Semantic Matcher Mock Kurulumu
+        // 1. Mock semantic matching for update field recognition
         _fixture.SemanticMatcherMock
             .Setup(x => x.FindBestMatchAsync(
                 "IBAN'ımı yanlış girdim",
@@ -71,7 +76,7 @@ public class RegistrationUpdateJourneyTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SemanticMatchResult("iban", 0.9f, false));
 
-        // 2. Veritabanına Başlangıç Durumunun Manuel Eklenmesi
+        // 2. Seed initial draft state into database
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -94,7 +99,7 @@ public class RegistrationUpdateJourneyTests
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
 
-                // Sistemin diğer sorularda takılmaması için tüm alanları dolduruyoruz
+                // Populate completed survey answers to isolate update behavior
                 Guardian = new GuardianDraft
                 {
                     ApplicantRole = ApplicantRole.Mother,
@@ -123,7 +128,8 @@ public class RegistrationUpdateJourneyTests
                 },
                 DisabledMember = new DisabledMemberDraft
                 {
-                    Name = "Yok" // Engelli sorusuna takılmamak için
+                    // Mark disabled question as answered to avoid unexpected questionnaire prompts
+                    Name = "Yok"
                 },
                 Children = new List<ChildDraft>
                 {
@@ -147,13 +153,13 @@ public class RegistrationUpdateJourneyTests
         }
 
         // ====================================================================
-        // ACT & ASSERT ADIMLARI
+        // ACT & ASSERT
         // ====================================================================
 
-        // --- Act 1: Hatalı Durum - Erken Aşamada Güncelleme İsteği ---
+        // --- Act 1: Attempt update prematurely during document collection phase ---
         var responseAct1 = await SendTelegramMessageAsync(chatId, "/update");
 
-        // --- Assert 1 ---
+        // --- Assert 1: Verify update mode is rejected when not in questionnaire phase ---
         responseAct1.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -174,7 +180,7 @@ public class RegistrationUpdateJourneyTests
             Times.AtLeastOnce(),
             "Kullanıcıya henüz anket aşamasında olunmadığına dair uyarı mesajı gitmelidir.");
 
-        // --- Act 2: Geçerli Adıma Alma (WaitingForConfirmation) ve Güncelleme Başlatma ---
+        // --- Act 2: Move draft to WaitingForConfirmation and invoke /update command ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -190,7 +196,7 @@ public class RegistrationUpdateJourneyTests
 
         var responseAct2 = await SendTelegramMessageAsync(chatId, "/update");
 
-        // --- Assert 2 ---
+        // --- Assert 2: Verify update field selection mode is enabled ---
         responseAct2.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -204,10 +210,10 @@ public class RegistrationUpdateJourneyTests
                 "Uygun adımda /update komutu verildiğinde sistem alan seçimi beklemeye (IsWaitingForUpdateFieldSelection = true) geçmelidir.");
         }
 
-        // --- Act 3: Güncellemeyi İptal Etme ---
+        // --- Act 3: Cancel update mode via text message ---
         var responseAct3 = await SendTelegramMessageAsync(chatId, "iptal");
 
-        // --- Assert 3 ---
+        // --- Assert 3: Verify update mode cancels without altering confirmation step ---
         responseAct3.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -223,13 +229,13 @@ public class RegistrationUpdateJourneyTests
                 "İptal sonrası adım bozulmamalı, WaitingForConfirmation olarak kalmalıdır.");
         }
 
-        // --- Act 4: IBAN Güncellemesini Tetikleme ---
+        // --- Act 4: Request update and specify IBAN correction via semantic phrase ---
         var responseAct4Update = await SendTelegramMessageAsync(chatId, "/update");
         responseAct4Update.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var responseAct4Target = await SendTelegramMessageAsync(chatId, "IBAN'ımı yanlış girdim");
 
-        // --- Assert 4 ---
+        // --- Assert 4: Verify target field is cleared and state reverts to WaitingForQuestions ---
         responseAct4Target.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())
@@ -247,10 +253,10 @@ public class RegistrationUpdateJourneyTests
                 "Eksik kalan alanı sormak üzere durum makinesi WaitingForQuestions adımına geri dönmelidir.");
         }
 
-        // --- Act 5: Yeni IBAN'ı Gönderme ve Süreci Tamamlama ---
+        // --- Act 5: Submit updated IBAN value and verify completion ---
         var responseAct5 = await SendTelegramMessageAsync(chatId, updatedIban);
 
-        // --- Assert 5 ---
+        // --- Assert 5: Verify new IBAN is persisted and step returns to WaitingForConfirmation ---
         responseAct5.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using (var scope = _fixture.Factory.Services.CreateScope())

@@ -1,3 +1,5 @@
+"""Shared test fixtures for semantic matching unit and integration test suites."""
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -8,13 +10,13 @@ from microservices.semantic_matching.services.matcher import SemanticMatcherServ
 
 @pytest.fixture(scope="session")
 def real_semantic_service() -> SemanticMatcherService:
-    """Provides a shared SemanticMatcherService instance running the actual model."""
+    """Provide a shared SemanticMatcherService instance with a loaded model for the test session."""
     return SemanticMatcherService()
 
 
 @pytest.fixture(scope="session")
 def test_client() -> TestClient:
-    """Provides a FastAPI TestClient wired to the actual semantic router."""
+    """Provide a FastAPI TestClient instance wired to the semantic matching API router."""
     app = FastAPI(title="Semantic Matching Integration Test App")
     app.include_router(semantic_router)
     return TestClient(app)
@@ -22,7 +24,7 @@ def test_client() -> TestClient:
 
 @pytest.fixture
 def father_professions_catalog() -> list[dict]:
-    """Catalog items from FatherProfessions."""
+    """Return candidate categories representing FatherProfessions options with Turkish example utterances."""
     return [
         {
             "key": "Driver",
@@ -53,7 +55,7 @@ def father_professions_catalog() -> list[dict]:
 
 @pytest.fixture
 def father_death_reasons_catalog() -> list[dict]:
-    """Catalog items from FatherDeathReasons."""
+    """Return candidate categories representing FatherDeathReasons options with Turkish example utterances."""
     return [
         {
             "key": "BrainHemorrhage",
