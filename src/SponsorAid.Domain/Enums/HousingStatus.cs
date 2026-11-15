@@ -2,6 +2,9 @@ using System.ComponentModel;
 
 namespace SponsorAid.Domain.Enums;
 
+/// <summary>
+/// Housing condition used to assess household economic stability and necessity of shelter support.
+/// </summary>
 public enum HousingStatus
 {
     [Description("Kendi Evi")] OwnHouse = 1,

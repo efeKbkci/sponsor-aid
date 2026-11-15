@@ -2,6 +2,9 @@ using System.ComponentModel;
 
 namespace SponsorAid.Domain.Enums;
 
+/// <summary>
+/// Social insurance or security coverage available to the household.
+/// </summary>
 public enum SocialSecurity
 {
     [Description("SGK")] Sgk = 1,

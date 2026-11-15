@@ -2,6 +2,9 @@ using System.ComponentModel;
 
 namespace SponsorAid.Domain.Enums;
 
+/// <summary>
+/// Documented cause of death of the father for orphan registration criteria.
+/// </summary>
 public enum FatherDeathReason
 {
     [Description("Ateş (Humma)")] Fever = 1,

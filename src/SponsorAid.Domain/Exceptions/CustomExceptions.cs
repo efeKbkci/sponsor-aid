@@ -1,8 +1,15 @@
 ﻿namespace SponsorAid.Domain.Exceptions;
 
-// Sistemin atası olan soyut hata sınıfı
+/// <summary>
+/// Base exception for domain errors containing localization arguments.
+/// </summary>
 public abstract class SponsorAidException : Exception
 {
+    /// <summary>
+    /// Initializes domain exception with a message key and format arguments.
+    /// </summary>
+    /// <param name="message">Translation key or error message.</param>
+    /// <param name="arguments">Positional values for message placeholders.</param>
     protected SponsorAidException(string message, params object[] arguments) : base(message)
     {
         Arguments = arguments;
@@ -11,14 +18,28 @@ public abstract class SponsorAidException : Exception
     public IReadOnlyList<object> Arguments { get; }
 }
 
-// 1. İş Kuralları İhlali (Örn: "Vasi 18 yaşından büyük olmalıdır")
+/// <summary>
+/// Thrown when an operation violates core domain rules or validation constraints.
+/// </summary>
 public class BusinessRuleException : SponsorAidException
 {
+    /// <summary>
+    /// Initializes business rule violation with a rule message key and optional arguments.
+    /// </summary>
+    /// <param name="message">Translation key for the rule violation.</param>
+    /// <param name="arguments">Positional values for message placeholders.</param>
     public BusinessRuleException(string message, params object[] arguments) : base(message, arguments) { }
 }
 
-// 2. Belge/Veri Doğrulama İhlali (Örn: "İsimler eşleşmiyor")
+/// <summary>
+/// Thrown when submitted documents or extracted data fail verification checks.
+/// </summary>
 public class DocumentValidationException : SponsorAidException
 {
+    /// <summary>
+    /// Initializes document validation failure with a message key and optional arguments.
+    /// </summary>
+    /// <param name="message">Translation key for the validation failure.</param>
+    /// <param name="arguments">Positional values for message placeholders.</param>
     public DocumentValidationException(string message, params object[] arguments) : base(message, arguments) { }
 }

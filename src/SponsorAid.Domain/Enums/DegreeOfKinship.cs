@@ -2,6 +2,9 @@ using System.ComponentModel;
 
 namespace SponsorAid.Domain.Enums;
 
+/// <summary>
+/// Degree of family kinship between guardian and child.
+/// </summary>
 public enum DegreeOfKinship
 {
     [Description("Anne")] Mother = 1,

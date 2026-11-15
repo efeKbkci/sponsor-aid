@@ -1,12 +1,17 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<!-- Domain layer project definition. Holds core domain models, business logic, and custom exceptions without external dependencies. -->
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- Target runtime framework. -->
     <TargetFramework>net10.0</TargetFramework>
+    <!-- Enables default namespace imports across the project. -->
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Enforces non-nullable reference type safety. -->
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Exclude deprecated or externalized constants from compilation. -->
     <Compile Remove="Constants\**" />
     <EmbeddedResource Remove="Constants\**" />
     <None Remove="Constants\**" />

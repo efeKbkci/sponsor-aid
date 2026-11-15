@@ -2,6 +2,9 @@ using System.ComponentModel;
 
 namespace SponsorAid.Domain.Enums;
 
+/// <summary>
+/// Supported bot commands for user interaction and registration navigation.
+/// </summary>
 public enum BotCommand
 {
     [Description("/start")]

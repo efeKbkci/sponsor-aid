@@ -2,6 +2,9 @@ using System.ComponentModel;
 
 namespace SponsorAid.Domain.Enums;
 
+/// <summary>
+/// Educational levels used to assess household background and social profile.
+/// </summary>
 public enum EducationLevel
 {
     [Description("Diploma")] Diploma = 1,
