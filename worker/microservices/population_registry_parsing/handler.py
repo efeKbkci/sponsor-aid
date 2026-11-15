@@ -1,16 +1,24 @@
-# handler.py
 import events_pb2
 from .config import PopulationRegistryConfig
 from .services.extractor import PopulationRegistryExtractor
 from .services.sanitizer import PopulationRegistrySanitizer
 
 class PopulationRegistryHandler:
+    """Processes official Turkish population registry PDFs and extracts family member records.
+
+    Coordinates tabular data extraction from PDF pages and normalizes demographic details.
+    """
+
     def __init__(self):
         self.config = PopulationRegistryConfig()
         self.extractor = PopulationRegistryExtractor()
         self.sanitizer = PopulationRegistrySanitizer(self.config.INPUT_DATE_FORMAT, self.config.OUTPUT_DATE_FORMAT)
 
     def process(self, task) -> events_pb2.WorkerResultMessage:
+        """Parse the population registry PDF document and return extracted people records.
+
+        Validates required columns, parses kinship, identity numbers, and date fields.
+        """
         file_path = task.file_path
         try:
             raw_table = self.extractor.extract(file_path)
@@ -20,12 +28,12 @@ class PopulationRegistryHandler:
                 if not row:
                     continue
 
-                # SIRA hücresi rakam değilse (örneğin başlık satırı ise) atla
+                # Skip header rows and non-data sections since valid records start with an integer sequence number.
                 sira_hucresi = str(row[0]).strip() if row[0] else ""
                 if not sira_hucresi.isdigit():
                     continue
 
-                # Tablomuzun 13 hücreden (0'dan 12'ye) oluştuğunu garanti altına alıyoruz
+                # Verify the row contains all required columns up to events column to avoid index errors.
                 if len(row) <= self.config.COL_EVENTS:
                     continue
 
@@ -45,6 +53,7 @@ class PopulationRegistryHandler:
 
                     person = events_pb2.Person(**person_fields)
 
+                    # Require national ID and first name to protect against corrupt or partially scanned records.
                     if not person.id_number or not person.first_name:
                         raise ValueError("Zorunlu alanlardan biri (TC veya İsim) eksik okundu.")
 
@@ -76,7 +85,7 @@ class PopulationRegistryHandler:
                 saved_file_path=file_path,
             )
 
-# Uygulama Giriş Noktası
+# CLI entry point for standalone verification and debugging.
 if __name__ == "__main__":
     import argparse
 

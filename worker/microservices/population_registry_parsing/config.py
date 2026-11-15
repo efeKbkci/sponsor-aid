@@ -2,6 +2,10 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class PopulationRegistryConfig:
+    """Column indices and date formats for Turkish population registry documents.
+
+    Maps tabular columns in e-Devlet family registry records and standardizes date representations.
+    """
     COL_KINSHIP: int = 3
     COL_ID_NUMBER: int = 4
     COL_FIRST_NAME: int = 5

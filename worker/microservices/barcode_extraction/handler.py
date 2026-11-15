@@ -4,10 +4,19 @@ import cv2
 from .services.scanner import BarcodeScannerService
 
 class BarcodeExtractionHandler:
+    """Handles barcode and QR code extraction tasks from official documents.
+
+    Coordinates reading image files from disk, running detection algorithms, and formatting protobuf results.
+    """
+
     def __init__(self):
         self.scanner = BarcodeScannerService()
 
     def process(self, task) -> events_pb2.WorkerResultMessage:
+        """Extract verification barcode from the given document task.
+
+        Reads image bytes from disk, decodes an OpenCV matrix, and extracts the e-Devlet verification code.
+        """
         file_path = task.file_path
 
         with open(file_path, "rb") as f:
@@ -27,7 +36,7 @@ class BarcodeExtractionHandler:
                 document_type=task.document_type, 
                 is_success=True,
                 saved_file_path=file_path,
-                extracted_barcode=extracted_barcode # C#'ın beklediği kritik şifre
+                extracted_barcode=extracted_barcode  # Verification code required by backend to validate document authenticity.
             )
 
         except Exception as error:

@@ -4,23 +4,32 @@ from .services.extractor import ResidenceExtractor
 from .services.sanitizer import ResidenceSanitizer
 
 class ResidenceHandler:
+    """Handles parsing and extraction tasks for residence certificate documents.
+
+    Extracts citizen ID and address blocks, parses address components, and outputs protobuf messages.
+    """
+
     def __init__(self):
         self.config = ResidenceConfig()
         self.extractor = ResidenceExtractor()
         self.sanitizer = ResidenceSanitizer()
 
     def process(self, task) -> events_pb2.WorkerResultMessage:
+        """Process the residence certificate PDF and return structured address information.
+
+        Coordinates spatial word extraction, address component decomposition, and error reporting.
+        """
         file_path = task.file_path
         try:
-            # 1. PDF'ten Ham Veri Çıkarımı
+            # Extract raw citizen ID and address text via spatial coordinates.
             raw_data = self.extractor.extract(file_path, self.config)
             
-            # 2. Adres Metninin Temizlenmesi ve Parçalanması
+            # Parse raw address string into city, district, and neighborhood fields.
             parsed_address = self.sanitizer.parse_address(raw_data["raw_address"])
 
             print(f"DEBUG | District : {parsed_address["district"]}")
 
-            # 3. Sonucu Protobuf Modeline Çevir
+            # Map the parsed fields into the structured protobuf payload.
             residence_data = events_pb2.ResidenceData(
                 id_number=raw_data["id_number"],
                 city=parsed_address["city"],
