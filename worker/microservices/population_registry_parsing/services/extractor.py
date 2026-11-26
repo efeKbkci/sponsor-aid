@@ -1,44 +1,49 @@
 import pdfplumber
 
+
 class PopulationRegistryExtractor:
-    """Extracts raw table data from official population registry PDF documents.
-
-    Uses word anchors and explicit line geometry to extract the registry table.
-    """
-
     def extract(self, file_path: str) -> list:
-        """Extract the family registry table from the first page of the PDF.
-
-        Crops page content above the table header to prevent extraneous header text from corrupting table parsing.
-        """
         try:
             with pdfplumber.open(file_path) as pdf:
                 page = pdf.pages[0]
-                
-                # Locate the table header anchor word 'SIRA' to identify where the family registry table begins.
-                sira_y_koordinati = None
-                for word in page.extract_words():
-                    if word["text"] == "SIRA":
-                        sira_y_koordinati = word["top"]
-                        break
-                        
-                if not sira_y_koordinati:
+                words = page.extract_words()
+
+                sira_word = next((w for w in words if w["text"] == "SIRA"), None)
+                if not sira_word:
                     raise ValueError("Kritik Hata: Tablo başlığı (SIRA) belgede bulunamadı.")
 
-                # Crop above the table header to remove government letterheads and seals that interfere with table parsing.
-                bounding_box = (0, sira_y_koordinati - 2, page.width, page.height)
+                # Başlık satırının üst çerçeve çizgisini de dahil et
+                upper_edges = [
+                    e["top"] for e in page.horizontal_edges
+                    if 0 < (sira_word["top"] - e["top"]) <= 30
+                ]
+                top_y = (max(upper_edges) - 2) if upper_edges else max(0, sira_word["top"] - 20)
+
+                # Alttaki DÜŞÜNCELER tablosunu kırpma alanının dışında bırak
+                dusunceler_word = next(
+                    (w for w in words if w["text"] == "DÜŞÜNCELER" and w["top"] > sira_word["bottom"]),
+                    None
+                )
+                bottom_y = (dusunceler_word["top"] - 2) if dusunceler_word else page.height
+
+                bounding_box = (0, max(0, top_y), page.width, bottom_y)
                 cropped_page = page.crop(bounding_box)
 
-                # Extract cells using explicit vector lines because standard e-Devlet tables feature well-defined grid borders.
-                clean_table = cropped_page.extract_table({
+                tables = cropped_page.extract_tables({
                     "vertical_strategy": "lines",
-                    "horizontal_strategy": "lines"
+                    "horizontal_strategy": "lines",
+                    "snap_tolerance": 4,
+                    "join_tolerance": 4,
                 })
-                
-                if not clean_table:
+
+                if not tables:
                     raise ValueError("Kritik Hata: Kırpılmış PDF içerisinde okunabilir bir tablo bulunamadı.")
-                
-                return clean_table
-                
+
+                # SIRA başlığını içeren ana tabloyu seç, bulunamazsa ilk tabloyu dön
+                for table in tables:
+                    if any(cell and "SIRA" in str(cell) for row in table[:2] for cell in row):
+                        return table
+
+                return tables[0]
         except Exception as e:
             raise ValueError(f"Kritik Hata: PDF dosyası okunamadı. Detay: {str(e)}") from e

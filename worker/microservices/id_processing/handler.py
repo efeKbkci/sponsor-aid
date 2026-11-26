@@ -127,3 +127,56 @@ class IdProcessingHandler:
                 is_success=False,
                 error_message=error_msg
             )
+
+if __name__ == "__main__":
+    import argparse
+    from pathlib import Path
+    from dotenv import load_dotenv, find_dotenv
+
+    parser = argparse.ArgumentParser(
+        description="Ön ve arka yüz kimlik fotoğraflarını kırpar, hizalar, TC bilgisini okur ve aynı dizine <TC>_merged.pdf olarak birleştirir."
+    )
+    parser.add_argument("front_path", type=Path, help="Kimliğin ön yüz fotoğrafının yolu")
+    parser.add_argument("back_path", type=Path, help="Kimliğin arka yüz fotoğrafının yolu")
+    args = parser.parse_args()
+
+    if not args.front_path.is_file():
+        parser.error(f"Ön yüz fotoğrafı bulunamadı: {args.front_path}")
+    if not args.back_path.is_file():
+        parser.error(f"Arka yüz fotoğrafı bulunamadı: {args.back_path}")
+
+    load_dotenv(find_dotenv())
+
+    try:
+        handler = IdProcessingHandler()
+
+        print(f"[*] Ön yüz işleniyor: {args.front_path.name}")
+        front_cropped = handler.image_processor.extract_id_card(args.front_path.read_bytes())
+        front_rotated = handler.image_rotator.rotate_id_card(front_cropped)
+        front_tc = handler.ocr_service.extract_tc_number(front_rotated, "front")
+
+        print(f"[*] Arka yüz işleniyor: {args.back_path.name}")
+        back_cropped = handler.image_processor.extract_id_card(args.back_path.read_bytes())
+        back_rotated = handler.image_rotator.rotate_id_card(back_cropped)
+        back_tc = handler.ocr_service.extract_tc_number(back_rotated, "back")
+
+        if front_tc and back_tc and front_tc != back_tc:
+            raise ValueError(
+                f"Ön yüz ({front_tc}) ve arka yüz ({back_tc}) TC kimlik numaraları uyuşmuyor."
+            )
+
+        tc_number = front_tc or back_tc
+        if not tc_number:
+            raise ValueError("Kimlik fotoğraflarından TC Kimlik Numarası okunamadı.")
+
+        if not front_tc or not back_tc:
+            print(f"[⚠️] Uyarı: TC yalnızca tek yüzden okunabildi ({tc_number}). Devam ediliyor...")
+
+        print("[*] PDF oluşturuluyor...")
+        pdf_bytes = handler.pdf_generator.generate_vertical_pdf(front_rotated, back_rotated)
+        output_path = args.front_path.parent / f"{tc_number}_merged.pdf"
+        output_path.write_bytes(pdf_bytes)
+
+        print(f"[✅] Başarılı! PDF kaydedildi: {output_path}")
+    except Exception as error:
+        raise SystemExit(f"[❌] HATA: {error}")

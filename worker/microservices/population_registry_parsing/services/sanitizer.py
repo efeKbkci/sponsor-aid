@@ -1,19 +1,13 @@
 import re
 from datetime import datetime
 
+
 class PopulationRegistrySanitizer:
-    """Cleans and standardizes raw text fields from population registry tables.
-
-    Converts localized dates and extracts vital status information from cell strings.
-    """
-
     def __init__(self, input_format: str, output_format: str):
-        """Initialize the sanitizer with input and output date formats."""
         self.input_format = input_format
         self.output_format = output_format
 
     def clean_and_format_date(self, date_str: str) -> str:
-        """Parse a date string from the input format and convert it to the output format."""
         try:
             parsed_date = datetime.strptime(date_str.strip(), self.input_format)
             return parsed_date.strftime(self.output_format)
@@ -21,34 +15,36 @@ class PopulationRegistrySanitizer:
             raise ValueError(f"Kritik Hata: '{date_str}' beklenen tarih formatına uymuyor.") from e
 
     def parse_birth_date(self, cell_text: str) -> str:
-        """Extract the birth date from a combined birthplace and date cell.
-
-        In e-Devlet tables, the birthplace is printed on the upper line and the date is on the last line.
-        """
         if not cell_text:
             raise ValueError("Kritik Hata: Doğum tarihi hücresi boş veya okunamadı.")
-        
-        # Split cell lines to take the final line where the birth date is located.
-        parts = cell_text.strip().split('\n')
-        date_part = parts[-1].strip()
-        return self.clean_and_format_date(date_part)
+
+        date_match = re.search(r"\b\d{1,2}\.\d{2}\.\d{4}\b", cell_text)
+        if date_match:
+            return self.clean_and_format_date(date_match.group(0))
+
+        parts = cell_text.strip().split("\n")
+        return self.clean_and_format_date(parts[-1].strip())
 
     def parse_death_date(self, cell_text: str) -> str | None:
-        """Extract the death date from the events cell if the individual is deceased.
-
-        Returns None if the person is alive ('SAĞ') or returns the formatted death date.
-        """
         if not cell_text:
-             raise ValueError("Kritik Hata: Olaylar ve Tarihleri hücresi boş veya okunamadı.")
+            raise ValueError("Kritik Hata: Olaylar ve Tarihleri hücresi boş veya okunamadı.")
 
-        match = re.search(r"Ölüm:\s*(.+?)(?:\n|$)", cell_text)
-        if not match:
+        if "Ölüm:" not in cell_text:
             raise ValueError(f"Kritik Hata: İlgili hücrede 'Ölüm:' etiketi bulunamadı. Metin: {cell_text}")
-        
-        status_or_date = match.group(1).strip()
-        
-        # 'SAĞ' indicates the person is currently living, so no death date applies.
-        if status_or_date.upper() == "SAĞ":
+
+        # e-Devlet PDF'inde 'SAĞ' etiketi 'Ölüm:' satırının üstünde veya altında çıkabilir
+        if re.search(r"\bSA[ĞG]\b", cell_text, re.IGNORECASE):
             return None
-            
-        return self.clean_and_format_date(status_or_date)
+
+        # Önce 'Ölüm:' etiketini doğrudan takip eden tarihi ara
+        direct_match = re.search(r"Ölüm:\s*(\d{1,2}\.\d{2}\.\d{4})", cell_text)
+        if direct_match:
+            return self.clean_and_format_date(direct_match.group(1))
+
+        # Etiketler ve tarihler blok halinde ayrışmışsa (Ölüm/Evlenme/Boşanma ardından tarihler),
+        # 'SAĞ' olmadığı için ilk tarih ölüm tarihidir
+        any_date = re.search(r"\b(\d{1,2}\.\d{2}\.\d{4})\b", cell_text)
+        if any_date:
+            return self.clean_and_format_date(any_date.group(1))
+
+        raise ValueError(f"Kritik Hata: Ölüm durumu/tarihi ayrıştırılamadı. Metin: {cell_text}")

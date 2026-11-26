@@ -367,3 +367,4 @@ repomix-output.xml
 /test/mock_documents
 *.txt
 /GEMINI.md
+/repomix.xml
