@@ -6,6 +6,7 @@ using SponsorAid.Application.Interfaces.Repositories;
 using SponsorAid.Application.Resources;
 using SponsorAid.Domain.Enums;
 using SponsorAid.Domain.Exceptions;
+using SponsorAid.Domain.ValueObjects;
 using SponsorAid.Integration.Contracts;
 using System.Text;
 
@@ -40,14 +41,7 @@ public class SaveProcessedDocumentCommandHandler(
         // Reverts processing state back to waiting state so the user can re-upload after an extraction failure.
         if (!request.IsSuccess)
         {
-            if (draft.CurrentStep == RegistrationStep.ProcessingPopulationRegistry)
-                draft.SetStep(RegistrationStep.WaitingForPopulationRegistry);
-            else if (draft.CurrentStep == RegistrationStep.ProcessingResidence)
-                draft.SetStep(RegistrationStep.WaitingForResidence);
-            else if (draft.CurrentStep == RegistrationStep.ProcessingIdentityFront)
-                draft.SetStep(RegistrationStep.WaitingForIdentityFront);
-            else if (draft.CurrentStep == RegistrationStep.ProcessingIdentityBack || draft.CurrentStep == RegistrationStep.MergingDocuments)
-                draft.SetStep(RegistrationStep.WaitingForIdentityBack);
+            draft.RevertProcessingState();
 
             await _draftRepository.SaveAsync(draft, cancellationToken);
             await _notifier.SendMessageAsync(draft.ChatId, _localizer["Error_DocumentProcessingFailed", request.ErrorMessage ?? string.Empty].Value);
@@ -206,10 +200,35 @@ public class SaveProcessedDocumentCommandHandler(
             }
             else
             {
-                draft.SetStep(RegistrationStep.WaitingForQuestions);
-                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Success_AllIdentityDocumentsCollected"]);
-                await _mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey), cancellationToken);
+                draft.SetStep(RegistrationStep.WaitingForBankAccountDocument);
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Prompt_BankAccountDocument"]);
             }
+        }
+        else if (request.DocumentType == "BankAccount")
+        {
+            draft.SystemDocuments.BankAccountDocumentPath = request.SavedFilePath;
+
+            if (Iban.TryCreate(request.ExtractedIban, out var validIban) && validIban != null)
+            {
+                draft.Guardian.Iban = validIban;
+                draft.SetStep(RegistrationStep.WaitingForQuestions);
+                await _draftRepository.SaveAsync(draft, cancellationToken);
+
+                await _notifier.SendMessageAsync(
+                    draft.ChatId,
+                    _localizer["Success_BankAccountDocumentAndIbanSaved", validIban.Value].Value);
+
+                await _mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey), cancellationToken);
+                return;
+            }
+
+            draft.SetStep(RegistrationStep.WaitingForIban);
+            await _draftRepository.SaveAsync(draft, cancellationToken);
+
+            await _notifier.SendMessageAsync(
+                draft.ChatId,
+                _localizer["Success_BankAccountDocumentSaved_IbanRequired"].Value);
+            return;
         }
         else
         {

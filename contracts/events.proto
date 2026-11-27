@@ -12,6 +12,7 @@ enum DocumentType {
   DOCUMENT_TYPE_IDENTITY_FRONT = 3;
   DOCUMENT_TYPE_IDENTITY_BACK = 4;
   DOCUMENT_TYPE_MERGED_IDENTITY = 5;
+  DOCUMENT_TYPE_BANK_ACCOUNT = 6;
 }
 
 // Specifies the physical side of an identity card image.
@@ -29,6 +30,7 @@ enum CommandType {
   COMMAND_TYPE_PROCESS_OFFICIAL_DOC = 2;
   COMMAND_TYPE_MERGE_PDF = 3;
   COMMAND_TYPE_EXTRACT_BARCODE = 4;
+  COMMAND_TYPE_PROCESS_BANK_ACCOUNT_DOC = 5;
 }
 
 // Represents an individual record extracted from a population registry document.
@@ -71,6 +73,7 @@ message WorkerResultMessage {
     ResidenceData residence_data = 7;
     string extracted_tc_number = 8;
     string extracted_barcode = 9;
+    string extracted_iban = 10;
   }
 }
 
@@ -95,6 +98,12 @@ message MergePdfTask {
   string back_file_path = 3;
 }
 
+// Command payload to process bank account documents (PDF or image) and extract IBAN details.
+message ProcessBankAccountDocTask {
+  string registration_key = 1;
+  string file_path = 2;
+}
+
 // Top-level envelope received by the Python worker from the task queue.
 // The command_type indicates which specific task payload is present in the oneof field.
 message WorkerTaskEnvelope {
@@ -104,5 +113,6 @@ message WorkerTaskEnvelope {
     ProcessImageTask image_task = 2;
     ProcessOfficialDocTask official_doc_task = 3;
     MergePdfTask merge_task = 4;
+    ProcessBankAccountDocTask bank_account_doc_task = 5;
   }
 }

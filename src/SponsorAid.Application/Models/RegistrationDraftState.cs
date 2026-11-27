@@ -189,6 +189,9 @@ public class RegistrationDraftState
 
         else if (CurrentStep == RegistrationStep.ProcessingIdentityBack || CurrentStep == RegistrationStep.MergingDocuments)
             CurrentStep = RegistrationStep.WaitingForIdentityBack;
+
+        else if (CurrentStep == RegistrationStep.ProcessingBankAccountDocument)
+            CurrentStep = RegistrationStep.WaitingForBankAccountDocument;
     }
 
     public void SetDocumentTarget(string? targetName)
@@ -583,5 +586,6 @@ public class SystemDocumentsDraft
     public string? IdentityFrontPath { get; set; }
     public string? IdentityBackPath { get; set; }
     public string? MergedIdentityPath { get; set; }
+    public string? BankAccountDocumentPath { get; set; }
     public Petition? Petition { get; set; }
 }

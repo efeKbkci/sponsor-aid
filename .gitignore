@@ -368,3 +368,8 @@ repomix-output.xml
 *.txt
 /GEMINI.md
 /repomix.xml
+/implementation_plan.md
+/repomix-tests.xml
+/repomix.tests.config.json
+/test_implementation_plan.md
+/walkthrough.md

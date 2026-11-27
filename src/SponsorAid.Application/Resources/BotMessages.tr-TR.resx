@@ -1416,4 +1416,40 @@ Ben {0}, {1} tarihinde vefat eden eşimin vefatı neticesinde yetim kalan {2} ç
 	<data name="Error_InvalidAnswer" xml:space="preserve">
     <value>⚠️ Yazdığınız ifadeyi anlayamadım. Lütfen geçerli bir kelime yazın veya aşağıdaki butonlardan birini seçin.</value>
   </data>
+  <data name="Prompt_BankAccountDocument" xml:space="preserve">
+    <value>🎉 Harika! Tüm aile bireylerinin kimlik belgeleri başarıyla alındı.
+
+Şimdi lütfen kendinize (Vasiye) ait &lt;b&gt;Banka Hesap Bilgilerini / IBAN Numarasını&lt;/b&gt; gösteren belgeyi PDF veya net bir fotoğraf (JPG/PNG) olarak gönderiniz.</value>
+  </data>
+  <data name="Info_ProcessingBankAccountDocument" xml:space="preserve">
+    <value>⏳ Banka hesap belgeniz işleniyor ve IBAN bilginiz kontrol ediliyor, lütfen bekleyiniz...</value>
+  </data>
+  <data name="Success_BankAccountDocumentAndIbanSaved" xml:space="preserve">
+    <value>✅ Banka hesap belgeniz ve IBAN numaranız (&lt;code&gt;{0}&lt;/code&gt;) başarıyla kaydedildi.
+
+Son birkaç sorum kaldı, anket aşamasına geçiyoruz.</value>
+  </data>
+  <data name="Success_BankAccountDocumentSaved_IbanRequired" xml:space="preserve">
+    <value>📄 Banka hesap belgeniz kaydedildi; ancak belgeden tek ve geçerli bir IBAN numarası otomatik olarak okunamadı.
+
+💳 Lütfen kendinize (Vasiye) ait &lt;b&gt;IBAN Numaranızı&lt;/b&gt; (&lt;code&gt;TR&lt;/code&gt; ile başlayarak) metin olarak yazınız.</value>
+  </data>
+  <data name="Success_IbanSaved" xml:space="preserve">
+    <value>✅ IBAN numaranız (&lt;code&gt;{0}&lt;/code&gt;) başarıyla kaydedildi.
+
+Son birkaç sorum kaldı, anket aşamasına geçiyoruz.</value>
+  </data>
+  <data name="Prompt_ResumeBankAccountDocument" xml:space="preserve">
+    <value>🔄 &lt;b&gt;Kayıt Yüklendi! (Takip Kodu: {0})&lt;/b&gt;
+
+Lütfen kendinize (Vasiye) ait &lt;b&gt;Banka Hesap Bilgilerini / IBAN Numarasını&lt;/b&gt; gösteren belgeyi PDF veya net bir fotoğraf (JPG/PNG) olarak gönderiniz.</value>
+  </data>
+  <data name="Prompt_ResumeIban" xml:space="preserve">
+    <value>🔄 &lt;b&gt;Kayıt Yüklendi! (Takip Kodu: {0})&lt;/b&gt;
+
+Lütfen kendinize (Vasiye) ait &lt;b&gt;IBAN Numaranızı&lt;/b&gt; (&lt;code&gt;TR&lt;/code&gt; ile başlayarak) metin olarak yazınız.</value>
+  </data>
+  <data name="Label_Required_BankAccountDocument" xml:space="preserve">
+    <value>Banka Hesap Belgesi</value>
+  </data>
 </root>

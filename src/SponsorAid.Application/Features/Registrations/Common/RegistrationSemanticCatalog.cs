@@ -43,7 +43,7 @@ public static class RegistrationSemanticCatalog
         new("expense", "Aylık Gider",
             ["aylık giderimi güncelle", "gider miktarımı değiştir"]),
         new("iban", "IBAN Numarası",
-            ["iban numaramı güncelle", "ibanımı değiştirmek istiyorum", "banka hesap numaramı düzelt"])
+            ["iban", "iban numaramı güncelle", "ibanımı değiştirmek istiyorum", "banka hesap numaramı düzelt"])
     };
 
     public static readonly IReadOnlyList<MatchCandidate> FatherDeathReasons = new List<MatchCandidate>

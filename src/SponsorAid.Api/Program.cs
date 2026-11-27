@@ -107,7 +107,11 @@ builder.Services.AddHostedService<WorkerResultConsumerService>();
 // Section 6: HTTP request pipeline and application startup.
 var app = builder.Build();
 
-// Sets Turkish as default culture for localization resources.
+// Sets Turkish as default culture for both HTTP requests and background worker consumers.
+var defaultCulture = new System.Globalization.CultureInfo("tr-TR");
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = defaultCulture;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = defaultCulture;
+
 var supportedCultures = new[] { "tr-TR" };
 var localizationOptions = new RequestLocalizationOptions()
     .SetDefaultCulture("tr-TR")

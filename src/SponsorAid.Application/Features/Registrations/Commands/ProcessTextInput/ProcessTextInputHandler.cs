@@ -95,6 +95,16 @@ public class ProcessTextInputHandler(
                     _localizer["Success_RegistrationCreated", text, draft.RegistrationKey].Value);
                 break;
 
+            case RegistrationStep.WaitingForIban:
+                draft.ApplyUpdates(new() { { "GuardianIban", text } });
+                draft.SetStep(RegistrationStep.WaitingForQuestions);
+                await draftRepository.SaveAsync(draft, cancellationToken);
+
+                await notifier.SendMessageAsync(draft.ChatId,
+                    _localizer["Success_IbanSaved", draft.Guardian.Iban!.Value].Value);
+                await mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey), cancellationToken);
+                break;
+
             case RegistrationStep.WaitingForQuestions:
                 await mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey, text), cancellationToken);
                 break;

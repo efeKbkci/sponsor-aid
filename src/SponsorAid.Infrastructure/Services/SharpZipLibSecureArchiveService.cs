@@ -89,6 +89,17 @@ public class SharpZipLibSecureArchiveService : ISecureArchiveService
             { "documents/Vasi_Kimlik.pdf", draft.Guardian.IdentityDocumentPath }
         };
 
+        if (!string.IsNullOrWhiteSpace(draft.SystemDocuments.BankAccountDocumentPath))
+        {
+            var ext = Path.GetExtension(draft.SystemDocuments.BankAccountDocumentPath);
+            if (string.IsNullOrWhiteSpace(ext))
+            {
+                ext = ".pdf";
+            }
+
+            paths.Add($"documents/BankaHesapBilgileri{ext.ToLowerInvariant()}", draft.SystemDocuments.BankAccountDocumentPath);
+        }
+
         int childIndex = 1;
         foreach (var child in draft.Children)
         {

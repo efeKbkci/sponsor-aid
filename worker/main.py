@@ -9,6 +9,7 @@ from microservices.id_processing.handler import IdProcessingHandler
 from microservices.population_registry_parsing.handler import PopulationRegistryHandler
 from microservices.residence_parsing.handler import ResidenceHandler
 from microservices.barcode_extraction.handler import BarcodeExtractionHandler
+from microservices.bank_account_parsing.handler import BankAccountParsingHandler
 from microservices.semantic_matching.handler import router as semantic_router
 
 # HTTP application for synchronous microservice endpoints such as semantic matching.
@@ -22,6 +23,7 @@ id_service = IdProcessingHandler()
 population_registry_service = PopulationRegistryHandler()
 residence_service = ResidenceHandler()
 barcode_service = BarcodeExtractionHandler()
+bank_account_service = BankAccountParsingHandler()
 
 def route_event(ch, method, properties, body):
     """Deserialize incoming tasks from RabbitMQ and dispatch them to service handlers.
@@ -59,6 +61,8 @@ def route_event(ch, method, properties, body):
             )
     elif envelope.command_type == events_pb2.CommandType.COMMAND_TYPE_EXTRACT_BARCODE:
         result_msg = barcode_service.process(envelope.official_doc_task)
+    elif envelope.command_type == events_pb2.CommandType.COMMAND_TYPE_PROCESS_BANK_ACCOUNT_DOC:
+        result_msg = bank_account_service.process(envelope.bank_account_doc_task)
     else:
         print(f"[⚠️] Bilinmeyen komut tipi!")
 
