@@ -16,16 +16,30 @@ public record FinancialInfo
 
     public FinancialInfo(int householdSize, decimal income, decimal expense)
     {
-        // Household size must be at least one person to calculate per capita income for poverty thresholds.
-        if (householdSize <= 0)
-            throw new BusinessRuleException("Error_HouseholdSizeMustBePositive");
-
-        // Financial figures cannot be negative when computing net deficit balance.
-        if (income < 0 || expense < 0)
-            throw new BusinessRuleException("Error_IncomeExpenseCannotBeNegative");
+        ValidateHouseholdSize(householdSize);
+        ValidateAmount(income);
+        ValidateAmount(expense);
 
         HouseholdSize = householdSize;
         Income = income;
         Expense = expense;
+    }
+
+    /// <summary>
+    /// Validates that household size is at least one person to calculate per-capita thresholds.
+    /// </summary>
+    public static void ValidateHouseholdSize(int householdSize)
+    {
+        if (householdSize <= 0)
+            throw new BusinessRuleException("Error_HouseholdSizeMustBePositive");
+    }
+
+    /// <summary>
+    /// Validates that a financial amount (income or expense) is non-negative.
+    /// </summary>
+    public static void ValidateAmount(decimal amount)
+    {
+        if (amount < 0)
+            throw new BusinessRuleException("Error_IncomeExpenseCannotBeNegative");
     }
 }

@@ -178,10 +178,7 @@ public class ProcessTextInputHandler(
                 return;
             }
 
-            // Removes confirmation buttons after click to prevent duplicate submission triggers.
-            await notifier.RemoveButtonsAsync(chatId, callBackMessageId);
-
-            await mediator.Send(new FinalizeRegistrationCommand(regKey), cancellation);
+            await mediator.Send(new FinalizeRegistrationCommand(regKey, callBackMessageId), cancellation);
             return;
         }
 

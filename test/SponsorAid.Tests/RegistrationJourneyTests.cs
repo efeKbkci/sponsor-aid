@@ -1027,6 +1027,10 @@ public class RegistrationJourneyTests
             It.IsAny<CancellationToken>()),
             Times.Once());
 
+        _fixture.UserNotifierMock.Verify(
+            x => x.RemoveButtonsAsync(chatId, 99),
+            Times.Once());
+
         capturedArchiveBytes.Should().NotBeNullOrEmpty();
         capturedPassword.Should().NotBeNullOrEmpty();
         capturedPassword!.Length.Should().Be(16);

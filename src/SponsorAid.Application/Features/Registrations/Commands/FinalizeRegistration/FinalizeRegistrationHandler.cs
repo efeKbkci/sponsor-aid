@@ -54,6 +54,12 @@ public class FinalizeRegistrationHandler(
             password,
             cancellationToken);
 
+        // Removes confirmation buttons only after validation, packaging, and dispatch succeed to prevent UI deadlocks on failure.
+        if (request.ConfirmationMessageId.HasValue)
+        {
+            await _notifier.RemoveButtonsAsync(draft.ChatId, request.ConfirmationMessageId.Value);
+        }
+
         await _trackingRepository.MarkAsCompletedAsync(request.RegistrationKey, cancellationToken);
 
         // Deletes temporary files and draft records immediately after dispatch to protect personal data.

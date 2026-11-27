@@ -528,6 +528,11 @@ public class BankAccountStepJourneyTests
             x => x.SendEncryptedPackageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()),
             Times.Never());
 
+        _fixture.UserNotifierMock.Verify(
+            x => x.RemoveButtonsAsync(chatId, It.IsAny<int>()),
+            Times.Never(),
+            "Zorunlu alan hatasında onay butonu kaldırılmamalıdır.");
+
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();

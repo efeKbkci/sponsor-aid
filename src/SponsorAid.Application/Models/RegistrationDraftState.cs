@@ -61,12 +61,30 @@ public class RegistrationDraftState
             { "FatherProfession", value => Father.Profession = Enum.Parse<FatherProfession>(value, true) },
             { "FatherDeathReason", value => Father.DeathReason = Enum.Parse<FatherDeathReason>(value, true) },
 
-            { "FamilyMemberCount", value => FamilyFinancial.FamilyMemberCount = int.Parse(value) },
+            { "FamilyMemberCount", value =>
+                {
+                    var parsed = int.Parse(value);
+                    FinancialInfo.ValidateHouseholdSize(parsed);
+                    FamilyFinancial.FamilyMemberCount = parsed;
+                }
+            },
             { "HousingStatus", value => FamilyFinancial.HousingStatus = Enum.Parse<HousingStatus>(value, true) },
             { "SocialSecurity", value => FamilyFinancial.SocialSecurity = Enum.Parse<SocialSecurity>(value, true) },
             { "IncomeStatus", value => FamilyFinancial.IncomeStatus = Enum.Parse<IncomeStatus>(value, true) },
-            { "Income", value => FamilyFinancial.Income = int.Parse(value) },
-            { "Expense", value => FamilyFinancial.Expense = int.Parse(value) },
+            { "Income", value =>
+                {
+                    var parsed = int.Parse(value);
+                    FinancialInfo.ValidateAmount(parsed);
+                    FamilyFinancial.Income = parsed;
+                }
+            },
+            { "Expense", value =>
+                {
+                    var parsed = int.Parse(value);
+                    FinancialInfo.ValidateAmount(parsed);
+                    FamilyFinancial.Expense = parsed;
+                }
+            },
 
             { "DisabledName", value => { EnsureDisabledMemberExists(); DisabledMember!.Name = value; } },
             { "DisabledDiagnosis", value => { EnsureDisabledMemberExists(); DisabledMember!.Diagnosis = value; } },
