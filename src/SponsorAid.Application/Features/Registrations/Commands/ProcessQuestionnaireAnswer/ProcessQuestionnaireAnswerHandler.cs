@@ -30,6 +30,19 @@ public class ProcessQuestionnaireAnswerHandler(
 
         string text = request.AnswerText?.Trim() ?? string.Empty;
 
+        // Placed first so /update on IBAN during WaitingForQuestions or WaitingForConfirmation re-prompts immediately.
+        if (draft.Guardian.Iban == null)
+        {
+            if (!string.IsNullOrEmpty(text)) { draft.ApplyUpdates(new() { { "GuardianIban", text } }); text = ""; }
+
+            if (draft.Guardian.Iban == null)
+            {
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Question_GuardianIban"]);
+                await _draftRepository.SaveAsync(draft, cancellationToken);
+                return;
+            }
+        }
+
         if (draft.Guardian.ApplicantRole == null)
         {
             if (!string.IsNullOrEmpty(text) && Enum.TryParse<ApplicantRole>(text, out var parsedRole))
@@ -374,31 +387,10 @@ public class ProcessQuestionnaireAnswerHandler(
             if (draft.FamilyFinancial.Expense == null) { await _notifier.SendMessageAsync(draft.ChatId, _localizer["Question_MonthlyExpense"]); await _draftRepository.SaveAsync(draft, cancellationToken); return; }
         }
 
-        if (draft.Guardian.Iban == null)
-        {
-            if (!string.IsNullOrEmpty(text)) { draft.ApplyUpdates(new() { { "GuardianIban", text } }); text = ""; }
-
-            if (draft.Guardian.Iban == null)
-            {
-                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Question_GuardianIban"]);
-                await _draftRepository.SaveAsync(draft, cancellationToken);
-                return;
-            }
-            else
-            {
-                // Transitions workflow to confirmation once all questionnaire fields have valid values.
-                draft.GenerateAutomatedDetails(_localizer);
-                draft.SetStep(RegistrationStep.WaitingForConfirmation);
-                await _draftRepository.SaveAsync(draft, cancellationToken);
-
-                await SendSummaryConfirmationAsync(draft);
-                return;
-            }
-        }
-
-        // Ensures users reaching the end of the question list are always guided to registration confirmation.
+        // Ensures automated details (petition and child defaults) are generated and users reaching the end of the question list are guided to confirmation.
         if (draft.CurrentStep != RegistrationStep.Completed)
         {
+            draft.GenerateAutomatedDetails(_localizer);
             draft.SetStep(RegistrationStep.WaitingForConfirmation);
             await _draftRepository.SaveAsync(draft, cancellationToken);
             await SendSummaryConfirmationAsync(draft);

@@ -17,5 +17,6 @@ public record SaveProcessedDocumentCommand(
     PopulationRegistryData? PopulationData = null,
     ResidenceData? ResidenceData = null,
     string? ExtractedTcNumber = null,
-    string? ExtractedBarcode = null 
+    string? ExtractedBarcode = null,
+    string? ExtractedIban = null
 ) : IRequest, IRegistrationCommand;

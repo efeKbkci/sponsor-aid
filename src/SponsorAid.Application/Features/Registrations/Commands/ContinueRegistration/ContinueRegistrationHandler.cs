@@ -112,6 +112,14 @@ public class ContinueRegistrationHandler(
                 await _notifier.SendMessageAsync(draft.ChatId, _localizer["Prompt_ResumeIdentityBack", draft.RegistrationKey, targetBack].Value);
                 break;
 
+            case RegistrationStep.WaitingForBankAccountDocument:
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Prompt_ResumeBankAccountDocument", draft.RegistrationKey].Value);
+                break;
+
+            case RegistrationStep.WaitingForIban:
+                await _notifier.SendMessageAsync(draft.ChatId, _localizer["Prompt_ResumeIban", draft.RegistrationKey].Value);
+                break;
+
             case RegistrationStep.WaitingForQuestions:
                 await _notifier.SendMessageAsync(draft.ChatId, _localizer["Info_ResumeQuestionnaire", draft.RegistrationKey].Value);
                 await _mediator.Send(new ProcessQuestionnaireAnswerCommand(draft.RegistrationKey));

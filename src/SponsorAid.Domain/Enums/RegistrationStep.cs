@@ -19,7 +19,10 @@ public enum RegistrationStep
     WaitingForIdentityBack = 7,
     ProcessingIdentityBack = 8,
     MergingDocuments = 9,
-    WaitingForQuestions = 10,
-    WaitingForConfirmation = 11,
-    Completed = 12
+    WaitingForBankAccountDocument = 10,
+    ProcessingBankAccountDocument = 11,
+    WaitingForIban = 12,
+    WaitingForQuestions = 13,
+    WaitingForConfirmation = 14,
+    Completed = 15
 }

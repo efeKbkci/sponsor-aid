@@ -6,4 +6,7 @@ namespace SponsorAid.Application.Features.Registrations.Commands.FinalizeRegistr
 /// <summary>
 /// Command to validate, package, and finalize a completed registration draft.
 /// </summary>
-public record FinalizeRegistrationCommand(string RegistrationKey) : IRequest, IRegistrationCommand;
+public record FinalizeRegistrationCommand(
+    string RegistrationKey,
+    int? ConfirmationMessageId = null
+) : IRequest, IRegistrationCommand;

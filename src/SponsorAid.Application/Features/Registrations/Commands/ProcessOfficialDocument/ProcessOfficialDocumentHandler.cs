@@ -1,19 +1,16 @@
 using MediatR;
 using SponsorAid.Application.Interfaces;
 using SponsorAid.Integration.Contracts; 
-using SponsorAid.Domain.Exceptions;
 
 namespace SponsorAid.Application.Features.Registrations.Commands.ProcessBinaryDocument;
 
 /// <summary>
-/// Validates official registration documents, stores them locally, and dispatches extraction tasks to the queue.
+/// Stores official registration documents locally and dispatches extraction tasks to the queue.
 /// </summary>
 public class ProcessBinaryDocumentCommandHandler : IRequestHandler<ProcessOfficialDocumentCommand>
 {
     private readonly IFileStorageService _fileStorage;
     private readonly IEventPublisher _eventPublisher;
-
-    private const long MaxFileSizeInBytes = 5 * 1024 * 1024;
 
     public ProcessBinaryDocumentCommandHandler(
         IFileStorageService fileStorage,
@@ -25,19 +22,9 @@ public class ProcessBinaryDocumentCommandHandler : IRequestHandler<ProcessOffici
 
     public async Task Handle(ProcessOfficialDocumentCommand request, CancellationToken cancellationToken)
     {
-        if (request.FileSize > MaxFileSizeInBytes)
-        {
-            throw new BusinessRuleException("Error_DocumentFileTooLarge");
-        }
+        var extension = (request.Extension ?? string.Empty).Trim().TrimStart('.').ToLowerInvariant();
 
-        var extension = request.Extension.ToLower();
-
-        if (extension is not ("pdf" or "jpg" or "png" or "jpeg"))
-        {
-            throw new BusinessRuleException("Error_UnsupportedDocumentFileType");
-        }
-
-        string savedFilePath = await _fileStorage.DownloadAndSaveAsync(request.FileId, request.Extension);
+        string savedFilePath = await _fileStorage.DownloadAndSaveAsync(request.FileId, extension);
 
         var task = new ProcessOfficialDocTask
         {

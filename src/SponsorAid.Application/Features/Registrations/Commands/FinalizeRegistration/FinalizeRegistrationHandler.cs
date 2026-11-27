@@ -54,6 +54,12 @@ public class FinalizeRegistrationHandler(
             password,
             cancellationToken);
 
+        // Removes confirmation buttons only after validation, packaging, and dispatch succeed to prevent UI deadlocks on failure.
+        if (request.ConfirmationMessageId.HasValue)
+        {
+            await _notifier.RemoveButtonsAsync(draft.ChatId, request.ConfirmationMessageId.Value);
+        }
+
         await _trackingRepository.MarkAsCompletedAsync(request.RegistrationKey, cancellationToken);
 
         // Deletes temporary files and draft records immediately after dispatch to protect personal data.
@@ -74,6 +80,7 @@ public class FinalizeRegistrationHandler(
         filesToDelete.Add(draft.SystemDocuments.IdentityFrontPath);
         filesToDelete.Add(draft.SystemDocuments.IdentityBackPath);
         filesToDelete.Add(draft.SystemDocuments.MergedIdentityPath);
+        filesToDelete.Add(draft.SystemDocuments.BankAccountDocumentPath);
 
         filesToDelete.Add(draft.Guardian.IdentityDocumentPath);
 
@@ -84,7 +91,10 @@ public class FinalizeRegistrationHandler(
 
         foreach (var filePath in filesToDelete)
         {
-            _fileStorage.DeleteFile(filePath);
+            if (!string.IsNullOrWhiteSpace(filePath))
+            {
+                _fileStorage.DeleteFile(filePath);
+            }
         }
     }
 
@@ -181,6 +191,8 @@ public class FinalizeRegistrationHandler(
         if (draft.Father.DeathReason == null) missingFields.Add(_localizer["Label_Required_FatherDeathReason"].Value);
 
         if (string.IsNullOrWhiteSpace(draft.ResidenceAddress.City) || string.IsNullOrWhiteSpace(draft.ResidenceAddress.FullAddress)) missingFields.Add(_localizer["Label_Required_ResidenceAddress"].Value);
+
+        if (string.IsNullOrWhiteSpace(draft.SystemDocuments.BankAccountDocumentPath)) missingFields.Add(_localizer["Label_Required_BankAccountDocument"].Value);
 
         if (draft.SystemDocuments.Petition == null) missingFields.Add(_localizer["Label_Required_Petition"].Value);
 

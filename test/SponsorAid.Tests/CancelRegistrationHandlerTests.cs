@@ -60,7 +60,8 @@ public class CancelRegistrationHandlerTests
                 ResidenceDocumentPath = "/uploads/ikametgah.pdf",
                 IdentityFrontPath = "/uploads/on.jpg",
                 IdentityBackPath = "/uploads/arka.jpg",
-                MergedIdentityPath = "/uploads/birlestirilmis.pdf"
+                MergedIdentityPath = "/uploads/birlestirilmis.pdf",
+                BankAccountDocumentPath = "/uploads/banka_hesap.jpg"
             },
             Guardian = new GuardianDraft
             {
@@ -87,12 +88,13 @@ public class CancelRegistrationHandlerTests
         _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/on.jpg"), Times.Once);
         _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/arka.jpg"), Times.Once);
         _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/birlestirilmis.pdf"), Times.Once);
+        _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/banka_hesap.jpg"), Times.Once);
         _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/vasi_kimlik.pdf"), Times.Once);
         _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/cocuk1_kimlik.pdf"), Times.Once);
         _fileStorageMock.Verify(fs => fs.DeleteFile("/uploads/cocuk2_kimlik.pdf"), Times.Once);
 
-        // Verify total file deletion count matches all 8 paths
-        _fileStorageMock.Verify(fs => fs.DeleteFile(It.IsAny<string>()), Times.Exactly(8));
+        // Verify total file deletion count matches all 9 paths
+        _fileStorageMock.Verify(fs => fs.DeleteFile(It.IsAny<string>()), Times.Exactly(9));
 
         // Verify draft record was removed from repository
         _draftRepositoryMock.Verify(repo => repo.DeleteAsync(command.RegistrationKey, It.IsAny<CancellationToken>()), Times.Once);

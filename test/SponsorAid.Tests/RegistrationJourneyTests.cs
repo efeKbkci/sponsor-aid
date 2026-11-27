@@ -1,8 +1,10 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using FluentAssertions;
+using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -131,9 +133,19 @@ public class RegistrationJourneyTests
         const string validChildTc = "20000000114";
         const string validIban = "TR330006100519786457841326";
 
+        var tempBankDocPath = Path.Combine(Path.GetTempPath(), $"sponsoraid_bank_{Guid.NewGuid():N}.pdf");
+        var expectedBankDocBytes = Encoding.UTF8.GetBytes(
+            $"%PDF-1.4\n%SponsorAid Test Bank Account Receipt\nIBAN: {validIban}\n");
+        await File.WriteAllBytesAsync(tempBankDocPath, expectedBankDocBytes);
+
+        try
+        {
         _fixture.FileStorageMock
             .Setup(x => x.DownloadAndSaveAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync("fake/path/file.pdf");
+        _fixture.FileStorageMock
+            .Setup(x => x.DownloadAndSaveAsync("bank_doc_1", "pdf"))
+            .ReturnsAsync(tempBankDocPath);
 
         // ====================================================================
         // STAGE 1: Registration Initiation (/new)
@@ -686,7 +698,7 @@ public class RegistrationJourneyTests
             ));
         }
 
-        // --- Assert 20: Child identity saved and step advances to WaitingForQuestions ---
+        // --- Assert 20: Child identity saved and step advances to WaitingForBankAccountDocument ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -695,8 +707,78 @@ public class RegistrationJourneyTests
 
             state!.Children.Should().HaveCount(1);
             state.Children[0].IdentityDocumentPath.Should().Be("uploads/cocuk_merged.pdf");
+            state.CurrentStep.Should().Be(RegistrationStep.WaitingForBankAccountDocument);
+        }
+
+        _fixture.UserNotifierMock.Verify(x => x.SendMessageAsync(
+            chatId,
+            It.Is<string>(msg => msg.Contains("kimlik belgeleri") && msg.Contains("Banka Hesap"))),
+            Times.Once());
+
+        // ====================================================================
+        // STAGE 5B: Bank Account Document Upload & IBAN Extraction
+        // ====================================================================
+
+        // --- Act 20B: Upload bank account PDF document ---
+        var responseAct20B = await SendTelegramDocumentAsync(chatId, "bank_doc_1", 120000, "banka_dekont.pdf");
+        responseAct20B.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // --- Assert 20B: Step advances to ProcessingBankAccountDocument and worker task is published ---
+        using (var scope = _fixture.Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
+            var draftRecord = await db.Drafts.AsNoTracking().FirstOrDefaultAsync(d => d.RegistrationKey == registrationKey);
+            var state = JsonSerializer.Deserialize<RegistrationDraftState>(draftRecord!.JsonData);
+
+            state!.CurrentStep.Should().Be(RegistrationStep.ProcessingBankAccountDocument);
+        }
+
+        _fixture.EventPublisherMock.Verify(x => x.PublishAsync(
+            "document-processing-queue",
+            It.Is<WorkerTaskEnvelope>(e =>
+                e.CommandType == CommandType.ProcessBankAccountDoc &&
+                e.BankAccountDocTask != null &&
+                e.BankAccountDocTask.RegistrationKey == registrationKey &&
+                e.BankAccountDocTask.FilePath == tempBankDocPath)),
+            Times.Once());
+
+        // --- Act 20C: Simulate worker result with single valid MOD-97 IBAN ---
+        using (var scope = _fixture.Factory.Services.CreateScope())
+        {
+            var mediator = scope.ServiceProvider.GetRequiredService<MediatR.IMediator>();
+            await mediator.Send(new SaveProcessedDocumentCommand(
+                RegistrationKey: registrationKey,
+                DocumentType: "BankAccount",
+                IsSuccess: true,
+                ErrorMessage: null,
+                SavedFilePath: tempBankDocPath,
+                ExtractedIban: validIban
+            ));
+        }
+
+        // --- Assert 20C: Bank account path & IBAN saved, step advances to WaitingForQuestions, and first question prompted ---
+        using (var scope = _fixture.Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
+            var draftRecord = await db.Drafts.AsNoTracking().FirstOrDefaultAsync(d => d.RegistrationKey == registrationKey);
+            var state = JsonSerializer.Deserialize<RegistrationDraftState>(draftRecord!.JsonData);
+
+            state!.SystemDocuments.BankAccountDocumentPath.Should().Be(tempBankDocPath);
+            state.Guardian.Iban.Should().NotBeNull();
+            state.Guardian.Iban!.Value.Should().Be(validIban);
             state.CurrentStep.Should().Be(RegistrationStep.WaitingForQuestions);
         }
+
+        _fixture.UserNotifierMock.Verify(x => x.SendMessageAsync(
+            chatId,
+            It.Is<string>(msg => msg.Contains(validIban))),
+            Times.Once());
+
+        _fixture.UserNotifierMock.Verify(x => x.SendQuestionWithButtonsAsync(
+            chatId,
+            It.Is<string>(q => q.Contains("yetimin nesi oluyorsunuz")),
+            It.Is<Dictionary<string, string>>(opts => opts.ContainsKey("Mother") && opts.ContainsKey("Guardian"))),
+            Times.AtLeastOnce());
 
         // ====================================================================
         // STAGE 6: Survey and Questionnaire Flow
@@ -862,7 +944,7 @@ public class RegistrationJourneyTests
         await SendTelegramMessageAsync(chatId, "15000");
         await SendTelegramMessageAsync(chatId, "12000");
 
-        // --- Assert 28: Verify financial figures and categories are stored ---
+        // --- Assert 28: Verify financial figures stored, IBAN skipped (already saved), Petition generated, and step advances directly to WaitingForConfirmation ---
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
@@ -874,32 +956,11 @@ public class RegistrationJourneyTests
             state.FamilyFinancial.IncomeStatus.Should().Be(IncomeStatus.FixedSalary);
             state.FamilyFinancial.Income.Should().Be(15000);
             state.FamilyFinancial.Expense.Should().Be(12000);
-        }
 
-        // --- Act 29: Submit guardian IBAN with invalid format followed by valid IBAN ---
-        await SendTelegramMessageAsync(chatId, "TR0000");
-        using (var scope = _fixture.Factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
-            var draftRecord = await db.Drafts.AsNoTracking().FirstOrDefaultAsync(d => d.RegistrationKey == registrationKey);
-            var state = JsonSerializer.Deserialize<RegistrationDraftState>(draftRecord!.JsonData);
-            state!.Guardian.Iban.Should().BeNull();
-            state.CurrentStep.Should().Be(RegistrationStep.WaitingForQuestions);
-        }
-
-        await SendTelegramMessageAsync(chatId, validIban);
-
-        // --- Assert 29: Verify IBAN stored, petition generated, and step advances to WaitingForConfirmation ---
-        using (var scope = _fixture.Factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<SponsorAidDbContext>();
-            var draftRecord = await db.Drafts.AsNoTracking().FirstOrDefaultAsync(d => d.RegistrationKey == registrationKey);
-            var state = JsonSerializer.Deserialize<RegistrationDraftState>(draftRecord!.JsonData);
-
-            state!.Guardian.Iban.Should().NotBeNull();
+            state.Guardian.Iban.Should().NotBeNull();
             state.Guardian.Iban!.Value.Should().Be(validIban);
 
-            state.SystemDocuments.Petition.Should().NotBeNull();
+            state.SystemDocuments.Petition.Should().NotBeNull("IBAN önceden kayıtlı olsa dahi son anket sorusundan sonra dilekçe üretilmelidir.");
             state.SystemDocuments.Petition!.Content.Length.Should().BeGreaterThanOrEqualTo(300);
 
             state.Children[0].Hobbies.Should().NotBeNullOrWhiteSpace();
@@ -911,6 +972,27 @@ public class RegistrationJourneyTests
         // ====================================================================
         // STAGE 7: Confirmation and Registration Finalization
         // ====================================================================
+
+        byte[]? capturedArchiveBytes = null;
+        string? capturedPassword = null;
+
+        _fixture.RegistrationDispatchMock
+            .Setup(x => x.SendEncryptedPackageAsync(
+                registrationKey,
+                "AYŞE YILMAZ",
+                It.IsAny<byte[]>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, byte[], CancellationToken>((_, _, bytes, _) => capturedArchiveBytes = bytes)
+            .Returns(Task.CompletedTask);
+
+        _fixture.RegistrationDispatchMock
+            .Setup(x => x.SendPasswordAsync(
+                registrationKey,
+                "AYŞE YILMAZ",
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, string, CancellationToken>((_, _, pwd, _) => capturedPassword = pwd)
+            .Returns(Task.CompletedTask);
 
         // --- Act 30: Send text message instead of confirmation callback button ---
         await SendTelegramMessageAsync(chatId, "onaylıyorum");
@@ -930,8 +1012,7 @@ public class RegistrationJourneyTests
         var responseAct31 = await SendTelegramCallbackAsync(chatId, "confirm_registration", messageId: 99);
         responseAct31.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // --- Assert 31: Finalize registration deliverables and clean up temporary storage ---
-        // Verify encrypted ZIP package and generated 16-character password delivery
+        // --- Assert 31: Finalize registration deliverables, decrypt AES-256 ZIP, and verify cleanup ---
         _fixture.RegistrationDispatchMock.Verify(x => x.SendEncryptedPackageAsync(
             registrationKey,
             "AYŞE YILMAZ",
@@ -946,7 +1027,45 @@ public class RegistrationJourneyTests
             It.IsAny<CancellationToken>()),
             Times.Once());
 
-        // Verify temporary document files are cleaned from storage
+        _fixture.UserNotifierMock.Verify(
+            x => x.RemoveButtonsAsync(chatId, 99),
+            Times.Once());
+
+        capturedArchiveBytes.Should().NotBeNullOrEmpty();
+        capturedPassword.Should().NotBeNullOrEmpty();
+        capturedPassword!.Length.Should().Be(16);
+
+        // Decrypt the actual AES-256 encrypted ZIP package using SharpZipLib ZipFile and the dispatched password
+        var decryptedEntries = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        using (var archiveMemory = new MemoryStream(capturedArchiveBytes!))
+        using (var zipFile = new ZipFile(archiveMemory) { Password = capturedPassword })
+        {
+            foreach (ZipEntry entry in zipFile)
+            {
+                if (!entry.IsFile) continue;
+                await using var entryStream = zipFile.GetInputStream(entry);
+                using var entryBuffer = new MemoryStream();
+                await entryStream.CopyToAsync(entryBuffer);
+                decryptedEntries[entry.Name] = entryBuffer.ToArray();
+            }
+        }
+
+        decryptedEntries.Should().ContainKey("documents/BankaHesapBilgileri.pdf",
+            "Yüklenen banka hesap belgesi gerçek uzantısıyla şifreli ZIP arşivine eklenmelidir.");
+        decryptedEntries["documents/BankaHesapBilgileri.pdf"].Should().Equal(expectedBankDocBytes);
+
+        string dataEntryName = $"data_{registrationKey}.json";
+        decryptedEntries.Should().ContainKey(dataEntryName);
+        var exportedData = JsonSerializer.Deserialize<RegistrationDto>(
+            decryptedEntries[dataEntryName],
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        exportedData.Should().NotBeNull();
+        exportedData!.Guardian.Iban.Should().Be(validIban);
+        exportedData.PetitionText.Should().NotBeNullOrWhiteSpace();
+        exportedData.PetitionText!.Length.Should().BeGreaterThanOrEqualTo(300);
+
+        // Verify temporary document files (including bank account document) are cleaned from storage
+        _fixture.FileStorageMock.Verify(x => x.DeleteFile(tempBankDocPath), Times.Once());
         _fixture.FileStorageMock.Verify(x => x.DeleteFile(It.IsAny<string>()), Times.AtLeastOnce());
 
         // Verify draft is removed and tracking record status transitions to Completed
@@ -960,6 +1079,14 @@ public class RegistrationJourneyTests
             var trackingRecord = await db.RegistrationTrackings.AsNoTracking().FirstOrDefaultAsync(t => t.RegistrationKey == registrationKey);
             trackingRecord.Should().NotBeNull();
             trackingRecord!.Status.Should().Be(RegistrationStatus.Completed);
+        }
+        }
+        finally
+        {
+            if (File.Exists(tempBankDocPath))
+            {
+                File.Delete(tempBankDocPath);
+            }
         }
     }
 }

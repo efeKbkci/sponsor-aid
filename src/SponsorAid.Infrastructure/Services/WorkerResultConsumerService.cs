@@ -94,6 +94,7 @@ public class WorkerResultConsumerService : BackgroundService
                     DocumentType.IdentityFront => "IdentityFront",
                     DocumentType.IdentityBack => "IdentityBack",
                     DocumentType.MergedIdentity => "MergedIdentity",
+                    DocumentType.BankAccount => "BankAccount",
                     _ => "Unknown"
                 };
 
@@ -115,7 +116,10 @@ public class WorkerResultConsumerService : BackgroundService
                                          ? resultMsg.ExtractedTcNumber : null,
 
                     ExtractedBarcode: resultMsg.ExtractedDataCase == WorkerResultMessage.ExtractedDataOneofCase.ExtractedBarcode
-                                         ? resultMsg.ExtractedBarcode : null
+                                         ? resultMsg.ExtractedBarcode : null,
+
+                    ExtractedIban: resultMsg.ExtractedDataCase == WorkerResultMessage.ExtractedDataOneofCase.ExtractedIban
+                                         ? resultMsg.ExtractedIban : null
                 );
 
                 // Creates an isolated dependency injection scope to resolve and execute the handler.

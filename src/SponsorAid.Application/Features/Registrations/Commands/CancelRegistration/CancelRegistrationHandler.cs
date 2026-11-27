@@ -46,6 +46,7 @@ public class CancelRegistrationHandler(
         filesToDelete.Add(draft.SystemDocuments.IdentityFrontPath);
         filesToDelete.Add(draft.SystemDocuments.IdentityBackPath);
         filesToDelete.Add(draft.SystemDocuments.MergedIdentityPath);
+        filesToDelete.Add(draft.SystemDocuments.BankAccountDocumentPath);
 
         if (draft.Guardian != null)
         {
@@ -63,7 +64,10 @@ public class CancelRegistrationHandler(
         // Removes uploaded physical files to prevent orphaned files on the storage system.
         foreach (var filePath in filesToDelete)
         {
-            _fileStorage.DeleteFile(filePath);
+            if (!string.IsNullOrWhiteSpace(filePath))
+            {
+                _fileStorage.DeleteFile(filePath);
+            }
         }
     }
 }

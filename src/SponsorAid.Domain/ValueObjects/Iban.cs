@@ -18,10 +18,10 @@ public record Iban
         if (string.IsNullOrWhiteSpace(value))
             throw new BusinessRuleException("Error_IbanRequired");
 
-        var sanitizedIban = value.Replace(" ", "").ToUpperInvariant();
+        var sanitizedIban = Sanitize(value);
 
         // Turkish banking regulations require 26 alphanumeric characters starting with the TR country code.
-        if (!sanitizedIban.StartsWith("TR") || sanitizedIban.Length != 26)
+        if (!IsValidFormat(sanitizedIban))
             throw new BusinessRuleException("Error_InvalidIbanFormat");
 
         // Verifies the checksum to stop payment errors before dispatching funds to banks.
@@ -30,6 +30,38 @@ public record Iban
 
         Value = sanitizedIban;
     }
+
+    private Iban(string sanitizedValue, bool _)
+    {
+        Value = sanitizedValue;
+    }
+
+    /// <summary>
+    /// Attempts to parse and validate a Turkish IBAN using MOD-97 without throwing exceptions.
+    /// </summary>
+    public static bool TryCreate(string? value, out Iban? iban)
+    {
+        iban = null;
+
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var sanitizedIban = Sanitize(value);
+
+        if (!IsValidFormat(sanitizedIban) || !ValidateMod97(sanitizedIban))
+            return false;
+
+        iban = new Iban(sanitizedIban, true);
+        return true;
+    }
+
+    private static string Sanitize(string value) =>
+        value.Replace(" ", "").Replace("-", "").Trim().ToUpperInvariant();
+
+    private static bool IsValidFormat(string sanitizedIban) =>
+        sanitizedIban.StartsWith("TR", StringComparison.Ordinal) &&
+        sanitizedIban.Length == 26 &&
+        sanitizedIban.Skip(2).All(char.IsAsciiDigit);
 
     private static bool ValidateMod97(string iban)
     {

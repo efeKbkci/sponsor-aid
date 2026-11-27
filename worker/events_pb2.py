@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0c\x65vents.proto\"\x8f\x01\n\x06Person\x12\x11\n\tid_number\x18\x01 \x01(\t\x12\x12\n\nfirst_name\x18\x02 \x01(\t\x12\x11\n\tlast_name\x18\x03 \x01(\t\x12\x12\n\nbirth_date\x18\x04 \x01(\t\x12\x17\n\ndeath_date\x18\x05 \x01(\tH\x00\x88\x01\x01\x12\x0f\n\x07kinship\x18\x06 \x01(\tB\r\n\x0b_death_date\"1\n\x16PopulationRegistryData\x12\x17\n\x06people\x18\x01 \x03(\x0b\x32\x07.Person\"n\n\rResidenceData\x12\x11\n\tid_number\x18\x01 \x01(\t\x12\x0c\n\x04\x63ity\x18\x02 \x01(\t\x12\x10\n\x08\x64istrict\x18\x03 \x01(\t\x12\x14\n\x0cneighborhood\x18\x04 \x01(\t\x12\x14\n\x0c\x66ull_address\x18\x05 \x01(\t\"\xf5\x02\n\x13WorkerResultMessage\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12$\n\rdocument_type\x18\x02 \x01(\x0e\x32\r.DocumentType\x12\x12\n\nis_success\x18\x03 \x01(\x08\x12\x1a\n\rerror_message\x18\x04 \x01(\tH\x01\x88\x01\x01\x12\x1c\n\x0fsaved_file_path\x18\x05 \x01(\tH\x02\x88\x01\x01\x12\x32\n\x0fpopulation_data\x18\x06 \x01(\x0b\x32\x17.PopulationRegistryDataH\x00\x12(\n\x0eresidence_data\x18\x07 \x01(\x0b\x32\x0e.ResidenceDataH\x00\x12\x1d\n\x13\x65xtracted_tc_number\x18\x08 \x01(\tH\x00\x12\x1b\n\x11\x65xtracted_barcode\x18\t \x01(\tH\x00\x42\x10\n\x0e\x65xtracted_dataB\x10\n\x0e_error_messageB\x12\n\x10_saved_file_path\"_\n\x10ProcessImageTask\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\x12\x1e\n\nimage_side\x18\x03 \x01(\x0e\x32\n.ImageSide\"k\n\x16ProcessOfficialDocTask\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\x12$\n\rdocument_type\x18\x03 \x01(\x0e\x32\r.DocumentType\"Y\n\x0cMergePdfTask\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12\x17\n\x0f\x66ront_file_path\x18\x02 \x01(\t\x12\x16\n\x0e\x62\x61\x63k_file_path\x18\x03 \x01(\t\"\xcc\x01\n\x12WorkerTaskEnvelope\x12\"\n\x0c\x63ommand_type\x18\x01 \x01(\x0e\x32\x0c.CommandType\x12\'\n\nimage_task\x18\x02 \x01(\x0b\x32\x11.ProcessImageTaskH\x00\x12\x34\n\x11official_doc_task\x18\x03 \x01(\x0b\x32\x17.ProcessOfficialDocTaskH\x00\x12#\n\nmerge_task\x18\x04 \x01(\x0b\x32\r.MergePdfTaskH\x00\x42\x0e\n\x0ctask_payload*\xd3\x01\n\x0c\x44ocumentType\x12\x19\n\x15\x44OCUMENT_TYPE_UNKNOWN\x10\x00\x12%\n!DOCUMENT_TYPE_POPULATION_REGISTRY\x10\x01\x12\x1b\n\x17\x44OCUMENT_TYPE_RESIDENCE\x10\x02\x12 \n\x1c\x44OCUMENT_TYPE_IDENTITY_FRONT\x10\x03\x12\x1f\n\x1b\x44OCUMENT_TYPE_IDENTITY_BACK\x10\x04\x12!\n\x1d\x44OCUMENT_TYPE_MERGED_IDENTITY\x10\x05*N\n\tImageSide\x12\x16\n\x12IMAGE_SIDE_UNKNOWN\x10\x00\x12\x14\n\x10IMAGE_SIDE_FRONT\x10\x01\x12\x13\n\x0fIMAGE_SIDE_BACK\x10\x02*\xac\x01\n\x0b\x43ommandType\x12\x18\n\x14\x43OMMAND_TYPE_UNKNOWN\x10\x00\x12\x1e\n\x1a\x43OMMAND_TYPE_PROCESS_IMAGE\x10\x01\x12%\n!COMMAND_TYPE_PROCESS_OFFICIAL_DOC\x10\x02\x12\x1a\n\x16\x43OMMAND_TYPE_MERGE_PDF\x10\x03\x12 \n\x1c\x43OMMAND_TYPE_EXTRACT_BARCODE\x10\x04\x42#\xaa\x02 SponsorAid.Integration.Contractsb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0c\x65vents.proto\"\x8f\x01\n\x06Person\x12\x11\n\tid_number\x18\x01 \x01(\t\x12\x12\n\nfirst_name\x18\x02 \x01(\t\x12\x11\n\tlast_name\x18\x03 \x01(\t\x12\x12\n\nbirth_date\x18\x04 \x01(\t\x12\x17\n\ndeath_date\x18\x05 \x01(\tH\x00\x88\x01\x01\x12\x0f\n\x07kinship\x18\x06 \x01(\tB\r\n\x0b_death_date\"1\n\x16PopulationRegistryData\x12\x17\n\x06people\x18\x01 \x03(\x0b\x32\x07.Person\"n\n\rResidenceData\x12\x11\n\tid_number\x18\x01 \x01(\t\x12\x0c\n\x04\x63ity\x18\x02 \x01(\t\x12\x10\n\x08\x64istrict\x18\x03 \x01(\t\x12\x14\n\x0cneighborhood\x18\x04 \x01(\t\x12\x14\n\x0c\x66ull_address\x18\x05 \x01(\t\"\x8f\x03\n\x13WorkerResultMessage\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12$\n\rdocument_type\x18\x02 \x01(\x0e\x32\r.DocumentType\x12\x12\n\nis_success\x18\x03 \x01(\x08\x12\x1a\n\rerror_message\x18\x04 \x01(\tH\x01\x88\x01\x01\x12\x1c\n\x0fsaved_file_path\x18\x05 \x01(\tH\x02\x88\x01\x01\x12\x32\n\x0fpopulation_data\x18\x06 \x01(\x0b\x32\x17.PopulationRegistryDataH\x00\x12(\n\x0eresidence_data\x18\x07 \x01(\x0b\x32\x0e.ResidenceDataH\x00\x12\x1d\n\x13\x65xtracted_tc_number\x18\x08 \x01(\tH\x00\x12\x1b\n\x11\x65xtracted_barcode\x18\t \x01(\tH\x00\x12\x18\n\x0e\x65xtracted_iban\x18\n \x01(\tH\x00\x42\x10\n\x0e\x65xtracted_dataB\x10\n\x0e_error_messageB\x12\n\x10_saved_file_path\"_\n\x10ProcessImageTask\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\x12\x1e\n\nimage_side\x18\x03 \x01(\x0e\x32\n.ImageSide\"k\n\x16ProcessOfficialDocTask\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\x12$\n\rdocument_type\x18\x03 \x01(\x0e\x32\r.DocumentType\"Y\n\x0cMergePdfTask\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12\x17\n\x0f\x66ront_file_path\x18\x02 \x01(\t\x12\x16\n\x0e\x62\x61\x63k_file_path\x18\x03 \x01(\t\"H\n\x19ProcessBankAccountDocTask\x12\x18\n\x10registration_key\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\"\x89\x02\n\x12WorkerTaskEnvelope\x12\"\n\x0c\x63ommand_type\x18\x01 \x01(\x0e\x32\x0c.CommandType\x12\'\n\nimage_task\x18\x02 \x01(\x0b\x32\x11.ProcessImageTaskH\x00\x12\x34\n\x11official_doc_task\x18\x03 \x01(\x0b\x32\x17.ProcessOfficialDocTaskH\x00\x12#\n\nmerge_task\x18\x04 \x01(\x0b\x32\r.MergePdfTaskH\x00\x12;\n\x15\x62\x61nk_account_doc_task\x18\x05 \x01(\x0b\x32\x1a.ProcessBankAccountDocTaskH\x00\x42\x0e\n\x0ctask_payload*\xf3\x01\n\x0c\x44ocumentType\x12\x19\n\x15\x44OCUMENT_TYPE_UNKNOWN\x10\x00\x12%\n!DOCUMENT_TYPE_POPULATION_REGISTRY\x10\x01\x12\x1b\n\x17\x44OCUMENT_TYPE_RESIDENCE\x10\x02\x12 \n\x1c\x44OCUMENT_TYPE_IDENTITY_FRONT\x10\x03\x12\x1f\n\x1b\x44OCUMENT_TYPE_IDENTITY_BACK\x10\x04\x12!\n\x1d\x44OCUMENT_TYPE_MERGED_IDENTITY\x10\x05\x12\x1e\n\x1a\x44OCUMENT_TYPE_BANK_ACCOUNT\x10\x06*N\n\tImageSide\x12\x16\n\x12IMAGE_SIDE_UNKNOWN\x10\x00\x12\x14\n\x10IMAGE_SIDE_FRONT\x10\x01\x12\x13\n\x0fIMAGE_SIDE_BACK\x10\x02*\xd7\x01\n\x0b\x43ommandType\x12\x18\n\x14\x43OMMAND_TYPE_UNKNOWN\x10\x00\x12\x1e\n\x1a\x43OMMAND_TYPE_PROCESS_IMAGE\x10\x01\x12%\n!COMMAND_TYPE_PROCESS_OFFICIAL_DOC\x10\x02\x12\x1a\n\x16\x43OMMAND_TYPE_MERGE_PDF\x10\x03\x12 \n\x1c\x43OMMAND_TYPE_EXTRACT_BARCODE\x10\x04\x12)\n%COMMAND_TYPE_PROCESS_BANK_ACCOUNT_DOC\x10\x05\x42#\xaa\x02 SponsorAid.Integration.Contractsb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,12 +32,12 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'events_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'\252\002 SponsorAid.Integration.Contracts'
-  _globals['_DOCUMENTTYPE']._serialized_start=1206
-  _globals['_DOCUMENTTYPE']._serialized_end=1417
-  _globals['_IMAGESIDE']._serialized_start=1419
-  _globals['_IMAGESIDE']._serialized_end=1497
-  _globals['_COMMANDTYPE']._serialized_start=1500
-  _globals['_COMMANDTYPE']._serialized_end=1672
+  _globals['_DOCUMENTTYPE']._serialized_start=1367
+  _globals['_DOCUMENTTYPE']._serialized_end=1610
+  _globals['_IMAGESIDE']._serialized_start=1612
+  _globals['_IMAGESIDE']._serialized_end=1690
+  _globals['_COMMANDTYPE']._serialized_start=1693
+  _globals['_COMMANDTYPE']._serialized_end=1908
   _globals['_PERSON']._serialized_start=17
   _globals['_PERSON']._serialized_end=160
   _globals['_POPULATIONREGISTRYDATA']._serialized_start=162
@@ -45,13 +45,15 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_RESIDENCEDATA']._serialized_start=213
   _globals['_RESIDENCEDATA']._serialized_end=323
   _globals['_WORKERRESULTMESSAGE']._serialized_start=326
-  _globals['_WORKERRESULTMESSAGE']._serialized_end=699
-  _globals['_PROCESSIMAGETASK']._serialized_start=701
-  _globals['_PROCESSIMAGETASK']._serialized_end=796
-  _globals['_PROCESSOFFICIALDOCTASK']._serialized_start=798
-  _globals['_PROCESSOFFICIALDOCTASK']._serialized_end=905
-  _globals['_MERGEPDFTASK']._serialized_start=907
-  _globals['_MERGEPDFTASK']._serialized_end=996
-  _globals['_WORKERTASKENVELOPE']._serialized_start=999
-  _globals['_WORKERTASKENVELOPE']._serialized_end=1203
+  _globals['_WORKERRESULTMESSAGE']._serialized_end=725
+  _globals['_PROCESSIMAGETASK']._serialized_start=727
+  _globals['_PROCESSIMAGETASK']._serialized_end=822
+  _globals['_PROCESSOFFICIALDOCTASK']._serialized_start=824
+  _globals['_PROCESSOFFICIALDOCTASK']._serialized_end=931
+  _globals['_MERGEPDFTASK']._serialized_start=933
+  _globals['_MERGEPDFTASK']._serialized_end=1022
+  _globals['_PROCESSBANKACCOUNTDOCTASK']._serialized_start=1024
+  _globals['_PROCESSBANKACCOUNTDOCTASK']._serialized_end=1096
+  _globals['_WORKERTASKENVELOPE']._serialized_start=1099
+  _globals['_WORKERTASKENVELOPE']._serialized_end=1364
 # @@protoc_insertion_point(module_scope)
